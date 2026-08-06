@@ -103,6 +103,11 @@ button{-webkit-tap-highlight-color:transparent;}
 .srow{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:11px;transition:background .18s;}
 .srow.done{background:color-mix(in srgb,var(--go) 8%,transparent);}
 .srow.ispr{background:color-mix(in srgb,var(--gold) 10%,transparent);}
+.srow.isunder{background:color-mix(in srgb,var(--txt3) 14%,transparent);}
+.srow.done.isunder .sno{background:color-mix(in srgb,var(--txt3) 26%,transparent);color:var(--txt2);}
+.srow.done.isunder .inp{color:var(--txt2);text-shadow:none;}
+.srow.done.isunder .chk{background:var(--txt3);border-color:var(--txt3);box-shadow:none;}
+.srow.done.isunder .chk svg{stroke:var(--bg);}
 .sno{width:22px;height:22px;border-radius:7px;background:var(--surface2);color:var(--txt3);font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow.done .sno{background:color-mix(in srgb,var(--go) 18%,transparent);color:var(--go);}
 .srow.ispr .sno{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold);}
@@ -257,6 +262,14 @@ body.light .ovl{background:rgba(20,24,30,.5);}
 /* fine obsidian grain - polished stone, not paper */
 body::after{content:'';position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:.16;mix-blend-mode:soft-light;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
 body.light::after{opacity:.22;mix-blend-mode:multiply;}
+/* the launch turn animates four full-screen 3D layers; a blended grain overlay on top of
+   that makes Android re-blend the whole viewport every frame, so nothing extra paints until
+   the splash is done. will-change is scoped here too, so the hint is dropped afterwards. */
+body.booting::after{display:none;}
+body.booting .s-head{backdrop-filter:none;}
+body.booting #home::before{display:none;}
+body.booting .sp-leaf{will-change:transform;}
+body.booting .sp-board{will-change:transform,opacity;}
 /* cold gilt hairline under the running head */
 .s-head{box-shadow:0 1px 0 color-mix(in srgb,var(--gold) 20%,transparent),0 10px 30px -18px rgba(111,217,255,.35);}
 /* arcane ambient - a cold bloom above the page */
@@ -399,7 +412,8 @@ body.light .fbtn:hover{box-shadow:0 4px 14px -6px rgba(16,20,24,.18);}
 #splash.out{pointer-events:none;background:transparent;}
 .sp-leaf{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;
   background:linear-gradient(100deg,var(--surface2) 0%,var(--surface) 44%,#0a0c14 100%);
-  box-shadow:22px 0 54px rgba(0,0,0,.6);
+  box-shadow:16px 0 30px rgba(0,0,0,.55);
+  backface-visibility:hidden;
   transition:transform .74s cubic-bezier(.46,.03,.3,1);}
 .sp-leaf::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,rgba(198,224,255,.10),rgba(198,224,255,.02) 34%,transparent 60%);}
 .sp-leaf.l1{z-index:3;transition-delay:.20s;}
@@ -410,7 +424,8 @@ body.light .fbtn:hover{box-shadow:0 4px 14px -6px rgba(16,20,24,.18);}
 #splash.out .sp-leaf.l3{transform:rotateY(-104deg);}
 .sp-board{z-index:4;position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
   background:radial-gradient(125% 105% at 34% 16%,#1b2038 0%,#0d1020 48%,#05060c 100%);
-  box-shadow:inset 0 0 150px rgba(0,0,0,.72),24px 0 60px rgba(0,0,0,.5);
+  box-shadow:inset 0 0 90px rgba(0,0,0,.72),18px 0 36px rgba(0,0,0,.5);
+  backface-visibility:hidden;
   transition:transform .92s cubic-bezier(.5,.04,.28,1),opacity .34s ease .58s;}
 #splash.out .sp-board{transform:rotateY(-112deg);opacity:0;}
 .sp-board::before{content:'';position:absolute;top:0;bottom:0;left:0;width:26px;background:linear-gradient(90deg,rgba(0,0,0,.88),rgba(0,0,0,.12));border-right:1px solid rgba(240,201,107,.18);}
@@ -439,7 +454,7 @@ body.light .inp[readonly]:hover{border-bottom-color:color-mix(in srgb,var(--c) 5
 body.light .card:hover{box-shadow:0 4px 14px -4px rgba(16,20,24,.16);}
 </style>
 </head>
-<body>
+<body class="booting">
 <div id="turn"><div class="tpage"></div><div class="tspine"></div></div>
 <div id="wipe"><div id="wcover"></div><canvas id="wipecv"></canvas></div>
 <div id="splash" onclick="dismissSplash()">
@@ -521,6 +536,7 @@ body.light .card:hover{box-shadow:0 4px 14px -4px rgba(16,20,24,.16);}
     <textarea id="exportTxt" readonly></textarea>
     <div class="sheet-btns">
       <div class="btn btn-go" onclick="copyExport()" id="copyBtn">COPY</div>
+      <div class="btn" onclick="saveAndExit()">SAVE &amp; EXIT</div>
       <div class="btn" onclick="closeOvl('exportOvl')">CLOSE</div>
     </div>
   </div>
@@ -619,6 +635,7 @@ body.light .card:hover{box-shadow:0 4px 14px -4px rgba(16,20,24,.16);}
     <textarea id="histTxt" readonly style="position:fixed;left:-9999px;top:0;width:10px;height:10px;opacity:0"></textarea>
     <div class="sheet-btns">
       <div class="btn btn-go" onclick="copyHist()" id="copyHistBtn">COPY ALL</div>
+      <div class="btn" onclick="exportAll()">EXPORT FILE</div>
       <div class="btn" onclick="closeOvl('histOvl')">CLOSE</div>
     </div>
   </div>
@@ -682,8 +699,9 @@ var GRP={
   row:'back-horizontal',
   preacher:'biceps',sdbcurl:'biceps',hammer:'biceps',cbcurl:'biceps',
   vbar:'triceps',rope:'triceps',ohext:'triceps',skull:'triceps',
-  hack:'quad',lpress:'quad',lext:'quad',
-  hthrust:'posterior',slegcurl:'posterior',plegcurl:'posterior',sumo:'posterior',lunge:'posterior',
+  hack:'quad',lpress:'quad',lext:'quad',lunge:'quad',
+  hthrust:'glute',sumo:'glute',
+  slegcurl:'hamstring',plegcurl:'hamstring',
   dcalfr:'calf',scalfr:'calf',
   dblat:'delt-side',clat:'delt-side',revfly:'delt-rear',
   bike:'core',hollow:'core',legraise:'core',hipraise:'core',plank:'core',
@@ -740,7 +758,7 @@ var ALTGRP={lvchest:'chest-press',dbbench:'chest-press',smbench:'chest-press',pu
   dbfly:'chest-fly',machrow:'back-horizontal',dbrow:'back-horizontal',machpd:'back-vertical',
   bbcurl:'biceps',inccurl:'biceps',dip:'triceps',bdip:'triceps',
   machlat:'delt-side',facepull:'delt-rear',goblet:'quad',smsquat:'quad',
-  bbthrust:'posterior',stepup:'posterior',stcalf:'calf',kneeraise:'core',abmach:'core'};
+  bbthrust:'glute',stepup:'glute',stcalf:'calf',kneeraise:'core',abmach:'core'};
 for(var __g in ALTGRP){GRP[__g]=ALTGRP[__g];}
 for(var __pg in PUMPGRP){GRP[__pg]=PUMPGRP[__pg];}
 function grpOf(id){return GRP[id]||'other';}
@@ -960,11 +978,22 @@ function bestEver(exId,excludeIdx){
   }
   return best;
 }
-function isPR(exId,set){
-  if(!set||(!set.w&&!set.r))return false;
+function isPR(exId,set){return setGrade(exId,set)==='pr';}
+// How this set stands against your best ever for the lift:
+// 'pr' beat it, 'match' equalled it, 'under' came in below it.
+function setGrade(exId,set){
+  if(!set||(!set.w&&!set.r))return null;
   var b=bestEver(exId);
-  if(!b)return true;                       // first time logged = best so far
-  return set.w>b.w||(set.w===b.w&&set.r>b.r);
+  if(!b)return 'pr';                       // first time logged = best so far
+  var w=set.w||0,r=set.r||0,bw=b.w||0,br=b.r||0;
+  if(w>bw||(w===bw&&r>br))return 'pr';
+  if(w===bw&&r===br)return 'match';
+  return 'under';
+}
+function gradeClass(e){
+  if(!e)return '';
+  var g=e.g||(e.pr?'pr':'');               // entries logged before grading existed
+  return g==='pr'?' ispr':g==='under'?' isunder':g==='match'?' ismatch':'';
 }
 function isReady(exId,tgts){
   var L=lastFor(exId);
@@ -1096,7 +1125,10 @@ function dismissSplash(){
   if(!s)return;
   s.classList.add('out');
   sfxRiffle();
-  setTimeout(function(){s.style.display='none';},1400);
+  setTimeout(function(){
+    s.style.display='none';
+    document.body.classList.remove('booting');
+  },1400);
 }
 function renderMark(){
   document.getElementById('mark').innerHTML=
@@ -1236,7 +1268,7 @@ function renderSession(){
         var e=ent[i];
         var vw=e?e.w:(t.type==='wr'?t.w:0);
         var vr=e?e.r:t.r;
-        html+='<div class="srow'+(e?' done':'')+(e&&e.pr?' ispr':'')+'" id="sr-'+id+'-'+i+'"><span class="sno num">'+(i+1)+'</span>';
+        html+='<div class="srow'+(e?' done':'')+gradeClass(e)+'" id="sr-'+id+'-'+i+'"><span class="sno num">'+(i+1)+'</span>';
         if(t.type==='wr'){
           html+='<input class="inp" id="w-'+id+'-'+i+'" readonly value="'+vw+'" onclick="openEdit(\''+id+'\','+i+',\'w\')">'+
                 '<span class="mul">&times;</span>'+
@@ -1336,6 +1368,7 @@ function toggleSet(id,i,rest,unit){
   if(A.entries[id][i]){
     A.entries[id][i]=null;
     row.classList.remove('done');row.classList.remove('ispr');
+    row.classList.remove('ismatch');row.classList.remove('isunder');
     sfxUndo();
   }else{
     var w=parseFloat(document.getElementById('w-'+key).value)||0;
@@ -1343,9 +1376,11 @@ function toggleSet(id,i,rest,unit){
     var e={w:w,r:r,unit:unit||''};
     if(holdBreak[key]>0)e.br=holdBreak[key];
     if(!A.start)A.start=Date.now();
-    var cb=row.querySelector('.chk'),pr=isPR(id,e);
-    if(pr){e.pr=1;row.classList.add('ispr');sfxPR();vib([40,60,40,60,140]);}
-    else{sfxLog();vib(35);}
+    var cb=row.querySelector('.chk'),gr=setGrade(id,e);
+    e.g=gr;
+    if(gr==='pr'){e.pr=1;row.classList.add('ispr');sfxPR();vib([40,60,40,60,140]);}
+    else if(gr==='match'){row.classList.add('ismatch');sfxLog();vib(35);}
+    else{row.classList.add('isunder');sfxLog();vib(35);}
     if(cb){
       cb.classList.remove('flare','pr');void cb.offsetWidth;
       cb.classList.add('flare');if(pr)cb.classList.add('pr');
@@ -1375,22 +1410,22 @@ function clearSession(){
   },'Reset this session?','RESET');
 }
 document.getElementById('sBack').onclick=function(){
-  pageTurn(true,function(){document.getElementById('session').classList.remove('on');});
-  stopTimer();stopHold();resetHoldState();renderHome();
+  leaveSession();
   document.getElementById('pumpBtn').style.display='';
 };
 
 // ---------- swap ----------
 var swapTarget=null;
-var GLABEL={'chest-press':'Chest press','chest-fly':'Chest fly / isolation','back-vertical':'Vertical pull','back-horizontal':'Horizontal row','biceps':'Biceps','triceps':'Triceps','quad':'Quad','posterior':'Posterior chain','calf':'Calves','delt-side':'Side delt','delt-rear':'Rear delt','core':'Core','forearm':'Forearm','cardio':'Cardio','mobility':'Mobility','other':'Other'};
+var GLABEL={'chest-press':'Chest press','chest-fly':'Chest fly / isolation','back-vertical':'Vertical pull','back-horizontal':'Horizontal row','biceps':'Biceps','triceps':'Triceps','quad':'Quad / squat pattern','glute':'Glutes / hip extension','hamstring':'Hamstring / leg curl','posterior':'Posterior chain','calf':'Calves','delt-side':'Side delt','delt-rear':'Rear delt','core':'Core','forearm':'Forearm','cardio':'Cardio','mobility':'Mobility','other':'Other'};
 function swapItem(k){
   return '<div class="swapitem" onclick="doSwap(\''+k+'\')">'+EX[k].name+'<small>'+EX[k].sets.split('\n').join(', ')+'</small></div>';
 }
 function openSwap(id){
   swapTarget=id;
-  var g=grpOf(id),same=[],other=[];
+  var g=grpOf(id),same=[],other=[],isPump=id.indexOf('p_')===0;
   Object.keys(EX).forEach(function(k){
     if(k===id)return;
+    if((k.indexOf('p_')===0)!==isPump)return;   // pump day stays in pump day
     (grpOf(k)===g?same:other).push(k);
   });
   var html='<div class="swapitem" onclick="doSwap(null)" style="border-color:#3a3a3c">Keep '+EX[id].name+'<small>remove any swap</small></div>';
@@ -1480,6 +1515,29 @@ function finishSession(){
   document.getElementById('exportOvl').classList.add('on');
   document.getElementById('session').classList.remove('on');
   stopTimer();renderHome();
+}
+// the session is already saved by the time this sheet is up; this just closes it out
+function saveAndExit(){
+  saveDB();
+  closeOvl('exportOvl');
+  document.getElementById('session').classList.remove('on');
+  stopTimer();stopHold();resetHoldState();
+  renderHome();
+}
+// write every logged session out as a text file
+function exportAll(){
+  if(!DB.logs.length){ask('Finish a session first.',null,'Nothing to export');return;}
+  var txt='ARCANUM \u2014 full history\n'+DB.logs.length+' sessions\n\n'+
+    DB.logs.slice().reverse().map(function(L){
+      return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:{}});
+    }).join('\n\n------------------------\n\n');
+  try{
+    var b=new Blob([txt],{type:'text/plain'}),u=URL.createObjectURL(b);
+    var a=document.createElement('a');
+    a.href=u;a.download='arcanum-history-'+today()+'.txt';
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
+  }catch(e){ask('This browser blocked the download. Use COPY ALL instead.',null,'Export failed');}
 }
 function copyExport(){copyEl('exportTxt','copyBtn');}
 function copyHist(){copyEl('histTxt','copyHistBtn');}
@@ -1685,10 +1743,11 @@ function renderHist(){
       '<div class="hnav" onclick="histMon(1)">&rsaquo;</div></div>'+
     '<div class="hgrid">'+cells+'</div>';
 }
-function ask(msg,onYes,title,yesLabel){
+function ask(msg,onYes,title,yesLabel,onNo){
   document.getElementById('askTitle').textContent=title||'Are you sure?';
   document.getElementById('askMsg').textContent=msg;
   var y=document.getElementById('askYes'),n=document.getElementById('askNo');
+  n.onclick=function(){closeOvl('askOvl');if(onNo)onNo();};
   if(onYes){
     y.textContent=yesLabel||'CONFIRM';n.style.display='';
     y.onclick=function(){closeOvl('askOvl');onYes();};
@@ -1700,6 +1759,44 @@ function ask(msg,onYes,title,yesLabel){
 }
 function closeOvl(id){document.getElementById(id).classList.remove('on');}
 
+// ---------- hardware back button ----------
+// The stack is kept at [home, guard]. Back pops the guard and lands here, we act on it
+// and push a fresh guard. Only from the home screen, with nothing open, is the app
+// allowed to close - and then only after you confirm.
+function backGuard(){try{history.pushState({arc:'guard'},'');}catch(e){}}
+function topOvl(){
+  var o=document.querySelectorAll('.ovl.on');
+  return o.length?o[o.length-1]:null;
+}
+function sessionOpen(){
+  var s=document.getElementById('session');
+  return !!(s&&s.classList.contains('on'));
+}
+function leaveSession(){
+  pageTurn(true,function(){document.getElementById('session').classList.remove('on');});
+  stopTimer();stopHold();resetHoldState();renderHome();
+}
+function onBackButton(){
+  if(!splashGone){dismissSplash();backGuard();return;}
+  var ov=topOvl();
+  if(ov){                                  // an open sheet closes first
+    if(ov.id==='histOvl'&&HIST.sel!==null){histBack();backGuard();return;}
+    ov.classList.remove('on');backGuard();return;
+  }
+  if(sessionOpen()){leaveSession();backGuard();return;}
+  backGuard();                             // hold our place while the question is up
+  ask('Arcanum closes. Your session stays exactly where it is \u2014 nothing is lost.',
+    function(){try{history.go(-2);}catch(e){}},
+    'Close Arcanum?','CLOSE');
+}
+function initBack(){
+  try{
+    history.replaceState({arc:'home'},'');
+    backGuard();
+    window.addEventListener('popstate',onBackButton);
+  }catch(e){}
+}
+
 // ---------- rest timer ----------
 var actx=null,mbus=null,nbuf=null,rsend=null;
 var SFX_ON=(function(){try{return localStorage.getItem('arc_sfx')==='0'?0:1;}catch(e){return 1;}})();
@@ -1709,8 +1806,8 @@ function initAudio(){
       var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
       actx=new AC();
       var comp=actx.createDynamicsCompressor();
-      comp.threshold.value=-20;comp.knee.value=8;comp.ratio.value=10;comp.attack.value=0.002;comp.release.value=0.12;
-      mbus=actx.createGain();mbus.gain.value=0.9;
+      comp.threshold.value=-9;comp.knee.value=6;comp.ratio.value=6;comp.attack.value=0.003;comp.release.value=0.14;
+      mbus=actx.createGain();mbus.gain.value=1.55;
       mbus.connect(comp);comp.connect(actx.destination);
       // stone-chamber tail: everything on the bus gets a long dark decay
       var rev=actx.createConvolver();
@@ -1817,8 +1914,11 @@ function sfxPR(){sfx(function(t){
 function sfxRest(){sfx(function(t){
   for(var k=0;k<3;k++){
     var o=k*0.42;
-    nz(t+o,150,0.6,0.16,0.16);
-    dread(t+o,98,0.8,0.1);
+    nz(t+o,150,0.6,0.16,0.34);
+    dread(t+o,98,0.8,0.22);
+    // a hard bright strike at 2.6k - the band a gym playlist leaves mostly empty
+    nz(t+o,2600,1.6,0.07,0.3);
+    pt(t+o,2093,0.1,0.16,'triangle');
   }
   // the far bell, two of them slightly out of tune with each other
   [196,197.6].forEach(function(f){
@@ -1829,13 +1929,16 @@ function sfxRest(){sfx(function(t){
     g.gain.exponentialRampToValueAtTime(0.0001,t+3.5);
     o.connect(g);g.connect(mbus);o.start(t+1.34);o.stop(t+3.6);
   });
-  nz(t+1.34,58,0.5,0.7,0.15);
-  breath(t+1.5,1.4,0.04,1800,300);
+  nz(t+1.34,58,0.5,0.7,0.3);
+  nz(t+1.34,3100,2,0.12,0.26);
+  breath(t+1.5,1.4,0.07,1800,300);
 });}
 // hold target reached
 function sfxHold(){sfx(function(t){
-  breath(t,0.55,0.07,2400,420);
-  dread(t+0.06,147,0.9,0.1);
+  breath(t,0.55,0.13,2400,420);
+  nz(t,2400,1.7,0.06,0.24);
+  pt(t,1568,0.12,0.15,'triangle');
+  dread(t+0.06,147,0.9,0.19);
 });}
 // page turn - soft paper sweep
 function sfxPage(){sfx(function(t){
@@ -2264,6 +2367,8 @@ function openTimerSheet(){
   var t=await Store.get(TKEY);
   applyTheme(t||'dark');
   renderHome();
+  drawNotifTog();
+  initBack();
 })();
 </script>
 </body>
