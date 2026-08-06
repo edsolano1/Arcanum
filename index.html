@@ -408,11 +408,11 @@ body.light .fbtn{background:var(--surface);box-shadow:0 1px 2px rgba(16,20,24,.0
 body.light .fbtn:hover{box-shadow:0 4px 14px -6px rgba(16,20,24,.18);}
 
 /* ---------- launch ---------- */
-#splash{position:fixed;inset:0;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
+#splash{position:fixed;left:0;top:0;right:0;bottom:0;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
 #splash.out{pointer-events:none;background:transparent;}
-.sp-leaf{position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;
+.sp-leaf{position:absolute;inset:0;transform-origin:left center;
   background:linear-gradient(100deg,var(--surface2) 0%,var(--surface) 44%,#0a0c14 100%);
-  box-shadow:16px 0 30px rgba(0,0,0,.55);
+  box-shadow:16px 0 22px rgba(0,0,0,.55);
   backface-visibility:hidden;
   transition:transform .74s cubic-bezier(.46,.03,.3,1);}
 .sp-leaf::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,rgba(198,224,255,.10),rgba(198,224,255,.02) 34%,transparent 60%);}
@@ -422,7 +422,7 @@ body.light .fbtn:hover{box-shadow:0 4px 14px -6px rgba(16,20,24,.18);}
 #splash.out .sp-leaf{transform:rotateY(-118deg);}
 #splash.out .sp-leaf.l2{transform:rotateY(-112deg);}
 #splash.out .sp-leaf.l3{transform:rotateY(-104deg);}
-.sp-board{z-index:4;position:absolute;inset:0;transform-origin:left center;transform-style:preserve-3d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+.sp-board{z-index:4;position:absolute;inset:0;transform-origin:left center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
   background:radial-gradient(125% 105% at 34% 16%,#1b2038 0%,#0d1020 48%,#05060c 100%);
   box-shadow:inset 0 0 90px rgba(0,0,0,.72),18px 0 36px rgba(0,0,0,.5);
   backface-visibility:hidden;
@@ -592,6 +592,8 @@ body.light .card:hover{box-shadow:0 4px 14px -4px rgba(16,20,24,.16);}
       <button class="preset sm" onclick="sfxPR()">Record</button>
       <button class="preset sm" onclick="sfxRest()">Rest over</button>
     </div>
+    <div class="sfx-lbl"><span>Rest alert volume</span></div>
+    <div class="presets" id="alertLvl"></div>
     <div class="sfx-lbl"><span>Rest notice</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('timerOvl')">CLOSE</div></div>
   </div>
@@ -902,9 +904,33 @@ function toggleTheme(){
   applyTheme(t);Store.set(TKEY,t);
 }
 var DB={logs:[],active:{}};
-async function loadDB(){var d=await Store.get(KEY);if(d&&d.logs){DB=d;if(!DB.active)DB.active={};}}
+async function loadDB(){
+  var d=await Store.get(KEY),bak=null;
+  try{var raw=localStorage.getItem(KEY+':bak');var p=raw?JSON.parse(raw):null;if(p&&p.db&&p.db.logs)bak=p.db;}catch(e){}
+  if(bak){
+    if(!d||!d.logs)d=bak;
+    else{
+      var cnt=function(x){return x.logs.length*1000+Object.keys(x.active||{}).length;};
+      if(cnt(bak)>cnt(d))d=bak;
+    }
+  }
+  if(d&&d.logs){DB=d;if(!DB.active)DB.active={};}
+}
 var saveT=null;
-function saveDB(){clearTimeout(saveT);saveT=setTimeout(function(){Store.set(KEY,DB);},250);}
+// Write through on every call. The old 250ms debounce meant a set tapped in the last
+// quarter-second before Android froze or killed the tab was never persisted - on relaunch
+// the session came back empty and reconcileActive then deleted the stub outright.
+function persistNow(){
+  clearTimeout(saveT);saveT=null;
+  try{Store.set(KEY,DB);}catch(e){}
+  try{localStorage.setItem(KEY+':bak',JSON.stringify({t:Date.now(),db:DB}));}catch(e){}
+}
+function saveDB(){persistNow();}
+// only for keystroke-rate callers (the notes box)
+function saveSoon(){clearTimeout(saveT);saveT=setTimeout(persistNow,400);}
+['visibilitychange','pagehide','freeze','blur'].forEach(function(ev){
+  window.addEventListener(ev,function(){if(document.visibilityState!=='visible'||ev!=='visibilitychange')persistNow();},{capture:true});
+});
 
 // ============================================================
 // HELPERS
@@ -925,10 +951,13 @@ function parseTarget(s){
 }
 function targetsOf(row){return R(row).sets.split('\n').map(parseTarget);}
 
+function exOfKey(L,k){return ((L&&L.swaps)||{})[k]||k;}
 function lastFor(exId){
   for(var i=DB.logs.length-1;i>=0;i--){
-    var L=DB.logs[i];
-    if(L.entries&&L.entries[exId]&&L.entries[exId].length)return {sets:L.entries[exId],date:L.date};
+    var L=DB.logs[i];if(!L.entries)continue;
+    for(var k in L.entries){
+      if(exOfKey(L,k)===exId&&L.entries[k].length)return {sets:L.entries[k],date:L.date};
+    }
   }
   return null;
 }
@@ -969,7 +998,9 @@ function bestEver(exId,excludeIdx){
   var best=null;
   for(var i=0;i<DB.logs.length;i++){
     if(excludeIdx!==undefined&&i===excludeIdx)continue;
-    var sets=DB.logs[i].entries&&DB.logs[i].entries[exId];
+    var L=DB.logs[i],sets=null;
+    if(!L.entries)continue;
+    for(var kk in L.entries){if(exOfKey(L,kk)===exId){sets=L.entries[kk];break;}}
     if(!sets)continue;
     for(var j=0;j<sets.length;j++){
       var x=sets[j];if(!x)continue;
@@ -980,11 +1011,12 @@ function bestEver(exId,excludeIdx){
 }
 function isPR(exId,set){return setGrade(exId,set)==='pr';}
 // How this set stands against your best ever for the lift:
-// 'pr' beat it, 'match' equalled it, 'under' came in below it.
+// 'pr' beat it, 'match' equalled it, 'under' came in below it,
+// 'first' is the opening entry on a lift - a baseline to beat, so it reads grey.
 function setGrade(exId,set){
   if(!set||(!set.w&&!set.r))return null;
   var b=bestEver(exId);
-  if(!b)return 'pr';                       // first time logged = best so far
+  if(!b)return 'first';                    // nothing to beat yet - set the baseline
   var w=set.w||0,r=set.r||0,bw=b.w||0,br=b.r||0;
   if(w>bw||(w===bw&&r>br))return 'pr';
   if(w===bw&&r===br)return 'match';
@@ -993,7 +1025,7 @@ function setGrade(exId,set){
 function gradeClass(e){
   if(!e)return '';
   var g=e.g||(e.pr?'pr':'');               // entries logged before grading existed
-  return g==='pr'?' ispr':g==='under'?' isunder':g==='match'?' ismatch':'';
+  return g==='pr'?' ispr':(g==='under'||g==='first')?' isunder':g==='match'?' ismatch':'';
 }
 function isReady(exId,tgts){
   var L=lastFor(exId);
@@ -1118,6 +1150,26 @@ if(swAllowed()){
   swTeardown();
 }
 var splashGone=false;
+var bootT0=Date.now(),homeReady=false;
+// The launch runs on its own clock. It used to be dismissed from renderHome(), which
+// waits on IndexedDB - a slow cold start left the board sitting there mid-animation.
+function markHomeReady(){
+  if(homeReady)return;homeReady=true;
+  setTimeout(dismissSplash,Math.max(0,1700-(Date.now()-bootT0)));
+}
+// hard ceiling: storage can never trap the user behind the splash
+setTimeout(function(){dismissSplash();},3600);
+// Android settles its system bars a beat after launch, which shrinks the viewport and
+// jolts the 3D turn. Pin the splash box and only ever let it grow, never shrink.
+function lockSplash(){
+  var s=document.getElementById('splash');if(!s||splashGone)return;
+  var w=Math.max(parseFloat(s.style.width)||0,window.innerWidth);
+  var h=Math.max(parseFloat(s.style.height)||0,window.innerHeight);
+  s.style.width=w+'px';s.style.height=h+'px';
+}
+lockSplash();
+window.addEventListener('resize',lockSplash);
+document.documentElement.style.background='#04050a';   // no pale gutter if the viewport grows mid-turn
 function dismissSplash(){
   if(splashGone)return;splashGone=true;
   initAudio();
@@ -1128,6 +1180,7 @@ function dismissSplash(){
   setTimeout(function(){
     s.style.display='none';
     document.body.classList.remove('booting');
+    document.documentElement.style.background='';
   },1400);
 }
 function renderMark(){
@@ -1164,7 +1217,7 @@ function renderHome(){
   var td=WEEK.filter(function(e){return e.day.slice(0,3).toLowerCase()===['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];})[0];
   var st=document.getElementById('spTag');
   if(st)st.textContent=td&&W[td.wk]?W[td.wk].name.replace('Optional: ',''):'Rest day';
-  setTimeout(dismissSplash,1700);
+  markHomeReady();
 }
 
 // ============================================================
@@ -1183,17 +1236,24 @@ function sealAway(wk){
   if(!A)return;
   var entries={};
   for(var k in A.entries){var arr=A.entries[k].filter(function(x){return x;});if(arr.length)entries[k]=arr;}
-  if(Object.keys(entries).length)DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||''});
+  if(Object.keys(entries).length)DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||'',swaps:A.swaps||{}});
   delete DB.active[wk];
 }
 // on launch, make the one-session rule true again: keep the session you touched last,
 // seal the rest into history, and drop empty or unknown stubs
 function reconcileActive(){
-  var live=[],changed=false;
+  var live=[],changed=false,td=today();
   for(var k in DB.active){
-    if(!W[k]||loggedCount(k)===0){delete DB.active[k];changed=true;continue;}
+    var A=DB.active[k];
+    if(!W[k]){delete DB.active[k];changed=true;continue;}
+    // an empty stub is only junk once its day has passed - never bin one from today,
+    // or a cold start mid-session throws the whole day away
+    if(loggedCount(k)===0&&(!A||(A.date!==td&&!A.note&&!Object.keys(A.swaps||{}).length))){
+      delete DB.active[k];changed=true;continue;
+    }
     live.push(k);
   }
+  live=live.filter(function(k){return loggedCount(k)>0||DB.active[k].date===td;});
   if(live.length>1){
     live.sort(function(a,b){
       var A=DB.active[a],B=DB.active[b];
@@ -1233,10 +1293,12 @@ function openWNow(wk){
   document.getElementById('pumpBtn').style.display='none';
 }
 function rowFor(swaps,row){
-  var id=typeof row==='string'?row:row[0];
-  var sw=(swaps||{})[id];
-  if(sw)return {id:id,swapId:sw,data:R(sw)};
-  return {id:id,swapId:null,data:R(row)};
+  var base=typeof row==='string'?row:row[0];
+  var sw=(swaps||{})[base];
+  // id  = the plan slot the sets are filed under (stable, never collides)
+  // exId = the lift actually performed, which is what history and grading key on
+  if(sw)return {id:base,baseId:base,exId:sw,swapId:sw,data:R(sw)};
+  return {id:base,baseId:base,exId:base,swapId:null,data:R(row)};
 }
 function renderSession(){
   stopHold();resetHoldState();
@@ -1246,13 +1308,13 @@ function renderSession(){
     html+='<div class="sect-t">'+(sec.ss?'<span class="ss">&#8942; </span>':'')+sec.title+'</div>';
     sec.rows.forEach(function(row){
       var rf=rowFor(A.swaps,row),r=rf.data,id=rf.id;
-      var tg=(typeof row==='string'||!rf.swapId)?targetsOf(row):r.sets.split('\n').map(parseTarget);
+      var tg=rf.swapId?r.sets.split('\n').map(parseTarget):targetsOf(row);
       var ent=A.entries[id]||[];
       var allDone=tg.length>0&&tg.every(function(_,i){return ent[i];});
-      var L=lastFor(id),ready=isReady(id,tg),bst=bestEver(id);
+      var L=lastFor(rf.exId),ready=isReady(rf.exId,tg),bst=bestEver(rf.exId);
       html+='<div class="exc'+(allDone?' alldone':'')+'" id="exc-'+id+'">';
       html+='<div class="ex-h"><div class="ex-nrow"><div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
-            '<div class="ex-tools">'+(ready?'<span class="pill pill-ready">Ready</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+id+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
+            '<div class="ex-tools">'+(ready?'<span class="pill pill-ready">Ready</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
       html+='<div class="ex-stats">'+
             '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
@@ -1287,10 +1349,12 @@ function renderSession(){
   });
   html+='<div class="notebox"><div class="sect-t">Session notes</div><textarea id="noteBox" placeholder="Form issues, how it felt, equipment problems, anything worth remembering...">'+(A.note||'')+'</textarea></div>';
   html+='<div class="finish-inline"><button class="finishbtn" onclick="finishSession()">Finish &amp; export</button>'+
-        '<div style="text-align:center;margin-top:14px"><span class="btn" onclick="clearSession()">Reset this session</span></div></div>';
+        '<div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">'+
+        '<span class="btn" onclick="saveProgress()">Save &amp; leave open</span>'+
+        '<span class="btn" onclick="clearSession()">Reset this session</span></div></div>';
   document.getElementById('sBody').innerHTML=html;
   var nb=document.getElementById('noteBox');
-  nb.oninput=function(){DB.active[CUR].note=nb.value;saveDB();};
+  nb.oninput=function(){DB.active[CUR].note=nb.value;saveSoon();};
   updateProg();
 }
 var edCtx=null;
@@ -1309,7 +1373,7 @@ function openEdit(id,i,which){
   initAudio();
   var A=DB.active[CUR],r=null;
   W[CUR].sections.forEach(function(sec){sec.rows.forEach(function(row){
-    if((typeof row==='string'?row:row[0])===id)r=rowFor(A.swaps,row).data;
+    var rf=rowFor(A.swaps,row);if(rf.id===id)r=rf.data;
   });});
   var cur=parseFloat(document.getElementById((which==='w'?'w-':'r-')+id+'-'+i).value)||0;
   var isSec=(r.sets.split('\n')[i]||'').indexOf('sec')>-1;
@@ -1355,7 +1419,7 @@ function saveEdit(){
   closeOvl('editOvl');edCtx=null;
 }
 function toggleSet(id,i,rest,unit){
-  initAudio();
+  initAudio();stopRestAlert();
   var key=id+'-'+i;
   if(holdInt&&holdKey===key){
     holdAcc[key]=curHold(key);
@@ -1363,6 +1427,7 @@ function toggleSet(id,i,rest,unit){
     stopHold();
   }
   var A=DB.active[CUR];
+  var exId=(A.swaps||{})[id]||id;   // grade against the swapped lift, not the slot
   if(!A.entries[id])A.entries[id]=[];
   var row=document.getElementById('sr-'+key);
   if(A.entries[id][i]){
@@ -1376,20 +1441,26 @@ function toggleSet(id,i,rest,unit){
     var e={w:w,r:r,unit:unit||''};
     if(holdBreak[key]>0)e.br=holdBreak[key];
     if(!A.start)A.start=Date.now();
-    var cb=row.querySelector('.chk'),gr=setGrade(id,e);
+    var cb=row.querySelector('.chk'),gr=setGrade(exId,e);
     e.g=gr;
-    if(gr==='pr'){e.pr=1;row.classList.add('ispr');sfxPR();vib([40,60,40,60,140]);}
-    else if(gr==='match'){row.classList.add('ismatch');sfxLog();vib(35);}
-    else{row.classList.add('isunder');sfxLog();vib(35);}
-    if(cb){
-      cb.classList.remove('flare','pr');void cb.offsetWidth;
-      cb.classList.add('flare');if(pr)cb.classList.add('pr');
-      setTimeout(function(){cb.classList.remove('flare','pr');},700);
-    }
+    if(gr==='pr')e.pr=1;
+    // Save and mark done FIRST. Nothing decorative may stand between a tapped set
+    // and it being logged - a throw in the flare/sound path used to eat the whole set.
     A.entries[id][i]=e;
     row.classList.add('done');
+    if(gr)row.classList.add(gr==='pr'?'ispr':gr==='match'?'ismatch':'isunder');   // 'first' lands grey
+    // rest starts the moment the set lands, before any effects
     var secs=parseRest(rest);
     if(secs>0)startTimer(secs);
+    try{
+      if(gr==='pr'){sfxPR();vib([40,60,40,60,140]);}
+      else{sfxLog();vib(35);}
+      if(cb){
+        cb.classList.remove('flare','pr');void cb.offsetWidth;
+        cb.classList.add('flare');if(gr==='pr')cb.classList.add('pr');
+        setTimeout(function(){cb.classList.remove('flare','pr');},700);
+      }
+    }catch(err){}
   }
   delete holdAcc[key];delete holdBreak[key];delete pauseAt[key];
   saveDB();updateProg();
@@ -1439,8 +1510,16 @@ function openSwap(id){
   document.getElementById('swapOvl').classList.add('on');
 }
 function doSwap(k){
-  if(k)DB.active[CUR].swaps[swapTarget]=k;
-  else delete DB.active[CUR].swaps[swapTarget];
+  var A=DB.active[CUR],prev=A.swaps[swapTarget]||swapTarget,next=k||swapTarget;
+  if(k)A.swaps[swapTarget]=k;
+  else delete A.swaps[swapTarget];
+  // sets already logged in this slot stay put and are regraded against the new lift
+  if(prev!==next&&A.entries[swapTarget]){
+    A.entries[swapTarget].forEach(function(e){
+      if(!e)return;
+      var g=setGrade(next,e);e.g=g;if(g==='pr')e.pr=1;else delete e.pr;
+    });
+  }
   saveDB();closeOvl('swapOvl');renderSession();
 }
 
@@ -1499,22 +1578,135 @@ function renderSummary(s){
   if(s.prs)cells.push('<div class="sum-c pr" style="grid-column:1/-1"><div class="sum-n">'+s.prs+'</div><div class="sum-l">'+(s.prs===1?'New record':'New records')+'</div></div>');
   el.innerHTML=cells.join('');
 }
+// bank a half-finished day: everything stays exactly where it is, the day stays open
+function saveProgress(){
+  var wk=CUR,A=DB.active[wk];
+  if(!A){ask('Nothing to save yet.',null,'Nothing logged yet');return;}
+  if(!A.date)A.date=today();
+  persistNow();
+  var n=loggedCount(wk);
+  ask(n?(n+(n===1?' set is':' sets are')+' saved. This day stays open \u2014 come back later and carry on from here.')
+       :'Session saved, though nothing is logged on it yet. It stays open for you.',
+      null,'Progress saved');
+}
 function finishSession(){
   var wk=CUR,A=DB.active[wk];
-  if(loggedCount(wk)===0){ask('Log at least one set before finishing.',null,'Nothing logged yet');return;}
+  if(loggedCount(wk)===0){
+    ask('No sets are checked off on this day, so there is nothing to export yet. Tap a set row to log it.',null,'Nothing logged yet');
+    return;
+  }
   var sum=summarize(wk,A);
   var txt=buildExport(wk,A);
   var entries={};
   for(var k in A.entries){var arr=A.entries[k].filter(function(x){return x;});if(arr.length)entries[k]=arr;}
-  DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||'',sealed:1});
+  DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||'',swaps:A.swaps||{},sealed:1});
   delete DB.active[wk];
   saveDB();
   document.getElementById('pumpBtn').style.display='';
   document.getElementById('exportTxt').value=txt;
   renderSummary(sum);
-  document.getElementById('exportOvl').classList.add('on');
   document.getElementById('session').classList.remove('on');
   stopTimer();renderHome();
+  igniteDiamond(function(){document.getElementById('exportOvl').classList.add('on');});
+}
+// The seal on a finished day: the diamond draws itself, catches, and burns off.
+function igniteDiamond(cb){
+  var done=false,ov=null,raf=null;
+  function fin(){
+    if(done)return;done=true;
+    if(raf)cancelAnimationFrame(raf);
+    if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+    if(cb)cb();
+  }
+  var reduce=false;
+  try{reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+  if(reduce){fin();return;}
+  ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:120;pointer-events:none;background:rgba(6,7,10,0);transition:background .3s ease';
+  var cv=document.createElement('canvas');
+  cv.style.cssText='position:absolute;inset:0;width:100%;height:100%';
+  ov.appendChild(cv);document.body.appendChild(ov);
+  var W=ov.clientWidth||window.innerWidth,H=ov.clientHeight||window.innerHeight;
+  var dpr=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  var g=cv.getContext('2d');if(!g){fin();return;}
+  g.scale(dpr,dpr);
+  requestAnimationFrame(function(){if(ov)ov.style.background='rgba(6,7,10,0.94)';});
+  var cx=W/2,cy=H/2,R=Math.min(W,H)*0.2;
+  var P=[[cx,cy-R],[cx+R,cy],[cx,cy+R],[cx-R,cy]];
+  function ptAt(f){
+    var s=(f%1)*4,i=Math.floor(s)%4,u=s-Math.floor(s);
+    var a=P[i],b=P[(i+1)%4];
+    return [a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u];
+  }
+  function diamond(k){
+    g.beginPath();
+    g.moveTo(cx,cy-R*k);g.lineTo(cx+R*k,cy);g.lineTo(cx,cy+R*k);g.lineTo(cx-R*k,cy);
+    g.closePath();
+  }
+  var em=[],t0=performance.now(),DUR=2000;
+  sfxIgnite();vib([26,70,150]);
+  function frame(now){
+    var e=(now-t0)/DUR;
+    if(e>=1){fin();return;}
+    var draw=Math.min(1,e/0.22);
+    var burn=Math.max(0,Math.min(1,(e-0.18)/0.26));
+    var peak=Math.max(0,Math.min(1,(e-0.40)/0.14));
+    var fade=Math.max(0,(e-0.62)/0.38);
+    g.clearRect(0,0,W,H);
+    g.globalAlpha=1-fade;
+    g.globalCompositeOperation='lighter';
+    // core heat building behind the shape
+    if(burn>0){
+      var rr=R*(0.3+0.8*burn+0.25*peak);
+      var rg=g.createRadialGradient(cx,cy,0,cx,cy,rr);
+      rg.addColorStop(0,'rgba(255,238,196,'+(0.42*burn+0.34*peak)+')');
+      rg.addColorStop(0.45,'rgba(226,150,52,'+(0.2*burn)+')');
+      rg.addColorStop(1,'rgba(226,150,52,0)');
+      g.fillStyle=rg;
+      g.beginPath();g.arc(cx,cy,rr,0,6.283);g.fill();
+    }
+    // embers lifting off the edge
+    if(burn>0&&burn<1&&em.length<220){
+      for(var s=0;s<4;s++){
+        var f=Math.random(),p=ptAt(f);
+        em.push({x:p[0],y:p[1],vx:(Math.random()-0.5)*22,vy:-18-Math.random()*46,
+                 l:0,ml:0.5+Math.random()*0.7,r:0.7+Math.random()*1.8});
+      }
+    }
+    for(var i=em.length-1;i>=0;i--){
+      var m=em[i];m.l+=0.016;
+      if(m.l>m.ml){em.splice(i,1);continue;}
+      m.x+=m.vx*0.016;m.y+=m.vy*0.016;m.vy-=26*0.016;m.vx*=0.985;
+      var a=(1-m.l/m.ml);
+      g.fillStyle='rgba(255,'+Math.round(190+55*a)+','+Math.round(120+90*a)+','+(a*0.85)+')';
+      g.beginPath();g.arc(m.x,m.y,m.r*a,0,6.283);g.fill();
+    }
+    // the inner facet fills as it takes
+    if(burn>0){
+      g.fillStyle='rgba(255,224,170,'+(0.10*burn+0.30*peak)+')';
+      diamond(0.42+0.06*peak);g.fill();
+    }
+    // the outline itself, drawing on then flaring
+    g.save();
+    g.lineJoin='miter';g.lineCap='round';
+    g.lineWidth=1.8+3.4*burn+2*peak;
+    g.strokeStyle='rgba('+Math.round(212+43*peak)+','+Math.round(175+55*peak)+','+Math.round(110+80*peak)+','+(0.55+0.45*burn)+')';
+    g.shadowColor='rgba(232,176,86,'+(0.4+0.6*burn)+')';
+    g.shadowBlur=8+46*burn+30*peak;
+    if(draw>=1){diamond(1);}
+    else{
+      g.beginPath();
+      var N=Math.max(2,Math.round(draw*160));
+      for(var q=0;q<=N;q++){var pp=ptAt(q/160);if(q===0)g.moveTo(pp[0],pp[1]);else g.lineTo(pp[0],pp[1]);}
+    }
+    g.stroke();
+    g.restore();
+    g.globalCompositeOperation='source-over';
+    raf=requestAnimationFrame(frame);
+  }
+  raf=requestAnimationFrame(frame);
+  setTimeout(fin,DUR+600);
 }
 // the session is already saved by the time this sheet is up; this just closes it out
 function saveAndExit(){
@@ -1529,7 +1721,7 @@ function exportAll(){
   if(!DB.logs.length){ask('Finish a session first.',null,'Nothing to export');return;}
   var txt='ARCANUM \u2014 full history\n'+DB.logs.length+' sessions\n\n'+
     DB.logs.slice().reverse().map(function(L){
-      return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:{}});
+      return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:L.swaps||{}});
     }).join('\n\n------------------------\n\n');
   try{
     var b=new Blob([txt],{type:'text/plain'}),u=URL.createObjectURL(b);
@@ -1576,8 +1768,11 @@ function sessVol(arr){var t=0;(arr||[]).forEach(function(e){t+=setVol(e);});retu
 function exHistory(id){
   var out=[];
   DB.logs.forEach(function(l){
-    if(l.entries&&l.entries[id]&&l.entries[id].length)
-      out.push({date:l.date,vol:sessVol(l.entries[id]),sets:l.entries[id]});
+    if(!l.entries)return;
+    for(var k in l.entries){
+      if(exOfKey(l,k)===id&&l.entries[k].length)
+        out.push({date:l.date,vol:sessVol(l.entries[k]),sets:l.entries[k]});
+    }
   });
   return out;
 }
@@ -1599,7 +1794,7 @@ function topSet(sets){
 }
 function showProgress(){
   var rows=[],ids={};
-  DB.logs.forEach(function(l){for(var k in l.entries)ids[k]=1;});
+  DB.logs.forEach(function(l){for(var k in l.entries)ids[exOfKey(l,k)]=1;});
   Object.keys(ids).forEach(function(id){
     var hist=exHistory(id);if(!hist.length)return;
     var last=hist[hist.length-1];
@@ -1638,7 +1833,7 @@ function showProgress(){
 function showHistory(){
   if(!DB.logs.length){ask('Finish a session and it will show up here.',null,'No history yet');return;}
   var out=DB.logs.slice().reverse().map(function(L){
-    return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:{}});
+    return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:L.swaps||{}});
   }).join('\n\n------------------------\n\n');
   document.getElementById('histTxt').value=out;
   HIST.sel=null;HIST.mon=null;
@@ -1658,7 +1853,7 @@ function deleteLog(i){
     saveDB();
     var el=document.getElementById('histTxt');
     if(el)el.value=DB.logs.slice().reverse().map(function(x){
-      return buildExport(x.day,{date:x.date,entries:x.entries,note:x.note,swaps:{}});
+      return buildExport(x.day,{date:x.date,entries:x.entries,note:x.note,swaps:x.swaps||{}});
     }).join('\n\n------------------------\n\n');
     HIST.sel=null;
     if(!DB.logs.length){closeOvl('histOvl');renderHome();return;}
@@ -1688,8 +1883,8 @@ function renderHist(){
     ttl.textContent=pretty(L.date);
     var rows='';
     for(var id in L.entries){
-      var ex=R(id);
-      rows+='<div class="hex"><div class="hex-n">'+(ex?ex.name:id)+'</div><div class="hex-s">'+
+      var exid=exOfKey(L,id),ex=R(exid),wasSwap=exid!==id;
+      rows+='<div class="hex"><div class="hex-n">'+(ex?ex.name:id)+(wasSwap?' <span style="color:var(--gold);font-size:10px">SWAP</span>':'')+'</div><div class="hex-s">'+
         L.entries[id].map(function(s){
           var v=s.unit==='sec'?(s.r+'s held'):(s.w?s.w+'\u00d7'+s.r:s.r+' reps');
           return '<span class="hset'+(s.pr?' pr':'')+'">'+v+'</span>';
@@ -1798,8 +1993,24 @@ function initBack(){
 }
 
 // ---------- rest timer ----------
-var actx=null,mbus=null,nbuf=null,rsend=null;
+var actx=null,mbus=null,nbuf=null,rsend=null,abus=null,BUS=null;
 var SFX_ON=(function(){try{return localStorage.getItem('arc_sfx')==='0'?0:1;}catch(e){return 1;}})();
+// 0 normal, 1 loud, 2 gym. Only the rest alert uses this - the rest of the palette
+// stays where it is so the room still sounds like a room.
+var ALERT_LVL=(function(){try{var v=parseInt(localStorage.getItem('arc_alert'));return isNaN(v)?1:Math.max(0,Math.min(2,v));}catch(e){return 1;}})();
+var ALERT_GAIN=[1.0,1.9,3.2];
+function setAlertLvl(n){
+  ALERT_LVL=n;
+  try{localStorage.setItem('arc_alert',n);}catch(e){}
+  if(abus)abus.gain.value=ALERT_GAIN[n];
+  drawAlertLvl();sfxRest();
+}
+function drawAlertLvl(){
+  var e=document.getElementById('alertLvl');if(!e)return;
+  e.innerHTML=['Normal','Loud','Gym'].map(function(l,i){
+    return '<button class="preset sm" onclick="setAlertLvl('+i+')" style="'+(i===ALERT_LVL?'border-color:var(--gold);color:var(--gold)':'')+'">'+l+'</button>';
+  }).join('');
+}
 function initAudio(){
   try{
     if(!actx){
@@ -1823,6 +2034,14 @@ function initAudio(){
       var rlp=actx.createBiquadFilter();rlp.type='lowpass';rlp.frequency.value=2200;
       rsend=actx.createGain();rsend.gain.value=0.42;
       mbus.connect(rsend);rsend.connect(rev);rev.connect(rlp);rlp.connect(comp);
+      // The rest alert gets its own chain. On the shared bus the reverb smeared its
+      // transients and the slow compressor pulled it down to the level of everything
+      // else - exactly the two things that make a sound vanish under gym noise.
+      abus=actx.createGain();abus.gain.value=ALERT_GAIN[ALERT_LVL];
+      var alim=actx.createDynamicsCompressor();
+      alim.threshold.value=-1.5;alim.knee.value=0;alim.ratio.value=20;
+      alim.attack.value=0.001;alim.release.value=0.05;
+      abus.connect(alim);alim.connect(actx.destination);
       var n=Math.floor(actx.sampleRate*0.4),b=actx.createBuffer(1,n,actx.sampleRate),d=b.getChannelData(0);
       for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
       nbuf=b;
@@ -1839,7 +2058,7 @@ function dread(t,f,dur,vol){
     g.gain.setValueAtTime(0.0001,t);
     g.gain.exponentialRampToValueAtTime(vol*(i===2?1:0.62),t+(i===2?0.02:0.06));
     g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    o.connect(g);g.connect(mbus);o.start(t);o.stop(t+dur+0.05);
+    o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dur+0.05);
   });
 }
 // air moving through a dead room
@@ -1851,7 +2070,7 @@ function breath(t,dur,vol,f0,f1){
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(vol,t+dur*0.3);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  s.connect(f);f.connect(g);g.connect(mbus);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);
   s.start(t);s.stop(t+dur+0.05);
 }
 // broadband transient - this is what survives a gym playlist
@@ -1862,7 +2081,7 @@ function nz(t,freq,q,dur,vol){
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(vol,t+0.002);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  s.connect(f);f.connect(g);g.connect(mbus);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);
   s.start(t);s.stop(t+dur+0.02);
 }
 function pt(t,f,dur,vol,type,bend){
@@ -1873,7 +2092,7 @@ function pt(t,f,dur,vol,type,bend){
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(vol,t+0.003);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  o.connect(g);g.connect(mbus);
+  o.connect(g);g.connect(BUS||mbus);
   o.start(t);o.stop(t+dur+0.02);
 }
 function sfx(fn){
@@ -1905,33 +2124,74 @@ function sfxPR(){sfx(function(t){
     g.gain.setValueAtTime(0.0001,t+p[1]);
     g.gain.exponentialRampToValueAtTime(0.1,t+p[1]+0.5);
     g.gain.exponentialRampToValueAtTime(0.0001,t+p[1]+p[2]);
-    o.connect(g);g.connect(mbus);o.start(t+p[1]);o.stop(t+p[1]+p[2]+0.1);
+    o.connect(g);g.connect(BUS||mbus);o.start(t+p[1]);o.stop(t+p[1]+p[2]+0.1);
   });
   breath(t,1.5,0.055,400,2600);
   nz(t,74,0.5,0.5,0.16);
 });}
-// rest over - three double strikes then a hanging bell, about two seconds long
+// Rest over. Built to be heard over a playlist and a gym: the carrying layer sits at
+// 2.6-4kHz, where the ear is most sensitive and where music has the least energy, with
+// hard transients and a rising figure. The low hit is only there for character.
 function sfxRest(){sfx(function(t){
-  for(var k=0;k<3;k++){
-    var o=k*0.42;
-    nz(t+o,150,0.6,0.16,0.34);
-    dread(t+o,98,0.8,0.22);
-    // a hard bright strike at 2.6k - the band a gym playlist leaves mostly empty
-    nz(t+o,2600,1.6,0.07,0.3);
-    pt(t+o,2093,0.1,0.16,'triangle');
-  }
-  // the far bell, two of them slightly out of tune with each other
-  [196,197.6].forEach(function(f){
+  var prev=BUS;BUS=abus||mbus;
+  try{
+    // three rising double-strikes, each one brighter and closer than the last
+    var steps=[[2093,2600,0],[2637,3100,0.30],[3136,3800,0.60]];
+    steps.forEach(function(s,k){
+      var o=s[2],lvl=0.34+k*0.07;
+      nz(t+o,s[1],1.4,0.06,lvl);
+      pt(t+o,s[0],0.13,lvl*0.85,'square');
+      pt(t+o,s[0]*1.5,0.10,lvl*0.4,'square');
+      // the second tap of the pair, tight behind it
+      nz(t+o+0.085,s[1]*1.1,1.4,0.05,lvl*0.8);
+      pt(t+o+0.085,s[0],0.10,lvl*0.6,'square');
+    });
+    // the confirming low hit, kept underneath
+    dread(t,98,0.9,0.16);
+    dread(t+0.60,131,1.1,0.16);
+    // final long tone so it is still there if the first strikes were missed
+    [3136,3141].forEach(function(f){
+      var o=actx.createOscillator(),g=actx.createGain();
+      o.type='square';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+0.92);
+      g.gain.exponentialRampToValueAtTime(0.2,t+0.95);
+      g.gain.setValueAtTime(0.2,t+1.25);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+      o.connect(g);g.connect(BUS);o.start(t+0.92);o.stop(t+1.65);
+    });
+    nz(t+0.92,3400,1.2,0.18,0.3);
+  }finally{BUS=prev;}
+});}
+// the alert repeats until you pick the phone up or the next set is logged
+var restRep=null;
+function restAlert(){
+  stopRestAlert();
+  var n=0;
+  var fire=function(){
+    sfxRest();
+    vib([300,120,300,120,450]);
+    if(++n>=3)stopRestAlert();
+  };
+  fire();
+  restRep=setInterval(fire,2400);
+}
+function stopRestAlert(){if(restRep){clearInterval(restRep);restRep=null;}}
+// the diamond catching light
+function sfxIgnite(){sfx(function(t){
+  breath(t,0.85,0.16,320,2600);
+  dread(t+0.10,73,1.6,0.2);
+  nz(t+0.42,180,0.5,0.5,0.26);
+  nz(t+0.42,2900,1.3,0.18,0.22);
+  pt(t+0.42,1568,0.5,0.12,'triangle',1.5);
+  [261.6,392,523.3].forEach(function(f,i){
     var o=actx.createOscillator(),g=actx.createGain();
     o.type='triangle';o.frequency.value=f;
-    g.gain.setValueAtTime(0.0001,t+1.34);
-    g.gain.exponentialRampToValueAtTime(0.085,t+1.4);
-    g.gain.exponentialRampToValueAtTime(0.0001,t+3.5);
-    o.connect(g);g.connect(mbus);o.start(t+1.34);o.stop(t+3.6);
+    g.gain.setValueAtTime(0.0001,t+0.5+i*0.07);
+    g.gain.exponentialRampToValueAtTime(0.11,t+0.58+i*0.07);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+2.1);
+    o.connect(g);g.connect(BUS||mbus);o.start(t+0.5+i*0.07);o.stop(t+2.2);
   });
-  nz(t+1.34,58,0.5,0.7,0.3);
-  nz(t+1.34,3100,2,0.12,0.26);
-  breath(t+1.5,1.4,0.07,1800,300);
+  breath(t+0.5,1.5,0.09,2600,340);
 });}
 // hold target reached
 function sfxHold(){sfx(function(t){
@@ -1949,7 +2209,7 @@ function sfxPage(){sfx(function(t){
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(0.16,t+0.14);
   g.gain.exponentialRampToValueAtTime(0.0001,t+0.62);
-  s.connect(f);f.connect(g);g.connect(mbus);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);
   s.start(t);s.stop(t+0.7);
   pt(t+0.5,96,0.3,0.09,'sine',0.6);
 });}
@@ -1966,7 +2226,7 @@ function sfxRiffle(){sfx(function(t){
     g.gain.setValueAtTime(0.0001,t+o);
     g.gain.exponentialRampToValueAtTime(0.09-k*0.013,t+o+0.03);
     g.gain.exponentialRampToValueAtTime(0.0001,t+o+0.18);
-    s.connect(f);f.connect(g);g.connect(mbus);
+    s.connect(f);f.connect(g);g.connect(BUS||mbus);
     s.start(t+o);s.stop(t+o+0.21);
   }
   pt(t+0.54,88,0.34,0.075,'sine',0.6);
@@ -1982,7 +2242,7 @@ function sfxUnseal(){sfx(function(t){
     g.gain.setValueAtTime(0.0001,t+p[1]);
     g.gain.exponentialRampToValueAtTime(0.075,t+p[1]+0.5);
     g.gain.exponentialRampToValueAtTime(0.0001,t+p[1]+p[2]);
-    o.connect(g);g.connect(mbus);o.start(t+p[1]);o.stop(t+p[1]+p[2]+0.05);
+    o.connect(g);g.connect(BUS||mbus);o.start(t+p[1]);o.stop(t+p[1]+p[2]+0.05);
   });
   nz(t+0.52,120,0.5,0.6,0.17);
   dread(t+0.56,98,1.5,0.09);
@@ -2320,9 +2580,8 @@ function startTimer(secs){
       lbl.textContent='GO';
       pill.classList.add('ring2');
       flFrac=1;flFlare=1;
-      sfxRest();
+      restAlert();
       restDoneNotif();
-      vib([220,110,220,110,320]);
       setTimeout(function(){pill.classList.remove('on');pill.classList.remove('ring2');stopFlame();},4000);
     }
   }
@@ -2340,6 +2599,7 @@ function adjustTimer(d){
 }
 function stopTimer(){
   if(timerInt){clearInterval(timerInt);timerInt=null;}
+  stopRestAlert();
   clearRestNotif();
   stopFlame();
   var p=document.getElementById('timerPill');
@@ -2355,7 +2615,7 @@ function openTimerSheet(){
   document.getElementById('presets').innerHTML=opts.map(function(o){
     return '<button class="preset" onclick="closeOvl(\'timerOvl\');startTimer('+o[0]+')">'+o[1]+'</button>';
   }).join('');
-  drawSfxTog();drawNotifTog();
+  drawSfxTog();drawNotifTog();drawAlertLvl();
   document.getElementById('timerOvl').classList.add('on');
 }
 
