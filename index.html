@@ -903,6 +903,7 @@ function toggleTheme(){
   var t=document.body.classList.contains('light')?'dark':'light';
   applyTheme(t);Store.set(TKEY,t);
 }
+var APPV='v6.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{}};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -1211,7 +1212,8 @@ function renderHome(){
       '<div class="fbtn" onclick="showHistory()"><svg viewBox="0 0 20 20"><path d="M3.5 3.5h13v13h-13zM3.5 7.5h13M7.5 3.5v13"/></svg>Logged<br>sessions</div>'+
       '<div class="fbtn" onclick="openBackup()"><svg viewBox="0 0 20 20"><path d="M10 13V3M6.5 9.5L10 13l3.5-3.5M3.5 15.5h13"/></svg>Backup<br>&amp; restore</div>'+
     '</div>'+
-    '<div class="unsealbtn'+(Object.keys(loggedThisWeek()).length?'':' idle')+'" onclick="unsealAll()"><svg viewBox="0 0 20 20"><path d="M10 2.5c2.3 2.6 3.4 4.6 3.4 6.3 0 1.6-1.1 2.7-2.3 3.4M10 2.5c-2.3 2.6-3.4 4.6-3.4 6.3 0 2.4 1.5 3.6 3.4 4.6M6.6 13.5c0 2.2 1.5 4 3.4 4s3.4-1.8 3.4-4"/></svg>Unseal the week</div>';
+    '<div class="unsealbtn'+(Object.keys(loggedThisWeek()).length?'':' idle')+'" onclick="unsealAll()"><svg viewBox="0 0 20 20"><path d="M10 2.5c2.3 2.6 3.4 4.6 3.4 6.3 0 1.6-1.1 2.7-2.3 3.4M10 2.5c-2.3 2.6-3.4 4.6-3.4 6.3 0 2.4 1.5 3.6 3.4 4.6M6.6 13.5c0 2.2 1.5 4 3.4 4s3.4-1.8 3.4-4"/></svg>Unseal the week</div>'+
+    '<div style="text-align:center;margin-top:18px;font-size:11px;letter-spacing:.14em;opacity:.32">ARCANUM '+APPV+'</div>';
   var m={cloud:'Synced storage',local:'Saved on this device',memory:'Session only \u2014 save the file and open it directly to keep history'};
   document.getElementById('storeNote').textContent=m[Store.mode];
   var td=WEEK.filter(function(e){return e.day.slice(0,3).toLowerCase()===['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];})[0];
