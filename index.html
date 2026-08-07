@@ -903,7 +903,7 @@ function toggleTheme(){
   var t=document.body.classList.contains('light')?'dark':'light';
   applyTheme(t);Store.set(TKEY,t);
 }
-var APPV='v6.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v6.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{}};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;

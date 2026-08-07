@@ -1,5 +1,5 @@
 // Arcanum offline shell
-var CACHE = 'arcanum-v6';
+var CACHE = 'arcanum-v7';
 var SHELL = [
   './',
   './index.html',
@@ -52,7 +52,10 @@ self.addEventListener('fetch', function (e) {
   if (isDoc) {
     // Network first: a fresh copy of the app always wins, cache is the offline fallback.
     e.respondWith(
-      fetch(req).then(function (r) {
+      // cache:'no-store' skips the browser's own HTTP cache. Without it the worker's
+      // "network" fetch could still be answered from a stale copy and the app would
+      // never update no matter how many times the page was reloaded.
+      fetch(new Request(req.url, { cache: 'no-store', credentials: 'omit' })).then(function (r) {
         if (r && r.ok) {
           var copy = r.clone();
           caches.open(CACHE).then(function (c) { c.put(keyFor(req), copy); });
