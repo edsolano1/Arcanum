@@ -191,6 +191,20 @@ body.light .pumpbtn{opacity:.55;box-shadow:0 1px 3px rgba(16,20,24,.08);}
 @keyframes pturn{from{transform:rotateY(0);}to{transform:rotateY(-122deg);}}
 @keyframes pturnb{from{transform:rotateY(-122deg);}to{transform:rotateY(0);}}
 @keyframes sfade{from{opacity:0;}40%{opacity:1;}to{opacity:0;}}
+/* Forge does not turn pages. A plate is drawn across the opening instead - flat, no
+   perspective, with the leading edge still carrying heat from the fire. */
+body.forge #turn{perspective:none;}
+body.forge #turn .tpage{transform-origin:center;transform-style:flat;box-shadow:none;
+  background:linear-gradient(100deg,#1c0f08 0%,#120806 52%,#080403 100%);
+  animation:plate .60s cubic-bezier(.32,0,.16,1) forwards;}
+body.forge #turn .tpage::before{background:linear-gradient(100deg,rgba(255,196,140,.07),rgba(255,196,140,.015) 32%,transparent 60%);}
+body.forge #turn .tpage::after{width:3px;opacity:.85;
+  background:linear-gradient(180deg,transparent,#ff9a34 18%,#ffe0b0 50%,#ff9a34 82%,transparent);
+  box-shadow:0 0 14px rgba(255,138,31,.75);}
+body.forge #turn.back .tpage{animation:plateb .60s cubic-bezier(.32,0,.16,1) forwards;}
+body.forge #turn .tspine{display:none;}
+@keyframes plate{from{transform:translateX(0);}to{transform:translateX(-104%);}}
+@keyframes plateb{from{transform:translateX(-104%);}to{transform:translateX(0);}}
 body.light #turn .tpage{box-shadow:26px 0 60px rgba(16,20,24,.3);}
 body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),transparent);}
 
@@ -570,7 +584,7 @@ body.light .card:hover{box-shadow:0 4px 14px -4px rgba(16,20,24,.16);}
   </div>
   <div class="storenote" id="storeNote"></div>
 
-  <div class="sec-label">Your Week</div>
+  <div class="sec-label" id="weekLabel">Your Week</div>
   <div id="weekCards"></div>
   <div class="foot" id="foot"></div>
 </div>
@@ -1007,7 +1021,15 @@ function TXT(k){
     sealTtl1:  f?'Quench the open piece?':'Seal the open session?',
     sealTtlN:  f?'Quench the open pieces?':'Seal the open sessions?',
     sealYes:   f?'QUENCH & CONTINUE':'SEAL & CONTINUE',
-    sealLine:  f?' Opening this one will quench your current piece':' Opening this one will seal your current session'
+    sealLine:  f?' Opening this one will quench your current piece':' Opening this one will seal your current session',
+    week:      f?'The Week&rsquo;s Work':'Your Week',
+    ready:     f?'Heat':'Ascend',
+    splashTag: f?'Lighting the forge':'Loading',
+    restTtl:   f?'Back to the anvil':'Rest over',
+    restBody:  f?'The iron is ready.':'Next set is ready.',
+    closeTtl:  f?'Bank the fire?':'Close Arcanum?',
+    closeMsg:  f?'Forge closes. Your piece stays exactly where it is \u2014 nothing is lost.'
+                :'Arcanum closes. Your session stays exactly where it is \u2014 nothing is lost.'
   })[k];
 }
 function curTheme(){
@@ -1041,7 +1063,7 @@ function drawThemePick(){
     return '<button class="preset sm" onclick="setTheme(\''+t[0]+'\')" style="'+(t[0]===c?'border-color:var(--gold);color:var(--gold)':'')+'">'+t[1]+'</button>';
   }).join('');
 }
-var APPV='v8.1';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v8.4';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{}};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -1285,7 +1307,7 @@ function card(e){
   var pills='';
   if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(e.wk)+'/'+totalSets(e.wk)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
-  else if(rdy)pills+='<span class="pill pill-ready">Ascend '+roman(rdy)+'</span>';
+  else if(rdy)pills+='<span class="pill pill-ready">'+TXT('ready')+' '+roman(rdy)+'</span>';
   if(isToday)pills+='<span class="pill pill-today" style="margin-left:6px">Today</span>';
   var meta=v==='rest'?(e.label||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(e.wk)+' sets &middot; lift, walk, or rest':totalSets(e.wk)+' sets');
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+'" style="--c:'+w.color+'" onclick="openW(\''+e.wk+'\')">'+
@@ -1404,6 +1426,39 @@ function renderMark(){
     '<path d="M15 8.5l6.5 6.5-6.5 6.5-6.5-6.5z" fill="var(--go)" opacity="0.85"/>';
 }
 
+// The app is Arcanum. Forge is a different world, so it wears its own name on the
+// home screen - the mark underneath is what says it is still the same app.
+function APPNAME(){return FG()?'FORGE':'ARCANUM';}
+function renderName(){
+  var w=document.querySelector('.wordmark');
+  if(w)w.textContent=APPNAME();
+  var sp=document.querySelector('.sp-word');
+  if(sp)sp.textContent=FG()?'Forge':'Arcanum';
+  var wl=document.getElementById('weekLabel');
+  if(wl)wl.innerHTML=TXT('week');
+}
+// Arcanum's four-point star is kept verbatim and restored on the way back out.
+var PUMP_ICON_0=null;
+function renderPumpIcon(){
+  var b=document.getElementById('pumpBtn');
+  if(!b)return;
+  if(PUMP_ICON_0===null)PUMP_ICON_0=b.innerHTML;
+  b.innerHTML=FG()
+    ?'<svg viewBox="0 0 20 20" style="width:19px;height:19px;fill:currentColor"><g transform="rotate(-18 10 10)"><path d="M4.2 3.4h11.6v4.4H4.2z"/><path d="M8.8 7.8h2.4v8.8h-2.4z"/></g></svg>'
+    :PUMP_ICON_0;
+}
+var _setTheme0=setTheme;
+setTheme=function(t){_setTheme0(t);try{renderName();renderPumpIcon();renderTagline();}catch(e){}};
+
+// New copy for a new theme - Arcanum's own lines are untouched. Edit these to taste.
+var TAGS_FORGE=[
+  'Nothing is shaped cold',
+  'Heat &middot; strike &middot; repeat',
+  'Steel does not care how you feel',
+  'Adherence &gt; optimization',
+  'Small blows, held true, forever',
+  'You cannot forge an unlogged set'
+];
 var TAGS=[
   'Clear it clean &middot; then move up',
   'Progressive overload or it did not happen',
@@ -1415,10 +1470,11 @@ var TAGS=[
   'Legs are also a body part'
 ];
 function renderTagline(){
-  document.getElementById('tagline').innerHTML=TAGS[Math.floor(Math.random()*TAGS.length)];
+  var t=FG()?TAGS_FORGE:TAGS;
+  document.getElementById('tagline').innerHTML=t[Math.floor(Math.random()*t.length)];
 }
 function renderHome(){
-  renderMark();renderTagline();
+  renderMark();renderName();renderPumpIcon();renderTagline();
   document.getElementById('weekCards').innerHTML=WEEK.map(card).join('');
   document.getElementById('foot').innerHTML=
     '<div class="footbar">'+
@@ -1427,7 +1483,7 @@ function renderHome(){
       '<div class="fbtn" onclick="openBackup()"><svg viewBox="0 0 20 20"><path d="M10 13V3M6.5 9.5L10 13l3.5-3.5M3.5 15.5h13"/></svg>Backup<br>&amp; restore</div>'+
     '</div>'+
     '<div class="unsealbtn'+(Object.keys(loggedThisWeek()).length?'':' idle')+'" onclick="unsealAll()"><svg viewBox="0 0 20 20"><path d="M10 2.5c2.3 2.6 3.4 4.6 3.4 6.3 0 1.6-1.1 2.7-2.3 3.4M10 2.5c-2.3 2.6-3.4 4.6-3.4 6.3 0 2.4 1.5 3.6 3.4 4.6M6.6 13.5c0 2.2 1.5 4 3.4 4s3.4-1.8 3.4-4"/></svg>'+TXT('unsealBtn')+'</div>'+
-    '<div style="text-align:center;margin-top:18px;font-size:11px;letter-spacing:.14em;opacity:.32">ARCANUM '+APPV+'</div>';
+    '<div style="text-align:center;margin-top:18px;font-size:11px;letter-spacing:.14em;opacity:.32">'+APPNAME()+' '+APPV+'</div>';
   // Saving to this device is the normal case and needs no announcement. The other two
   // do: synced storage is worth knowing about, and memory mode means nothing persists.
   var m={cloud:'Synced storage',memory:'Session only \u2014 save the file and open it directly to keep history'};
@@ -1436,7 +1492,7 @@ function renderHome(){
   sn.style.display=m[Store.mode]?'':'none';
   var td=WEEK.filter(function(e){return e.day.slice(0,3).toLowerCase()===['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];})[0];
   var st=document.getElementById('spTag');
-  if(st)st.textContent=td&&W[td.wk]?W[td.wk].name.replace('Optional: ',''):'Rest day';
+  if(st)st.textContent=td&&W[td.wk]?W[td.wk].name.replace('Optional: ',''):(FG()?'Cold day':'Rest day');
   markHomeReady();
 }
 
@@ -1745,7 +1801,7 @@ function doSwap(k){
 
 // ---------- finish + export ----------
 function buildExport(wk,A){
-  var w=W[wk],out='ARCANUM \u2014 '+w.name.replace('Optional: ','')+'\n'+pretty(A.date)+'\n\n';
+  var w=W[wk],out=APPNAME()+' \u2014 '+w.name.replace('Optional: ','')+'\n'+pretty(A.date)+'\n\n';
   w.sections.forEach(function(sec){
     sec.rows.forEach(function(row){
       var rf=rowFor(A.swaps,row),id=rf.id,ent=(A.entries[id]||[]).filter(function(x){return x;});
@@ -2033,14 +2089,14 @@ function saveAndExit(){
 // write every logged session out as a text file
 function exportAll(){
   if(!DB.logs.length){ask('Finish a session first.',null,'Nothing to export');return;}
-  var txt='ARCANUM \u2014 full history\n'+DB.logs.length+' sessions\n\n'+
+  var txt=APPNAME()+' \u2014 full history\n'+DB.logs.length+' sessions\n\n'+
     DB.logs.slice().reverse().map(function(L){
       return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:L.swaps||{}});
     }).join('\n\n------------------------\n\n');
   try{
     var b=new Blob([txt],{type:'text/plain'}),u=URL.createObjectURL(b);
     var a=document.createElement('a');
-    a.href=u;a.download='arcanum-history-'+today()+'.txt';
+    a.href=u;a.download=APPNAME().toLowerCase()+'-history-'+today()+'.txt';
     document.body.appendChild(a);a.click();
     setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
   }catch(e){ask('This browser blocked the download. Use COPY ALL instead.',null,'Export failed');}
@@ -2294,9 +2350,7 @@ function onBackButton(){
   }
   if(sessionOpen()){leaveSession();backGuard();return;}
   backGuard();                             // hold our place while the question is up
-  ask('Arcanum closes. Your session stays exactly where it is \u2014 nothing is lost.',
-    function(){try{history.go(-2);}catch(e){}},
-    'Close Arcanum?','CLOSE');
+  ask(TXT('closeMsg'),function(){try{history.go(-2);}catch(e){}},TXT('closeTtl'),'CLOSE');
 }
 function initBack(){
   try{
@@ -2837,7 +2891,7 @@ function startRestNotif(){
 function restDoneNotif(){
   if(notifT){clearInterval(notifT);notifT=null;}
   // an ordinary notification chime, not a system alarm: nothing to dismiss, clears itself
-  pushNotif('Rest over','Next set is ready.',{silent:false,renotify:true,vibrate:[180,90,180]});
+  pushNotif(TXT('restTtl'),TXT('restBody'),{silent:false,renotify:true,vibrate:[180,90,180]});
   setTimeout(clearRestNotif,14000);
 }
 function toggleSfx(){
