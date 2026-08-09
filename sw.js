@@ -1,5 +1,5 @@
 // Arcanum offline shell
-var CACHE = 'arcanum-v25';
+var CACHE = 'arcanum-v43';
 var SHELL = [
   './',
   './index.html',
@@ -39,6 +39,23 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('message', function (e) {
   if (e.data === 'skipWaiting') self.skipWaiting();
+});
+
+// The rest notice carries buttons. A tap on one lands here, not in the page - the page
+// may not even be running - so the action is relayed to whichever client is alive, and
+// the app is opened if none is.
+self.addEventListener('notificationclick', function (e) {
+  var act = e.action;
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (cs) {
+      for (var i = 0; i < cs.length; i++) {
+        if (act) { cs[i].postMessage({ type: 'rest-action', action: act }); }
+        if (!act && cs[i].focus) return cs[i].focus();
+      }
+      if (!act && self.clients.openWindow) return self.clients.openWindow('./index.html');
+    })
+  );
 });
 
 self.addEventListener('fetch', function (e) {
