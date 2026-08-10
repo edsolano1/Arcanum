@@ -70,6 +70,15 @@ button{-webkit-tap-highlight-color:transparent;}
 .card-meta{font-size:12.5px;color:var(--txt3);margin-top:6px;}
 .card.opt::before{background:repeating-linear-gradient(180deg,var(--c) 0 6px,transparent 6px 11px);}
 .card.opt .card-name{color:var(--txt2);}
+/* Today is now the whole card rather than a pill in the corner - you find the row you want
+   by looking, not by reading four labels. */
+.card.today{border-color:color-mix(in srgb,var(--c) 55%,var(--line));
+  background:color-mix(in srgb,var(--c) 8%,var(--surface));
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 14%,transparent),0 6px 22px -16px var(--c);}
+.card.today::before{width:5px;animation:todaybar 4.6s ease-in-out infinite;}
+.card.today .card-day{text-shadow:0 0 11px color-mix(in srgb,var(--c) 60%,transparent);}
+@keyframes todaybar{0%,100%{box-shadow:0 0 8px color-mix(in srgb,var(--c) 45%,transparent);}
+  50%{box-shadow:0 0 17px color-mix(in srgb,var(--c) 85%,transparent);}}
 .pill{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:7px;letter-spacing:.04em;white-space:nowrap;}
 .pill-today{background:var(--c);color:#0b0c0e;}
 .pill-live{background:var(--go);color:#0b0c0e;}
@@ -549,19 +558,31 @@ body.light #home::before{background:radial-gradient(closest-side,rgba(96,84,214,
 body.booting #bg{opacity:0;}
 #bg > *{position:absolute;inset:0;}
 
-/* engraved hairlines - a ledger plate under the cards */
+/* Obsidian gets an orrery instead of a ledger grid - concentric rings crossed by spokes,
+   turning against the watermark. Straight rules read as a schematic; a circle reads as a
+   summoning figure. The other themes keep engraved lines, which suit them. */
 .bg-rules{background-image:
-  repeating-linear-gradient(0deg,color-mix(in srgb,var(--gold) 8%,transparent) 0 1px,transparent 1px 46px),
-  repeating-linear-gradient(90deg,color-mix(in srgb,var(--gold) 8%,transparent) 0 1px,transparent 1px 46px);
+  repeating-radial-gradient(circle at 50% 32%,transparent 0 53px,color-mix(in srgb,var(--gold) 15%,transparent) 53px 54px),
+  repeating-conic-gradient(from 0deg at 50% 32%,color-mix(in srgb,var(--gold) 13%,transparent) 0deg .18deg,transparent .18deg 15deg),
+  radial-gradient(circle at 50% 32%,transparent 158px,color-mix(in srgb,var(--gold) 17%,transparent) 158px 159px,transparent 159px 205px,color-mix(in srgb,var(--gold) 11%,transparent) 205px 206px,transparent 206px);
+  transform-origin:50% 32%;animation:wmturn 540s linear infinite reverse;
   -webkit-mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);
   mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);}
 /* rolled steel: only the horizontal pass, tighter */
 body.forge .bg-rules{background-image:repeating-linear-gradient(0deg,color-mix(in srgb,var(--gold) 11%,transparent) 0 1px,transparent 1px 27px);}
 body.moon .bg-rules{background-image:repeating-linear-gradient(45deg,color-mix(in srgb,var(--gold) 9%,transparent) 0 1px,transparent 1px 58px);}
-/* gold rules vanish on a pale ground, so Frost engraves in ink */
-body.light .bg-rules{background-image:
-  repeating-linear-gradient(0deg,color-mix(in srgb,var(--txt) 7%,transparent) 0 1px,transparent 1px 46px),
-  repeating-linear-gradient(90deg,color-mix(in srgb,var(--txt) 7%,transparent) 0 1px,transparent 1px 46px);}
+body.forge .bg-rules,body.moon .bg-rules{animation:none;}
+/* Frost is weather, not engraving: driving streaks raking across on the wind. The orrery's
+   mask would clip the storm into an oval with a hard top edge, so the streaks run edge to
+   edge and the layer is left unmasked. */
+body.light .bg-rules{-webkit-mask-image:none;mask-image:none;
+  background-image:repeating-linear-gradient(74deg,
+    rgba(96,120,148,.20) 0 1px,transparent 1px 7px,
+    rgba(96,120,148,.11) 7px 8px,transparent 8px 21px);
+  background-size:auto;animation:blow 2.6s linear infinite;}
+/* the offset has to be a whole number of stripe periods along the 74deg axis, or the pattern
+   snaps back a fraction of a tile every loop. 21px period, 12 periods = 252px. */
+@keyframes blow{to{background-position:-242.3px 69.5px;}}
 
 /* the mark itself, blown up and turning slow enough that you only catch it if you wait */
 .bg-wm{display:flex;align-items:center;justify-content:center;}
@@ -586,9 +607,17 @@ body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,v
 
 /* motes: embers for Forge, snow for Frost, dust and moonlight for the other two */
 .bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
-  opacity:0;animation:moterise linear infinite;}
-body.light .bg-motes i{animation-name:motefall;background:#fff;
-  box-shadow:0 0 3px rgba(120,150,180,.8),0 0 0 1px rgba(150,175,200,.5);}
+  opacity:0;animation:moterise var(--d) linear infinite;animation-delay:var(--dl);}
+/* the full set of flakes is only wanted in a storm - the other themes take the first 15 */
+body:not(.light) .bg-motes i:nth-child(n+16){display:none;}
+body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5),0 0 0 1px rgba(120,148,178,.35);
+  animation:motefall var(--d) linear infinite,motesway var(--sw) ease-in-out infinite alternate;
+  animation-delay:var(--dl),calc(var(--dl) / 2);
+  animation-duration:calc(var(--d) * .3),var(--sw);}
+@keyframes motesway{from{margin-left:-3.5vw;}to{margin-left:3.5vw;}}
+/* Obsidian's dust is lit, so it reads as drifting sparks rather than specks. Obsidian is the
+   themeless default, hence the negation rather than a .dark class. */
+body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix(in srgb,var(--gold) 70%,transparent);}
 body.forge .bg-motes i{filter:blur(.3px);}
 body.moon .bg-motes i{filter:blur(.8px);}
 @keyframes moterise{
@@ -611,7 +640,7 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
 
 /* battery saver and reduced motion keep the ground, lose the travel */
 @media(prefers-reduced-motion:reduce){
-  .bg-wm svg,.bg-motes i{animation:none;}
+  .bg-wm svg,.bg-motes i,.bg-rules{animation:none;}
   .bg-motes i{opacity:.22;}
   .bg-light{animation:bgbreath 12s ease-in-out infinite;}
 }
@@ -877,6 +906,11 @@ body.light .card,body.light .exc,body.light .sheet,body.light .timer-pill{backgr
 body.light .card-day,body.light .s-sub b,body.light .sect-t .ss{color:color-mix(in srgb,var(--c) 50%,#0b1018);}
 body.light .btn-c{color:color-mix(in srgb,var(--c) 50%,#0b1018);border-color:color-mix(in srgb,var(--c) 45%,var(--line));}
 body.light .pill-today{background:color-mix(in srgb,var(--c) 50%,#0b1018);color:#fff;}
+/* a glow does nothing on a pale ground, so Frost marks today by weight of tint instead */
+body.light .card.today{background:color-mix(in srgb,var(--c) 15%,var(--surface));
+  border-color:color-mix(in srgb,var(--c) 45%,var(--line));box-shadow:none;}
+body.light .card.today::before{animation:none;}
+body.light .card.today .card-day{text-shadow:none;}
 body.light .ring .bar{stroke:color-mix(in srgb,var(--c) 50%,#0b1018);}
 body.light .ring .bar,body.light .ring.full .bar{filter:none;}
 body.light .inp[readonly]:hover{border-bottom-color:color-mix(in srgb,var(--c) 50%,#0b1018);}
@@ -1621,7 +1655,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v12.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v12.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{}};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -1870,11 +1904,11 @@ function card(e){
   if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(wk)+'/'+totalSets(wk)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
   else if(rdy)pills+='<span class="pill pill-ready">'+TXT('ready')+' '+roman(rdy)+'</span>';
-  if(isToday)pills+='<span class="pill pill-today" style="margin-left:6px">Today</span>';
+  if(isToday)pills+='';
   var meta=v==='rest'?(e.label||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(wk)+' sets &middot; lift, walk, or rest':totalSets(wk)+' sets');
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+'" data-base="'+e.wk+'" style="--c:'+dayC(wk)+';--gd:-'+(e.js*0.77).toFixed(2)+'s" onclick="mkTap(\''+wk+'\')">'+
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+e.wk+'" style="--c:'+dayC(wk)+';--gd:-'+(e.js*0.77).toFixed(2)+'s" onclick="mkTap(\''+wk+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top"><span class="card-day">'+e.day.toUpperCase()+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':'')+'</span><span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top"><span class="card-day">'+e.day.toUpperCase()+(isToday?' &middot; TODAY':'')+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':'')+'</span><span style="display:flex;gap:0">'+pills+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
@@ -2036,10 +2070,13 @@ function renderBg(){
   var m=document.querySelector('.bg-motes');
   if(!m||motesBuilt)return;
   var h='';
-  for(var i=0;i<15;i++){
-    var s=(1.1+Math.random()*2.3).toFixed(2);
+  // 15 slow motes for the other three themes; the rest only show in Frost, where the ground
+  // is a storm rather than a drift. CSS hides 16-onward everywhere else.
+  for(var i=0;i<44;i++){
+    var s=(1.1+Math.random()*2.6).toFixed(2);
     h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;width:'+s+'px;height:'+s+'px;'+
-       'animation-duration:'+(17+Math.random()*23).toFixed(1)+'s;animation-delay:-'+(Math.random()*34).toFixed(1)+'s"></i>';
+       '--d:'+(17+Math.random()*23).toFixed(1)+'s;--dl:-'+(Math.random()*34).toFixed(1)+'s;'+
+       '--sw:'+(2.6+Math.random()*3.4).toFixed(1)+'s"></i>';
   }
   m.innerHTML=h;motesBuilt=true;
 }
@@ -2101,12 +2138,15 @@ var TAGS=[
   'Legs are also a body part'
 ];
 var TAGS_MOON=[
-  'Nothing hurried under this light',
-  'Still water &middot; long memory',
+  'Nothing waxes without the work',
   'The moon keeps the count',
-  'Begin quietly',
-  'What is kept stays kept',
-  'Small work, done often, in the dark'
+  'Tides do not skip a night',
+  'Add weight the way the moon adds light',
+  'Gravity does not care how you feel',
+  'Adherence &gt; optimization',
+  'What the dark does not see, it does not count',
+  'No constellation is a single star',
+  'Stars burn on the nights nobody looks'
 ];
 function renderTagline(){
   var t=MW()?TAGS_MOON:FG()?TAGS_FORGE:TAGS;
