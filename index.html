@@ -538,6 +538,83 @@ body.booting #home::before{display:none;}
 #home::before{content:'';position:fixed;left:50%;top:-190px;width:820px;height:540px;transform:translateX(-50%);pointer-events:none;z-index:0;
   background:radial-gradient(closest-side,rgba(96,84,214,.20),rgba(64,140,220,.07) 52%,transparent 74%);}
 body.light #home::before{background:radial-gradient(closest-side,rgba(96,84,214,.11),transparent 70%);}
+
+/* ---------- BOARD GROUND ----------
+   Six layers behind the week board, all generated - no image files, so the app stays one
+   offline document. Back to front: engraved rules, the mark as a watermark, one drifting
+   light, motes, grain, vignette. Every colour is mixed from the theme's own --gold and
+   --bg, so a new theme inherits the whole ground for free. */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+#home{position:relative;z-index:1;}
+body.booting #bg{opacity:0;}
+#bg > *{position:absolute;inset:0;}
+
+/* engraved hairlines - a ledger plate under the cards */
+.bg-rules{background-image:
+  repeating-linear-gradient(0deg,color-mix(in srgb,var(--gold) 8%,transparent) 0 1px,transparent 1px 46px),
+  repeating-linear-gradient(90deg,color-mix(in srgb,var(--gold) 8%,transparent) 0 1px,transparent 1px 46px);
+  -webkit-mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);
+  mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);}
+/* rolled steel: only the horizontal pass, tighter */
+body.forge .bg-rules{background-image:repeating-linear-gradient(0deg,color-mix(in srgb,var(--gold) 11%,transparent) 0 1px,transparent 1px 27px);}
+body.moon .bg-rules{background-image:repeating-linear-gradient(45deg,color-mix(in srgb,var(--gold) 9%,transparent) 0 1px,transparent 1px 58px);}
+/* gold rules vanish on a pale ground, so Frost engraves in ink */
+body.light .bg-rules{background-image:
+  repeating-linear-gradient(0deg,color-mix(in srgb,var(--txt) 7%,transparent) 0 1px,transparent 1px 46px),
+  repeating-linear-gradient(90deg,color-mix(in srgb,var(--txt) 7%,transparent) 0 1px,transparent 1px 46px);}
+
+/* the mark itself, blown up and turning slow enough that you only catch it if you wait */
+.bg-wm{display:flex;align-items:center;justify-content:center;}
+.bg-wm svg{width:min(96vw,540px);height:min(96vw,540px);color:var(--gold);
+  opacity:.042;animation:wmturn 320s linear infinite;}
+body.light .bg-wm svg{opacity:.07;}
+body.forge .bg-wm svg{opacity:.05;animation-duration:240s;}
+body.moon .bg-wm svg{opacity:.04;animation-duration:420s;}
+@keyframes wmturn{to{transform:rotate(360deg);}}
+
+/* one soft source that drifts and breathes on the same clock as the runes */
+.bg-light{background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 20%,transparent),transparent 72%);
+  width:74vw;height:74vw;max-width:560px;max-height:560px;inset:auto auto auto 50%;top:6vh;
+  animation:bgdrift 46s ease-in-out infinite,bgbreath 6.4s ease-in-out infinite;}
+body.forge .bg-light{animation-duration:34s,4.4s;background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 26%,transparent),transparent 70%);}
+body.moon .bg-light{animation-duration:64s,9s;}
+body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 30%,transparent),transparent 72%);}
+@keyframes bgdrift{
+  0%,100%{transform:translate(-64%,0) scale(1);}
+  50%{transform:translate(-36%,7vh) scale(1.14);}}
+@keyframes bgbreath{0%,100%{opacity:.34;}50%{opacity:.72;}}
+
+/* motes: embers for Forge, snow for Frost, dust and moonlight for the other two */
+.bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
+  opacity:0;animation:moterise linear infinite;}
+body.light .bg-motes i{animation-name:motefall;background:#fff;
+  box-shadow:0 0 3px rgba(120,150,180,.8),0 0 0 1px rgba(150,175,200,.5);}
+body.forge .bg-motes i{filter:blur(.3px);}
+body.moon .bg-motes i{filter:blur(.8px);}
+@keyframes moterise{
+  0%{transform:translateY(108vh) translateX(0);opacity:0;}
+  14%{opacity:.5;}
+  72%{opacity:.42;}
+  100%{transform:translateY(-8vh) translateX(3vw);opacity:0;}}
+@keyframes motefall{
+  0%{transform:translateY(-8vh) translateX(0);opacity:0;}
+  16%{opacity:.85;}
+  100%{transform:translateY(108vh) translateX(-4vw);opacity:0;}}
+
+.bg-grain{opacity:.055;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3'/%3E%3C/filter%3E%3Crect width='170' height='170' filter='url(%23n)'/%3E%3C/svg%3E");}
+body.light .bg-grain{opacity:.09;mix-blend-mode:multiply;}
+body.forge .bg-grain{opacity:.075;}
+
+.bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 38%,color-mix(in srgb,var(--bg) 88%,#000) 100%);}
+body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 44%,rgba(120,134,150,.24) 100%);}
+
+/* battery saver and reduced motion keep the ground, lose the travel */
+@media(prefers-reduced-motion:reduce){
+  .bg-wm svg,.bg-motes i{animation:none;}
+  .bg-motes i{opacity:.22;}
+  .bg-light{animation:bgbreath 12s ease-in-out infinite;}
+}
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
    Each card carries its own --gd phase offset so the board never pulses in unison. */
@@ -754,7 +831,28 @@ body.forge .pumpbtn:hover{transform:translateY(-2px);}
 /* The serpent draws itself as an outline, fills, and only then does the world's glyph
    arrive in the middle. Same order as the header mark builds in. */
 .sp-mark .o path{stroke:var(--gold);stroke-width:1.1;fill:none;stroke-dasharray:900;stroke-dashoffset:900;animation:draw 1.05s cubic-bezier(.4,0,.2,1) forwards;}
-.sp-mark .f{opacity:0;animation:fadein .6s ease .72s forwards;}
+/* The serpent comes round to where it started. The whole ring swirls into place, and as it
+   settles the head alone pulls back off the tail and snaps at it once. Head, mouth and eye
+   are the 2nd, 3rd and 4th children of the filled group - the body is the 1st and stays put. */
+.sp-mark .o,.sp-mark .f{transform-box:view-box;transform-origin:50px 50px;}
+.sp-mark .o{animation:swirl 2.5s cubic-bezier(.24,.68,.2,1) .12s both;}
+.sp-mark .f > *:nth-child(n+2){transform-box:view-box;transform-origin:50px 50px;
+  animation:bite 1.5s cubic-bezier(.3,.7,.25,1) 1.5s both;}
+/* the outline head has to strike with the filled one, or the stroke stays behind as a
+   second head - and it keeps its own draw-on, so both animations are listed here */
+.sp-mark .o > *:nth-child(n+2){transform-box:view-box;transform-origin:50px 50px;
+  animation:draw 1.05s cubic-bezier(.4,0,.2,1) forwards,bite 1.5s cubic-bezier(.3,.7,.25,1) 1.5s both;}
+@keyframes swirl{
+  0%{transform:rotate(-38deg);}
+  64%{transform:rotate(5deg);}
+  82%{transform:rotate(-2deg);}
+  100%{transform:rotate(0deg);}}
+@keyframes bite{
+  0%,22%{transform:rotate(0deg);}
+  52%{transform:rotate(-6deg);}
+  80%{transform:rotate(5deg);}
+  100%{transform:rotate(0deg);}}
+.sp-mark .f{opacity:0;animation:fadein .6s ease .72s forwards,swirl 2.5s cubic-bezier(.24,.68,.2,1) .12s both;}
 .sp-mark .f path,.sp-mark .f circle{fill:var(--gold);}
 .sp-mark .f .cut{fill:var(--bg);}
 .sp-mark .i{color:var(--go);filter:drop-shadow(0 0 12px rgba(240,201,107,.5));opacity:0;transform-origin:50px 50px;animation:bloom .5s cubic-bezier(.34,1.3,.64,1) 1.0s forwards;}
@@ -844,8 +942,8 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
   <div class="sp-board">
     <div class="sp-frame">
       <svg class="sp-mark" viewBox="0 0 100 100" width="96" height="96" fill="none" shape-rendering="geometricPrecision">
-        <g class="o"><path d="M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z"/><path d="M37.35 15.24L38.36 14.18L28.08 10.45L45.37 12.29L39.47 7.75L56.68 12.14Q69.96 18.06 73.20 25.97L70.48 28.79Q64.92 27.88 60.58 26.24Q50.88 24.79 41.10 25.56Z"/></g>
-        <g class="f"><path d="M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z"/><path d="M37.35 15.24L38.36 14.18L28.08 10.45L45.37 12.29L39.47 7.75L56.68 12.14Q69.96 18.06 73.20 25.97L70.48 28.79Q64.92 27.88 60.58 26.24Q50.88 24.79 41.10 25.56Z"/><path class="cut" d="M65.43 22.16L73.51 26.90L71.35 29.02Z"/><circle class="cut" cx="54.73" cy="16.37" r="1.62"/></g>
+        <g class="o"><g><path d="M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z"/><path d="M74.31 24.82L71.12 24.38L68.46 24.60L68.96 27.80L69.45 29.86Z"/></g><path d="M37.35 15.23L40.76 12.93L44.63 11.78L47.30 11.39L42.96 5.55L49.32 11.21L51.36 11.12L48.12 6.84L53.37 11.45L56.63 12.38L59.02 13.81L61.85 15.58L63.91 17.23L65.71 19.17L61.51 20.78L59.46 20.90L60.39 22.93L62.01 25.37L59.39 25.54L56.65 25.18L53.55 24.75L49.11 24.52L44.66 24.86L41.11 25.57Z"/><circle cx="55.37" cy="16.12" r="1.5"/></g>
+        <g class="f"><g><path d="M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z"/><path d="M74.31 24.82L71.12 24.38L68.46 24.60L68.96 27.80L69.45 29.86Z"/></g><path d="M37.35 15.23L40.76 12.93L44.63 11.78L47.30 11.39L42.96 5.55L49.32 11.21L51.36 11.12L48.12 6.84L53.37 11.45L56.63 12.38L59.02 13.81L61.85 15.58L63.91 17.23L65.71 19.17L61.51 20.78L59.46 20.90L60.39 22.93L62.01 25.37L59.39 25.54L56.65 25.18L53.55 24.75L49.11 24.52L44.66 24.86L41.11 25.57Z"/><circle class="cut" cx="55.37" cy="16.12" r="1.5"/></g>
         <g class="i">
           <g class="gy gy-dark"><path d="M50 34.5l10 10-10 10-10-10z" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M50 40.5l4 4-4 4-4-4z" fill="currentColor"/></g>
           <g class="gy gy-light" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M50 36v28M38 43l24 14M62 43L38 57"/></g>
@@ -858,6 +956,14 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
       <div class="sp-tag" id="spTag">Loading</div>
     </div>
   </div>
+</div>
+<div id="bg" aria-hidden="true">
+  <div class="bg-rules"></div>
+  <div class="bg-wm"></div>
+  <div class="bg-light"></div>
+  <div class="bg-motes"></div>
+  <div class="bg-grain"></div>
+  <div class="bg-vig"></div>
 </div>
 <div id="home">
   <div class="brand">
@@ -997,7 +1103,7 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
   <div class="sheet" style="max-width:400px">
     <h3>Settings</h3>
     <div class="sfx-lbl" style="margin-top:4px"><span>Theme</span></div>
-    <div class="presets" id="themePick" style="grid-template-columns:repeat(2,1fr)"></div>
+    <div class="mk-acts" id="themeRow"></div>
     <div class="sfx-lbl"><span>Sound check</span><span class="sfx-tog" id="sfxTog" onclick="toggleSfx()"></span></div>
     <div class="presets">
       <button class="preset sm" onclick="sfxLog()">Set logged</button>
@@ -1491,6 +1597,9 @@ function setTheme(t){applyTheme(t);Store.set(TKEY,t);}
 // on the way to the one you wanted, so it opens the picker instead.
 function toggleTheme(){openThemePick();}
 function openThemePick(){drawThemeSheet();document.getElementById('themeOvl').classList.add('on');}
+function themeIcon(t){
+  return (THEME_IC[t]||THEME_IC.dark).replace('<svg ','<svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" ');
+}
 function drawThemeSheet(){
   var e=document.getElementById('themeSheet');if(!e)return;
   var c=curTheme();
@@ -1498,18 +1607,21 @@ function drawThemeSheet(){
     return '<div class="btn'+(t[0]===c?' btn-go':'')+'" onclick="setTheme(\''+t[0]+'\');drawThemeSheet()" '+
       'style="display:flex;align-items:center;gap:11px;text-align:left">'+
       '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+
-        THEME_IC[t[0]].replace('<svg ','<svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round" ')+
+        themeIcon(t[0])+
       '</span>'+t[1]+(t[0]===c?'<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CURRENT</span>':'')+'</div>';
   }).join('');
 }
+// Themes used to be choosable in two places at once - a plain grid in Settings and this
+// picker - which meant two bits of code drawing the same list in two different styles.
+// Settings now shows the current theme and opens the one picker.
 function drawThemePick(){
-  var e=document.getElementById('themePick');if(!e)return;
-  var c=curTheme();
-  e.innerHTML=THEMES.map(function(t){
-    return '<button class="preset sm" onclick="setTheme(\''+t[0]+'\')" style="'+(t[0]===c?'border-color:var(--gold);color:var(--gold)':'')+'">'+t[1]+'</button>';
-  }).join('');
+  var e=document.getElementById('themeRow');if(!e)return;
+  var c=curTheme(),n=(THEMES.filter(function(t){return t[0]===c;})[0]||THEMES[0])[1];
+  e.innerHTML='<div class="btn" onclick="openThemePick()" style="display:flex;align-items:center;gap:11px;text-align:left">'+
+    '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
+    '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v11.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v12.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{}};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -1874,10 +1986,13 @@ function dismissSplash(){
 // The universal mark: one ring for every world, a different glyph in the middle. The
 // serpent is generated geometry rather than a drawn file, so it recolours per theme and
 // stays crisp from the 32px header to the splash.
+// The head used to sit flush against the tail with a notch cut through the snout, which read
+// as a bite already taken out of its own face. It is now a wedge with parted jaws that stops
+// short of the tail, and the body's blunt end is capped to a point - about to eat, not eaten.
 var OU_BODY='M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z';
-var OU_HEAD='M37.35 15.24L38.36 14.18L28.08 10.45L45.37 12.29L39.47 7.75L56.68 12.14Q69.96 18.06 73.20 25.97L70.48 28.79Q64.92 27.88 60.58 26.24Q50.88 24.79 41.10 25.56Z';
-var OU_MOUTH='M65.43 22.16L73.51 26.90L71.35 29.02Z';
-var OU_EYE={x:'54.73',y:'16.37',r:'1.62'};
+var OU_HEAD='M37.35 15.23L40.76 12.93L44.63 11.78L47.30 11.39L42.96 5.55L49.32 11.21L51.36 11.12L48.12 6.84L53.37 11.45L56.63 12.38L59.02 13.81L61.85 15.58L63.91 17.23L65.71 19.17L61.51 20.78L59.46 20.90L60.39 22.93L62.01 25.37L59.39 25.54L56.65 25.18L53.55 24.75L49.11 24.52L44.66 24.86L41.11 25.57Z';
+var OU_TAIL='M74.31 24.82L71.12 24.38L68.46 24.60L68.96 27.80L69.45 29.86Z';
+var OU_EYE={x:'55.37',y:'16.12',r:'1.5'};
 // The anvil is drawn once in a 20-unit box and placed by transform wherever it is needed:
 // horn to the left, the face across the top, the waist and the flared base beneath.
 var ANVIL='M0.6 9.4L6.5 5.9H19v2.3l-5.2 1.2-.9 4.8 4.2 2v2H3.4v-2l4.2-2-.9-4.8L3.2 10z';
@@ -1902,8 +2017,8 @@ var MARK_GLYPH={
 };
 // cut is the colour showing through the mouth and eye - the ground the mark sits on
 function ouroboros(fill,cut,glyph){
-  return '<path d="'+OU_BODY+'" fill="'+fill+'"/><path d="'+OU_HEAD+'" fill="'+fill+'"/>'+
-         '<path d="'+OU_MOUTH+'" fill="'+cut+'"/>'+
+  return '<g><path d="'+OU_BODY+'" fill="'+fill+'"/><path d="'+OU_TAIL+'" fill="'+fill+'"/></g>'+
+         '<path d="'+OU_HEAD+'" fill="'+fill+'"/>'+
          '<circle cx="'+OU_EYE.x+'" cy="'+OU_EYE.y+'" r="'+OU_EYE.r+'" fill="'+cut+'"/>'+
          (glyph?MARK_GLYPH[curTheme()]||MARK_GLYPH.dark:'');
 }
@@ -1911,6 +2026,22 @@ function ouroboros(fill,cut,glyph){
 // both stop reading. The world's glyph lives on the splash, where it has room.
 function renderMark(){
   document.getElementById('mark').innerHTML=ouroboros('var(--go)','var(--bg)',false);
+}
+// The ground behind the board. Only the watermark is redrawn on a theme change - rebuilding
+// the motes would restart every drift mid-flight.
+var motesBuilt=false;
+function renderBg(){
+  var wm=document.querySelector('.bg-wm');
+  if(wm)wm.innerHTML='<svg viewBox="0 0 100 100" fill="none">'+ouroboros('currentColor','var(--bg)',false)+'</svg>';
+  var m=document.querySelector('.bg-motes');
+  if(!m||motesBuilt)return;
+  var h='';
+  for(var i=0;i<15;i++){
+    var s=(1.1+Math.random()*2.3).toFixed(2);
+    h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;width:'+s+'px;height:'+s+'px;'+
+       'animation-duration:'+(17+Math.random()*23).toFixed(1)+'s;animation-delay:-'+(Math.random()*34).toFixed(1)+'s"></i>';
+  }
+  m.innerHTML=h;motesBuilt=true;
 }
 
 // The app is Arcanum. Every other theme is its own place, so each wears its own name on
@@ -1982,7 +2113,7 @@ function renderTagline(){
   document.getElementById('tagline').innerHTML=t[Math.floor(Math.random()*t.length)];
 }
 function renderHome(){
-  renderMark();renderName();renderPumpIcon();renderTagline();
+  renderMark();renderName();renderPumpIcon();renderTagline();renderBg();
   // A live pump day is not part of the fixed week, so without a card of its own there is
   // nothing on this screen to carry you back into it.
   var pumpOpen=loggedCount('pump')>0?
