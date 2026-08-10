@@ -16,7 +16,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/arcanum-512.png">
 <title>ARCANUM</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&family=Libre+Franklin:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <script>
 // The launch text is held back until the webfonts have actually landed. display=swap
 // paints a fallback first and swaps each family in as it arrives - three families, so
@@ -42,11 +42,13 @@
   --txt:#e9edf6; --txt2:#98a4bd; --txt3:#5f6b84;
   --go:#6fd9ff; --gold:#f0c96b;
   --r:14px;
+  --sans:'Inter Tight',system-ui,sans-serif;
+  --mono:var(--mono);
 }
-body{font-family:'Inter Tight',system-ui,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;}
+body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;}
 input,button,textarea{font-family:inherit;}
 button{-webkit-tap-highlight-color:transparent;}
-.num{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 
 /* ---------- HOME ---------- */
 #home{max-width:600px;margin:0 auto;padding:26px 18px 80px;}
@@ -83,6 +85,69 @@ button{-webkit-tap-highlight-color:transparent;}
 .pill-today{background:var(--c);color:#0b0c0e;}
 .pill-live{background:var(--go);color:#0b0c0e;}
 .pill-ready{background:color-mix(in srgb,var(--go) 15%,transparent);color:var(--go);}
+/* Level up: a lit arrow rather than a word. The old RISE/ASCEND/HEAT labels made you read
+   four different nouns to find the one day that was ready. */
+.lvl{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:9px;
+  border:1px solid color-mix(in srgb,var(--go) 45%,transparent);cursor:pointer;
+  background:color-mix(in srgb,var(--go) 12%,transparent);color:var(--go);
+  animation:lvlpulse 2.8s ease-in-out infinite;transition:background .15s;}
+.lvl svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
+.lvl:hover{background:color-mix(in srgb,var(--go) 24%,transparent);}
+.lvl:active{transform:scale(.94);}
+@keyframes lvlpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 28%,transparent);}
+  50%{box-shadow:0 0 13px 1px color-mix(in srgb,var(--go) 45%,transparent);}}
+/* while the transfer plays, the sheet's actions are out of reach - a tap that lands between
+   the animation and the write leaves the two decisions fighting over the same targets */
+#lvlOvl.busy .sheet-btns{pointer-events:none;opacity:.4;}
+/* Building a day was only reachable by holding a card, which is not discoverable. */
+.mk-new{margin-top:14px;padding:15px;border:1px dashed color-mix(in srgb,var(--go) 40%,var(--line));
+  border-radius:var(--r);text-align:center;cursor:pointer;color:var(--go);
+  font-size:12px;font-weight:600;letter-spacing:.14em;background:color-mix(in srgb,var(--go) 4%,transparent);
+  display:flex;align-items:center;justify-content:center;gap:9px;transition:background .15s,border-color .15s;}
+.mk-new:hover{background:color-mix(in srgb,var(--go) 9%,transparent);border-color:color-mix(in srgb,var(--go) 65%,var(--line));}
+.mk-new:active{transform:scale(.995);}
+.mk-new svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;}
+.slotrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 13px;
+  border:1px solid var(--line);border-radius:11px;background:var(--surface2);cursor:pointer;}
+.slotrow:hover{border-color:color-mix(in srgb,var(--go) 45%,var(--line));}
+.slotrow.off{opacity:.42;cursor:default;}
+.slotrow .sd{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--txt3);width:34px;flex-shrink:0;}
+.slotrow .sn{font-size:13.5px;color:var(--txt);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.slotrow .sm{font-size:11px;color:var(--txt3);flex-shrink:0;}
+.lvl-list{max-height:46vh;overflow-y:auto;overflow-x:hidden;margin:8px 0 4px;display:flex;flex-direction:column;gap:9px;}
+.lvl-row{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface2);}
+.lvl-n{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:6px;}
+.lvl-d{display:flex;flex-wrap:wrap;gap:5px 15px;white-space:nowrap;font-size:12.5px;color:var(--txt3);font-variant-numeric:tabular-nums;}
+.lvl-d b{font-weight:600;color:var(--txt2);}
+.lvl-d b.up{color:var(--go);}
+/* Raising targets: the old number gives up its charge, a spark crosses the arrow, the new
+   number takes it. Staggered down the list so it reads as one wave rather than a flash. */
+.lvl-d span{position:relative;}
+.lvl-d b{display:inline-block;transition:none;}
+.lvl-row.xfer .lvl-d b:not(.up){animation:drain .5s ease-in forwards;animation-delay:var(--sd);}
+.lvl-row.xfer .lvl-d b.up{animation:charge .62s cubic-bezier(.3,1.5,.4,1) forwards;animation-delay:calc(var(--sd) + .26s);}
+.lvl-row.xfer .lvl-n{animation:namelift .7s ease forwards;animation-delay:var(--sd);}
+.lvl-row.xfer{animation:rowlift .7s ease forwards;animation-delay:var(--sd);}
+.lvl-spark{position:absolute;top:50%;left:0;width:5px;height:5px;margin-top:-2.5px;border-radius:50%;
+  background:var(--go);box-shadow:0 0 9px 2px var(--go);opacity:0;pointer-events:none;}
+.lvl-row.xfer .lvl-spark{animation:sparkgo .56s cubic-bezier(.45,0,.3,1) forwards;animation-delay:calc(var(--sd) + .1s);}
+@keyframes drain{to{color:var(--txt3);opacity:.34;transform:scale(.9);}}
+@keyframes charge{
+  0%{transform:scale(1);text-shadow:none;}
+  45%{transform:scale(1.34);text-shadow:0 0 16px var(--go),0 0 34px color-mix(in srgb,var(--go) 60%,transparent);}
+  100%{transform:scale(1.08);text-shadow:0 0 11px color-mix(in srgb,var(--go) 55%,transparent);}}
+@keyframes sparkgo{
+  0%{opacity:0;transform:translateX(var(--x0)) scale(.5);}
+  18%{opacity:1;}
+  75%{opacity:1;}
+  100%{opacity:0;transform:translateX(var(--x1)) scale(1.5);}}
+@keyframes rowlift{
+  0%{border-color:var(--line);}
+  40%{border-color:color-mix(in srgb,var(--go) 60%,transparent);box-shadow:0 0 22px -6px var(--go);}
+  100%{border-color:color-mix(in srgb,var(--go) 34%,transparent);box-shadow:none;}}
+@keyframes namelift{0%,100%{color:var(--txt);}45%{color:var(--go);}}
+@media(prefers-reduced-motion:reduce){
+  .lvl-row.xfer .lvl-d b:not(.up),.lvl-row.xfer .lvl-d b.up,.lvl-row.xfer,.lvl-row.xfer .lvl-n,.lvl-spark{animation-duration:.01s;}}
 .foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--txt3);line-height:1.75;}
 .foot a{color:var(--txt2);cursor:pointer;text-decoration:none;border-bottom:1px solid var(--line);}
 .foot a:hover{color:var(--txt);}
@@ -101,7 +166,7 @@ button{-webkit-tap-highlight-color:transparent;}
 .ring svg{transform:rotate(-90deg);display:block;}
 .ring .trk{stroke:var(--line);}
 .ring .bar{stroke:var(--c);stroke-linecap:round;transition:stroke-dashoffset .45s cubic-bezier(.4,0,.2,1);}
-.ring .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:500;letter-spacing:-.04em;color:var(--txt2);font-family:'JetBrains Mono',monospace;}
+.ring .lbl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:500;letter-spacing:-.04em;color:var(--txt2);font-family:var(--mono);}
 .ring.full .bar{stroke:var(--go);}
 .ring.full .lbl{color:var(--go);}
 .s-body{max-width:600px;margin:0 auto;padding:16px 16px 0;}
@@ -119,7 +184,7 @@ button{-webkit-tap-highlight-color:transparent;}
 .ex-note{font-size:12.5px;color:var(--txt3);margin-top:5px;line-height:1.5;}
 .ex-stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;}
 .ex-stat{display:flex;align-items:center;gap:5px;color:var(--txt3);}
-.ex-stat b{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:11.5px;letter-spacing:-.01em;}
+.ex-stat b{font-family:var(--mono);font-weight:500;font-size:11.5px;letter-spacing:-.01em;}
 .st-tgt b{color:var(--txt2);}
 .st-last b{color:var(--txt2);}
 .st-best b{color:var(--gold);}
@@ -137,16 +202,16 @@ button{-webkit-tap-highlight-color:transparent;}
 .srow.done.isunder .inp{color:var(--txt2);text-shadow:none;}
 .srow.done.isunder .chk{background:var(--txt3);border-color:var(--txt3);box-shadow:none;}
 .srow.done.isunder .chk svg{stroke:var(--bg);}
-.sno{width:22px;height:22px;border-radius:7px;background:var(--surface2);color:var(--txt3);font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sno{width:22px;height:22px;border-radius:7px;background:var(--surface2);color:var(--txt3);font-family:var(--mono);font-size:10.5px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .srow.done .sno{background:color-mix(in srgb,var(--go) 18%,transparent);color:var(--go);}
 .srow.ispr .sno{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold);}
-.inp{background:transparent;border:none;border-bottom:1.5px solid var(--line);color:var(--txt);font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;padding:5px 2px;border-radius:0;text-align:center;width:64px;letter-spacing:-.02em;}
+.inp{background:transparent;border:none;border-bottom:1.5px solid var(--line);color:var(--txt);font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;padding:5px 2px;border-radius:0;text-align:center;width:64px;letter-spacing:-.02em;}
 .inp.wide{width:76px;}
 .inp[readonly]{cursor:pointer;}
 .inp[readonly]:hover{border-bottom-color:var(--c);}
 .srow.done .inp{color:var(--go);border-bottom-color:transparent;}
 .srow.ispr .inp{color:var(--gold);border-bottom-color:transparent;}
-.mul{font-size:13px;color:var(--txt3);font-family:'JetBrains Mono',monospace;}
+.mul{font-size:13px;color:var(--txt3);font-family:var(--mono);}
 .unit{font-size:12px;color:var(--txt3);}
 .chk{position:relative;width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:transparent;cursor:pointer;flex-shrink:0;margin-left:auto;display:flex;align-items:center;justify-content:center;transition:.16s;padding:0;}
 .chk svg{width:19px;height:19px;stroke:var(--txt3);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round;transition:.16s;}
@@ -178,17 +243,69 @@ button{-webkit-tap-highlight-color:transparent;}
 .btn:hover{color:var(--txt);border-color:#33373d;}
 .btn-c{border-color:color-mix(in srgb,var(--c) 45%,var(--line));color:var(--c);}
 .btn-go{border-color:var(--go);color:var(--go);}
+.btn-bad{--bad:#e0736b;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 42%,var(--line));}
+.btn-bad:hover{color:var(--bad);background:color-mix(in srgb,var(--bad) 11%,var(--surface));
+  border-color:color-mix(in srgb,var(--bad) 72%,var(--line));}
 
 /* pump day - deliberately small, bottom right */
 .pumpbtn{position:fixed;bottom:20px;right:18px;width:46px;height:46px;border-radius:15px;border:1px solid var(--line);background:var(--surface);font-size:19px;line-height:1;cursor:pointer;z-index:60;opacity:.42;transition:.2s;display:flex;align-items:center;justify-content:center;padding:0;}
 .pumpbtn:hover{opacity:1;border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface));transform:translateY(-2px) rotate(-6deg);}
 .pumpbtn:active{transform:scale(.94);}
 body.light .pumpbtn{opacity:.55;box-shadow:0 1px 3px rgba(16,20,24,.08);}
+/* walks live outside the week, so the door to them sits outside the board too - opposite
+   corner from the pump day, same weight */
+.walkbtn{position:fixed;bottom:20px;left:18px;width:46px;height:46px;border-radius:15px;
+  border:1px solid var(--line);background:var(--surface);cursor:pointer;z-index:60;opacity:.72;
+  display:flex;align-items:center;justify-content:center;color:var(--txt2);transition:.18s;}
+.walkbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+.walkbtn:hover{opacity:1;border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface));transform:translateY(-2px);}
+.walkbtn:active{transform:scale(.94);}
+.walkbtn.going{opacity:1;color:var(--go);border-color:color-mix(in srgb,var(--go) 55%,var(--line));
+  animation:walkgo 2.6s ease-in-out infinite;}
+@keyframes walkgo{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 30%,transparent);}
+  50%{box-shadow:0 0 14px 1px color-mix(in srgb,var(--go) 45%,transparent);}}
+.walkbtn b{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--go);background:var(--bg);padding:0 4px;border-radius:4px;}
+body.light .walkbtn{opacity:.6;box-shadow:0 1px 3px rgba(16,20,24,.08);}
+body.forge .walkbtn{border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,183,120,.14),inset 0 -1px 0 rgba(0,0,0,.45);}
+/* Four worlds is too many to tell apart by name alone, so each one says what it is. */
+.thcard{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--line);
+  border-radius:12px;background:var(--surface2);cursor:pointer;transition:.15s;position:relative;}
+.thcard:hover{border-color:color-mix(in srgb,var(--gold) 45%,var(--line));}
+.thcard.sel{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 7%,var(--surface2));}
+.th-ic{width:22px;height:22px;flex-shrink:0;color:var(--txt2);margin-top:1px;}
+.thcard.sel .th-ic{color:var(--gold);}
+.th-ic svg{width:22px!important;height:22px!important;}
+.th-b{min-width:0;flex:1;}
+.th-b b{display:block;font-size:14.5px;font-weight:600;color:var(--txt);letter-spacing:.01em;}
+.th-b small{display:block;font-size:11.5px;color:var(--txt3);line-height:1.5;margin-top:3px;text-wrap:pretty;}
+.th-cur{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--gold);}
+.wk-clock{font-family:var(--mono);font-size:52px;font-weight:500;letter-spacing:-.03em;color:var(--txt);
+  text-align:center;line-height:1;margin:6px 0 4px;font-variant-numeric:tabular-nums;}
+.wk-clock.going{color:var(--go);}
+.wk-hint{text-align:center;font-size:11.5px;color:var(--txt3);margin-bottom:16px;}
+.wk-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;margin-bottom:16px;}
+.wk-s{background:var(--surface2);padding:12px 13px;}
+.wk-s b{display:block;font-family:var(--mono);font-size:21px;font-weight:500;color:var(--txt);line-height:1.1;}
+.wk-s b small{font-size:11px;color:var(--txt3);margin-left:3px;}
+.wk-s span{display:block;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--txt3);margin-top:5px;}
+.wk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;}
+.wk-f{display:flex;flex-direction:column;gap:5px;}
+.wk-f span{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);}
+.wk-in{width:100%;box-sizing:border-box;padding:11px 8px;text-align:center;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:16px;}
+.wk-in:focus{outline:none;border-color:var(--go);}
+.wk-feel{display:flex;gap:7px;margin:12px 0 4px;}
+.wk-feel div{flex:1;text-align:center;padding:10px 4px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface2);color:var(--txt3);font-size:12px;cursor:pointer;transition:.15s;}
+.wk-feel div.sel{border-color:var(--go);color:var(--go);background:color-mix(in srgb,var(--go) 10%,var(--surface2));}
+.wk-pace{text-align:center;font-size:11.5px;color:var(--txt3);font-family:var(--mono);margin-top:12px;min-height:15px;}
 
 /* timer */
 .timer-pill{display:none;align-items:center;gap:9px;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);color:var(--txt);padding:9px 11px 9px 13px;border-radius:16px;z-index:120;box-shadow:0 10px 34px rgba(0,0,0,.55);white-space:nowrap;}
 .timer-pill.on{display:flex;}
-.ttime{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;min-width:58px;text-align:center;letter-spacing:-.03em;}
+.ttime{font-family:var(--mono);font-size:20px;font-weight:500;min-width:58px;text-align:center;letter-spacing:-.03em;}
 .tbtn{font-size:12px;font-weight:500;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--txt2);cursor:pointer;}
 .tbtn:hover{color:var(--txt);}
 .timer-pill.ring2{background:var(--go);border-color:var(--go);color:#08130d;}
@@ -227,7 +344,7 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 /* ---------- session summary ---------- */
 .sum{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;}
 .sum-c{background:var(--surface2);padding:14px 15px;}
-.sum-n{font-family:'JetBrains Mono',monospace;font-size:25px;font-weight:500;letter-spacing:-.03em;color:var(--txt);line-height:1.1;}
+.sum-n{font-family:var(--mono);font-size:25px;font-weight:500;letter-spacing:-.03em;color:var(--txt);line-height:1.1;}
 .sum-n small{font-size:12px;color:var(--txt3);letter-spacing:0;margin-left:3px;}
 .sum-l{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--txt3);margin-top:6px;}
 .sum-c.pr .sum-n{color:var(--gold);}
@@ -243,14 +360,14 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .sheet{max-width:520px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px;}
 .sheet h3{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:600;letter-spacing:-.02em;color:var(--txt);margin-bottom:5px;}
 .sheet p{font-size:13px;color:var(--txt3);margin-bottom:16px;line-height:1.55;}
-.sheet textarea{width:100%;min-height:230px;background:var(--bg);border:1px solid var(--line);border-radius:11px;color:var(--txt2);font-family:'JetBrains Mono',monospace;font-size:12px;padding:13px;line-height:1.65;resize:vertical;}
+.sheet textarea{width:100%;min-height:230px;background:var(--bg);border:1px solid var(--line);border-radius:11px;color:var(--txt2);font-family:var(--mono);font-size:12px;padding:13px;line-height:1.65;resize:vertical;}
 .sheet-btns{display:flex;gap:8px;margin-top:16px;}
 .sheet-btns .btn{flex:1;text-align:center;padding:13px;}
 .swaplist{max-height:58vh;overflow-y:auto;}
 .swaphead{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--go);margin:16px 0 8px;}
 .swapitem{padding:13px 14px;border:1px solid var(--line);border-radius:11px;margin-bottom:7px;font-size:14px;color:var(--txt);cursor:pointer;transition:.15s;}
 .swapitem:hover{border-color:#3d434a;background:var(--surface2);}
-.swapitem small{display:block;color:var(--txt3);font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:4px;}
+.swapitem small{display:block;color:var(--txt3);font-family:var(--mono);font-size:11px;margin-top:4px;}
 
 /* ---------- the builder ---------- */
 .mk-hint{font-size:11px;color:var(--txt3);margin:-6px 0 12px;letter-spacing:.02em;}
@@ -260,7 +377,7 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .mk-in:focus{outline:none;border-color:color-mix(in srgb,var(--go) 55%,var(--line));}
 .mk-slots{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
 .mk-slot{padding:10px 5px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);cursor:pointer;text-align:center;transition:.15s;overflow:hidden;}
-.mk-slot b{display:block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--txt2);font-weight:400;}
+.mk-slot b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--txt2);font-weight:400;}
 .mk-slot small{display:block;font-size:10px;color:var(--txt3);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .mk-slot.sel{border-color:var(--mkc);background:color-mix(in srgb,var(--mkc) 13%,var(--surface2));}
 .mk-slot.sel b{color:var(--mkc);}
@@ -276,7 +393,7 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .mk-rf{display:flex;gap:7px;align-items:flex-end;margin-top:9px;flex-wrap:wrap;}
 .mk-f{display:flex;flex-direction:column;gap:4px;}
 .mk-f span{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);}
-.mk-num{width:56px;padding:9px 4px;text-align:center;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:13px;}
+.mk-num{width:56px;padding:9px 4px;text-align:center;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:13px;}
 .mk-num:focus{outline:none;border-color:var(--go);}
 .mk-sel{padding:9px 8px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--txt2);font-family:inherit;font-size:12px;}
 .mk-x{width:28px;height:28px;flex-shrink:0;border-radius:8px;border:1px solid var(--line);background:var(--surface2);color:var(--txt3);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s;}
@@ -292,7 +409,7 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .edsheet{max-width:340px;text-align:center;}
 .ed-ex{font-family:'Bricolage Grotesque',sans-serif;font-size:15px;font-weight:600;letter-spacing:-.02em;color:var(--txt);}
 .ed-set{font-size:12px;color:var(--txt3);margin-top:3px;}
-.ed-big{display:block;width:100%;box-sizing:border-box;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:54px;font-weight:500;color:var(--txt);line-height:1.1;margin-top:14px;letter-spacing:-.04em;text-align:center;background:transparent;border:none;border-bottom:2px dotted var(--line);padding:0 0 4px;border-radius:0;-webkit-appearance:none;}
+.ed-big{display:block;width:100%;box-sizing:border-box;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:54px;font-weight:500;color:var(--txt);line-height:1.1;margin-top:14px;letter-spacing:-.04em;text-align:center;background:transparent;border:none;border-bottom:2px dotted var(--line);padding:0 0 4px;border-radius:0;-webkit-appearance:none;}
 .ed-big:focus{outline:none;border-bottom-color:var(--go);}
 .ed-unit{font-size:12px;color:var(--txt3);margin-bottom:18px;}
 .ed-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
@@ -302,22 +419,22 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .pg-sec{font-size:10px;letter-spacing:.1em;color:var(--txt3);margin:14px 0 6px;}
 .pg-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:10px;margin-bottom:5px;background:var(--surface);}
 .pg-n{flex:1;min-width:0;font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.pg-v{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt3);white-space:nowrap;}
-.pg-d{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;white-space:nowrap;min-width:52px;text-align:right;}
+.pg-v{font-family:var(--mono);font-size:11px;color:var(--txt3);white-space:nowrap;}
+.pg-d{font-family:var(--mono);font-size:11px;font-weight:600;white-space:nowrap;min-width:52px;text-align:right;}
 .up{color:var(--go);} .dn{color:#ff5d6c;} .fl{color:var(--txt3);}
 .pg-empty{font-size:12px;color:var(--txt3);padding:18px 4px;text-align:center;}
-.edbtn{padding:15px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:14px;cursor:pointer;transition:.15s;}
+.edbtn{padding:15px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
 .edbtn.minus:hover{border-color:#ff5d6c;color:#ff5d6c;}
 .edbtn.plus:hover{border-color:var(--go);color:var(--go);}
-.ed-input{width:100%;margin-top:10px;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:15px;text-align:center;}
+.ed-input{width:100%;margin-top:10px;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:15px;text-align:center;}
 .ed-input:focus{outline:none;border-color:#3d434a;}
 .ed-hint{font-size:12px;color:var(--txt3);margin-top:11px;}
 .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.preset{padding:17px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:'JetBrains Mono',monospace;font-size:14px;cursor:pointer;transition:.15s;}
+.preset{padding:17px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
 .preset:hover{border-color:var(--go);color:var(--go);}
 .preset.sm{padding:12px 6px;font-size:12px;font-family:inherit;letter-spacing:.02em;}
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
-.sfx-tog{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
+.sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
 .sfx-tog:hover{border-color:var(--go);color:var(--go);}
 
 /* ---------- GYM MODE ---------- */
@@ -523,7 +640,7 @@ body.moon .sp-word{font-size:25px;letter-spacing:.42em;}
 .ex-n{font-size:17px;letter-spacing:.01em;}
 .sheet h3,.ed-ex{letter-spacing:.05em;}
 .finishbtn{font-size:15px;letter-spacing:.16em;text-transform:uppercase;}
-.card-day{letter-spacing:.14em;font-family:'JetBrains Mono',monospace;font-weight:400;font-size:10px;}
+.card-day{letter-spacing:.14em;font-family:var(--mono);font-weight:400;font-size:10px;}
 .card,.exc,.sheet,.timer-pill{background:linear-gradient(180deg,rgba(190,214,255,.05),rgba(190,214,255,.008)),var(--surface);border-top-color:rgba(198,220,255,.11);}
 /* fine obsidian grain - polished stone, not paper */
 body::after{content:'';position:fixed;inset:0;z-index:9000;pointer-events:none;opacity:.16;mix-blend-mode:soft-light;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
@@ -546,7 +663,10 @@ body.booting #home::before{display:none;}
 /* arcane ambient - a cold bloom above the page */
 #home::before{content:'';position:fixed;left:50%;top:-190px;width:820px;height:540px;transform:translateX(-50%);pointer-events:none;z-index:0;
   background:radial-gradient(closest-side,rgba(96,84,214,.20),rgba(64,140,220,.07) 52%,transparent 74%);}
-body.light #home::before{background:radial-gradient(closest-side,rgba(96,84,214,.11),transparent 70%);}
+/* Frost's ground is a moving texture, so a bloom that ends at 70% leaves a visible rim across
+   the streaks under the header. It fades the whole way out here, over a taller box. */
+body.light #home::before{height:760px;top:-300px;
+  background:radial-gradient(closest-side,rgba(96,84,214,.10),rgba(96,84,214,.045) 55%,transparent 100%);}
 
 /* ---------- BOARD GROUND ----------
    Six layers behind the week board, all generated - no image files, so the app stays one
@@ -575,20 +695,33 @@ body.forge .bg-rules,body.moon .bg-rules{animation:none;}
 /* Frost is weather, not engraving: driving streaks raking across on the wind. The orrery's
    mask would clip the storm into an oval with a hard top edge, so the streaks run edge to
    edge and the layer is left unmasked. */
-body.light .bg-rules{-webkit-mask-image:none;mask-image:none;
-  background-image:repeating-linear-gradient(74deg,
-    rgba(96,120,148,.20) 0 1px,transparent 1px 7px,
-    rgba(96,120,148,.11) 7px 8px,transparent 8px 21px);
-  background-size:auto;animation:blow 2.6s linear infinite;}
-/* the offset has to be a whole number of stripe periods along the 74deg axis, or the pattern
-   snaps back a fraction of a tile every loop. 21px period, 12 periods = 252px. */
-@keyframes blow{to{background-position:-242.3px 69.5px;}}
+body.light .bg-rules{-webkit-mask-image:none;mask-image:none;animation:none;background-image:none;}
+/* The storm scrolls as a transform on an oversized child, not as an animated background-
+   position on a full-screen layer. The latter repaints every frame, and on a re-render the
+   half-drawn layer showed as a band across the top for a second or two before it settled. */
+/* An even diagonal rake reads as hatching, not weather. Wind is uneven: separate streaks of
+   different length and speed, each tapered at both ends, raking across and past the screen. */
+.bg-wind{display:none;}
+body.light .bg-wind{display:block;}
+/* Straight streaks still read as rain. Wind over open ground curls: each gust is a curved
+   path and a short dash runs along it, so the motion follows the bend instead of sliding
+   across it. The dash is what you see - the path itself is never drawn. */
+.bg-wind svg{position:absolute;inset:0;width:100%;height:100%;}
+.bg-wind path{fill:none;stroke:rgba(84,110,143,.5);stroke-width:1.4;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;stroke-dasharray:var(--dash) 999;
+  animation:swirlgo var(--d) linear infinite;animation-delay:var(--dl);}
+@keyframes swirlgo{from{stroke-dashoffset:var(--dash);}to{stroke-dashoffset:-999;}}
+@media(prefers-reduced-motion:reduce){.bg-wind path{animation:none;}}
 
 /* the mark itself, blown up and turning slow enough that you only catch it if you wait */
-.bg-wm{display:flex;align-items:center;justify-content:center;}
-.bg-wm svg{width:min(96vw,540px);height:min(96vw,540px);color:var(--gold);
+.bg-wm{display:flex;align-items:center;justify-content:center;
+  -webkit-mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);
+  mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);}
+/* sized to clear the viewport in portrait - clipped at the top edge it stops reading as the
+   mark and just looks like a smudge behind the header */
+.bg-wm svg{width:min(76vw,430px);height:min(76vw,430px);color:var(--gold);
   opacity:.042;animation:wmturn 320s linear infinite;}
-body.light .bg-wm svg{opacity:.07;}
+body.light .bg-wm svg{opacity:.055;}
 body.forge .bg-wm svg{opacity:.05;animation-duration:240s;}
 body.moon .bg-wm svg{opacity:.04;animation-duration:420s;}
 @keyframes wmturn{to{transform:rotate(360deg);}}
@@ -614,7 +747,8 @@ body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5)
   animation:motefall var(--d) linear infinite,motesway var(--sw) ease-in-out infinite alternate;
   animation-delay:var(--dl),calc(var(--dl) / 2);
   animation-duration:calc(var(--d) * .3),var(--sw);}
-@keyframes motesway{from{margin-left:-3.5vw;}to{margin-left:3.5vw;}}
+/* the wobble is biased downwind - a flake in a crosswind never sways back as far as it came */
+@keyframes motesway{from{margin-left:1.6vw;}to{margin-left:-3.4vw;}}
 /* Obsidian's dust is lit, so it reads as drifting sparks rather than specks. Obsidian is the
    themeless default, hence the negation rather than a .dark class. */
 body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix(in srgb,var(--gold) 70%,transparent);}
@@ -626,9 +760,9 @@ body.moon .bg-motes i{filter:blur(.8px);}
   72%{opacity:.42;}
   100%{transform:translateY(-8vh) translateX(3vw);opacity:0;}}
 @keyframes motefall{
-  0%{transform:translateY(-8vh) translateX(0);opacity:0;}
+  0%{transform:translateY(-10vh) translateX(14vw);opacity:0;}
   16%{opacity:.85;}
-  100%{transform:translateY(108vh) translateX(-4vw);opacity:0;}}
+  100%{transform:translateY(108vh) translateX(-38vw);opacity:0;}}
 
 .bg-grain{opacity:.055;mix-blend-mode:overlay;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3'/%3E%3C/filter%3E%3Crect width='170' height='170' filter='url(%23n)'/%3E%3C/svg%3E");}
@@ -637,6 +771,8 @@ body.forge .bg-grain{opacity:.075;}
 
 .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 38%,color-mix(in srgb,var(--bg) 88%,#000) 100%);}
 body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 44%,rgba(120,134,150,.24) 100%);}
+/* The spindrift bands that used to sit here read as tall grass rather than blown snow, so
+   the wind swirls carry the weather on their own. */
 
 /* battery saver and reduced motion keep the ground, lose the travel */
 @media(prefers-reduced-motion:reduce){
@@ -687,7 +823,7 @@ body.light .card-day,body.light .srow.done .inp,body.light .srow.ispr .inp,body.
 body.light .srow.done .chk,body.light .srow.ispr .chk,body.light .finishbtn{box-shadow:none;}
 .card::before{display:none;}
 .card{border-radius:13px;}
-.pill{border-radius:6px;font-family:'JetBrains Mono',monospace;font-weight:400;letter-spacing:.07em;text-transform:uppercase;}
+.pill{border-radius:6px;font-family:var(--mono);font-weight:400;letter-spacing:.07em;text-transform:uppercase;}
 .iconbtn{border-radius:10px;}
 .iconbtn svg,.ex-swap svg,.hold svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
 .hold svg{width:15px;height:15px;}
@@ -744,16 +880,16 @@ body.light #wcover{background:linear-gradient(180deg,#04322f 0%,#021c1b 42%,#010
 .hh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .hh h3{margin-bottom:0;}
 .hseg{display:flex;gap:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-shrink:0;}
-.hsegb{padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);cursor:pointer;background:transparent;transition:.15s;}
+.hsegb{padding:7px 12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);cursor:pointer;background:transparent;transition:.15s;}
 .hsegb:hover{color:var(--txt2);}
 .hsegb.on{background:color-mix(in srgb,var(--go) 16%,transparent);color:var(--go);}
 .hscroll{max-height:56vh;overflow-y:auto;}
 .hrow{display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid var(--line);border-radius:11px;margin-bottom:6px;background:var(--surface);cursor:pointer;transition:.15s;}
 .hrow:hover{border-color:color-mix(in srgb,var(--hc) 45%,var(--line));background:var(--surface2);}
 .hrow-b{flex:1;min-width:0;}
-.hrow-d{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--hc);}
+.hrow-d{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--hc);}
 .hrow-n{font-family:'Marcellus',serif;font-size:14.5px;color:var(--txt);margin-top:3px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.hrow-m{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--txt3);margin-top:4px;}
+.hrow-m{font-family:var(--mono);font-size:10.5px;color:var(--txt3);margin-top:4px;}
 .hrow-m .pr{color:var(--gold);}
 .hrow-a{color:var(--txt3);font-size:15px;flex-shrink:0;}
 .hcal-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
@@ -761,22 +897,22 @@ body.light #wcover{background:linear-gradient(180deg,#04322f 0%,#021c1b 42%,#010
 .hnav{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--txt2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;}
 .hnav:hover{color:var(--txt);border-color:color-mix(in srgb,var(--go) 40%,var(--line));}
 .hgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
-.hdow{font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.08em;color:var(--txt3);text-align:center;padding:2px 0 4px;}
+.hdow{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--txt3);text-align:center;padding:2px 0 4px;}
 .hcell{position:relative;aspect-ratio:1;border-radius:9px;border:1px solid transparent;display:flex;align-items:center;justify-content:center;
-  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt3);}
+  font-family:var(--mono);font-size:11px;color:var(--txt3);}
 .hcell.pad{opacity:0;}
 .hcell.has{background:var(--surface2);border-color:color-mix(in srgb,var(--hc) 40%,var(--line));color:var(--txt);cursor:pointer;transition:.15s;}
 .hcell.has:hover{box-shadow:0 0 16px -6px color-mix(in srgb,var(--hc) 90%,transparent);}
 .hcell.has::after{content:'';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--hc);
   box-shadow:0 0 8px color-mix(in srgb,var(--hc) 80%,transparent);}
 .hcell.now{border-color:var(--txt3);color:var(--txt);}
-.hback{display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);cursor:pointer;margin-bottom:14px;}
+.hback{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);cursor:pointer;margin-bottom:14px;}
 .hback:hover{color:var(--go);}
 .hdet-n{font-family:'Marcellus',serif;font-size:17px;color:var(--txt);letter-spacing:.02em;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:12px;}
 .hex{padding:9px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);}
 .hex-n{font-size:13px;color:var(--txt2);margin-bottom:6px;}
 .hex-s{display:flex;flex-wrap:wrap;gap:5px;}
-.hset{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--txt);background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:4px 8px;}
+.hset{font-family:var(--mono);font-size:11px;color:var(--txt);background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:4px 8px;}
 .hset.pr{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,transparent);}
 .hnote{margin-top:14px;font-size:12.5px;color:var(--txt3);line-height:1.6;font-style:italic;}
 .hdel{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;padding:13px;border-radius:11px;cursor:pointer;transition:.16s;
@@ -895,16 +1031,26 @@ html.moon .sp-mark .gy-moon{display:block;}
 @keyframes draw{to{stroke-dashoffset:0;}}
 @keyframes bloom{from{opacity:0;transform:scale(.3);}to{opacity:.85;transform:scale(1);}}
 .sp-word{font-family:'Marcellus',serif;font-size:26px;text-shadow:0 1px 0 rgba(0,0,0,.6);letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--txt);opacity:0;white-space:nowrap;}
-.sp-tag{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--txt3);opacity:0;white-space:nowrap;}
+.sp-tag{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--txt3);opacity:0;white-space:nowrap;}
 html.fready .sp-word{animation:spin2 .7s ease .28s forwards;}
 html.fready .sp-tag{animation:spin2 .7s ease .48s forwards;}
 @keyframes spin2{from{opacity:0;letter-spacing:.62em;}to{opacity:1;}}
 .sp-rule{width:132px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;}
 html.fready .sp-rule{animation:spin2 .6s ease .62s forwards;}
 body.light .card,body.light .exc,body.light .sheet,body.light .timer-pill{background:var(--surface);border-top-color:var(--line);}
+body.light{--sans:'Libre Franklin',system-ui,sans-serif;--mono:'Courier Prime',ui-monospace,monospace;}
+body.light .sp-word,body.light .sheet h3,body.light .ed-ex,body.light .hrow-n,body.light .hdet-n{font-family:'Libre Franklin',system-ui,sans-serif;font-weight:600;}
+/* Courier Prime is wide and light - figures need a shade more weight and less tracking to
+   hold their own against the mono the other themes use */
+body.light .num,body.light .inp,body.light .ttime,body.light .sum-n,body.light .ed-big{font-weight:700;letter-spacing:-.02em;}
+body.light .card-day,body.light .pill,body.light .hsegb,body.light .hrow-d{font-weight:700;}
 /* frost mode: day accents are tuned for obsidian, so darken them onto the pale ground */
 body.light .card-day,body.light .s-sub b,body.light .sect-t .ss{color:color-mix(in srgb,var(--c) 50%,#0b1018);}
 body.light .btn-c{color:color-mix(in srgb,var(--c) 50%,#0b1018);border-color:color-mix(in srgb,var(--c) 45%,var(--line));}
+/* the warm red washes out on a pale ground and reads orange in the forge - both get a shade
+   that sits against their own background */
+body.light .btn-bad{--bad:#b1332c;}
+body.forge .btn-bad{--bad:#f0645a;}
 body.light .pill-today{background:color-mix(in srgb,var(--c) 50%,#0b1018);color:#fff;}
 /* a glow does nothing on a pale ground, so Frost marks today by weight of tint instead */
 body.light .card.today{background:color-mix(in srgb,var(--c) 15%,var(--surface));
@@ -943,26 +1089,39 @@ body.moon #splash.out .sp-leaf.l3{transform:translateY(88%);opacity:0;}
 /* hold the night sky until the moon has had its moment, then let it go */
 html.moon #splash,body.moon #splash{transition:background-color .38s ease 1s;}
 
-/* ---------- Frost launch: the name settles, then falls ----------
-   No cover, no leaves turning. Everything on screen drifts down the way a flake does:
-   never straight, tipping into each change of direction, smaller as it goes. */
-html.light #splash.out .sp-board,body.light #splash.out .sp-board{animation:flakefall 1.32s cubic-bezier(.36,.02,.5,1) forwards;}
-html.light #splash.out .sp-leaf,body.light #splash.out .sp-leaf{animation:flakefall 1.24s cubic-bezier(.36,.02,.5,1) .05s forwards;}
-html.light #splash.out .sp-leaf.l2,body.light #splash.out .sp-leaf.l2{animation:flakefall2 1.3s cubic-bezier(.36,.02,.5,1) .1s forwards;}
-html.light #splash.out .sp-leaf.l3,body.light #splash.out .sp-leaf.l3{animation:flakefall 1.36s cubic-bezier(.36,.02,.5,1) .16s forwards;}
-@keyframes flakefall{
+/* ---------- Tundra launch: the wind takes it ----------
+   Not a flake settling any more. Everything braces against the gust for a moment, then is
+   carried off across the ice - low, fast, and away to the side rather than down. */
+html.light #splash.out .sp-board,body.light #splash.out .sp-board{animation:gust 1.15s cubic-bezier(.5,.02,.35,1) forwards;}
+html.light #splash.out .sp-leaf,body.light #splash.out .sp-leaf{animation:gust 1.02s cubic-bezier(.5,.02,.35,1) .04s forwards;}
+html.light #splash.out .sp-leaf.l2,body.light #splash.out .sp-leaf.l2{animation:gust2 1.1s cubic-bezier(.5,.02,.35,1) .09s forwards;}
+html.light #splash.out .sp-leaf.l3,body.light #splash.out .sp-leaf.l3{animation:gust 1.2s cubic-bezier(.5,.02,.35,1) .14s forwards;}
+/* downwind is to the left, the same way the swirls and the snow run on the board */
+@keyframes gust{
   0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1;}
-  16%{transform:translate(-2%,3%) rotate(-2.6deg) scale(.995);opacity:1;}
-  44%{transform:translate(3%,32%) rotate(3deg) scale(.955);opacity:.94;}
-  72%{transform:translate(-2.4%,71%) rotate(-2deg) scale(.905);opacity:.62;}
-  100%{transform:translate(1.2%,118%) rotate(2.6deg) scale(.84);opacity:0;}}
-@keyframes flakefall2{
+  14%{transform:translate(3.5%,.6%) rotate(1.4deg) scale(1.005);opacity:1;}
+  46%{transform:translate(-24%,-2.4%) rotate(-3.2deg) scale(.97);opacity:.9;}
+  100%{transform:translate(-142%,-7%) rotate(-7deg) scale(.9);opacity:0;}}
+@keyframes gust2{
   0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1;}
-  20%{transform:translate(2.4%,5%) rotate(2.2deg) scale(.995);opacity:1;}
-  52%{transform:translate(-3.2%,38%) rotate(-3.4deg) scale(.95);opacity:.9;}
-  78%{transform:translate(2%,76%) rotate(2.4deg) scale(.9);opacity:.55;}
-  100%{transform:translate(-1%,120%) rotate(-2deg) scale(.83);opacity:0;}}
-html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
+  16%{transform:translate(4.5%,1.4%) rotate(-1.6deg) scale(1.005);opacity:1;}
+  50%{transform:translate(-28%,2.6%) rotate(2.6deg) scale(.965);opacity:.86;}
+  100%{transform:translate(-150%,6%) rotate(6deg) scale(.88);opacity:0;}}
+html.light #splash,body.light #splash{transition:background-color .4s ease .6s;background:#e4eaf1;}
+/* Tundra is the one theme lit from outside. The splash used to inherit Obsidian's night
+   board, which is why the lettering was unreadable on it - it is now overcast light on snow,
+   with the ink and shadows inverted to match. */
+html.light .sp-board,body.light .sp-board{
+  background:radial-gradient(125% 105% at 38% 14%,#ffffff 0%,#e9eef5 46%,#cfd8e4 100%);
+  box-shadow:inset 0 0 90px rgba(120,140,165,.16),18px 0 36px rgba(120,140,165,.22);}
+html.light .sp-board::after,body.light .sp-board::after{background:radial-gradient(closest-side,rgba(120,150,190,.16),transparent 70%);}
+html.light .sp-leaf,body.light .sp-leaf{
+  background:linear-gradient(100deg,#f4f7fb 0%,#e7edf4 44%,#cbd5e2 100%);
+  box-shadow:16px 0 22px rgba(120,140,165,.28);}
+html.light .sp-leaf::after,body.light .sp-leaf::after{background:linear-gradient(100deg,rgba(255,255,255,.6),rgba(255,255,255,.15) 34%,transparent 60%);}
+html.light .sp-word,body.light .sp-word{color:#1c2430;text-shadow:0 1px 0 rgba(255,255,255,.8);}
+html.light .sp-tag,body.light .sp-tag{color:#5b6a7d;}
+html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 </style>
 </head>
 <body class="booting">
@@ -993,6 +1152,7 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
 </div>
 <div id="bg" aria-hidden="true">
   <div class="bg-rules"></div>
+  <div class="bg-wind"></div>
   <div class="bg-wm"></div>
   <div class="bg-light"></div>
   <div class="bg-motes"></div>
@@ -1015,6 +1175,10 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
   <div class="sec-label" id="weekLabel">Your Week</div>
   <div class="mk-hint" id="weekHint"></div>
   <div id="weekCards"></div>
+  <div class="sec-label" id="extraLabel" style="display:none;margin-top:26px">Kept days</div>
+  <div class="mk-hint" id="extraHint" style="display:none">Not part of the week &mdash; open one whenever you want it</div>
+  <div id="extraCards"></div>
+  <div class="mk-new" id="mkNewBtn" onclick="openNewDay()"></div>
   <div class="foot" id="foot"></div>
 </div>
 
@@ -1047,6 +1211,29 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
   <div class="s-body" id="mkBody"></div>
 </div>
 <button class="pumpbtn" id="pumpBtn" onclick="openPump()" title="Pump day" aria-label="Pump day" style="color:var(--gold)"><svg viewBox="0 0 20 20" style="width:19px;height:19px;fill:currentColor"><path d="M10 1.6l2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4 6-2.4z"/></svg></button>
+
+<button class="walkbtn" id="walkBtn" onclick="openWalk()" title="Walks" aria-label="Walks"><svg viewBox="0 0 20 20"><path d="M3.5 17c3.4-.6 5.4-2.4 6-5.4.6-3 2.6-4.8 6-5.4" stroke-dasharray="2.6 2.4"/><path d="M15.5 6.2V2.6M15.5 3.1l3.2 1.1-3.2 1.1"/></svg></button>
+
+<div class="ovl" id="walkOvl">
+  <div class="sheet" style="max-width:400px">
+    <h3 id="wkTtl">Walks</h3>
+    <div class="wk-clock" id="wkClock">0:00</div>
+    <div class="wk-hint" id="wkHint"></div>
+    <div class="wk-stats" id="wkStats"></div>
+    <div class="wk-grid">
+      <label class="wk-f"><span>Minutes</span><input class="wk-in" id="wkMin" type="number" inputmode="decimal" oninput="wkPace()"></label>
+      <label class="wk-f"><span>Miles</span><input class="wk-in" id="wkDist" type="number" inputmode="decimal" step="0.01" oninput="wkPace()"></label>
+      <label class="wk-f"><span>Steps</span><input class="wk-in" id="wkSteps" type="number" inputmode="numeric"></label>
+    </div>
+    <div class="wk-pace" id="wkPace"></div>
+    <div class="wk-feel" id="wkFeel"></div>
+    <div class="sheet-btns">
+      <div class="btn" onclick="closeOvl('walkOvl')">CLOSE</div>
+      <div class="btn" id="wkTog" onclick="wkToggle()">START</div>
+      <div class="btn btn-go" onclick="saveWalk()">LOG IT</div>
+    </div>
+  </div>
+</div>
 
 <div class="ovl" id="pumpOvl">
   <div class="sheet" style="max-width:400px">
@@ -1124,6 +1311,21 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
   </div>
 </div>
 
+<div class="ovl" id="lvlOvl">
+  <div class="sheet" style="max-width:440px">
+    <h3 id="lvlTitle">Level up</h3>
+    <p id="lvlSub"></p>
+    <div id="lvlList" class="lvl-list"></div>
+    <div class="sheet-btns" id="lvlSkipRow">
+      <div class="btn" onclick="skipLevel()">DON'T RAISE TARGETS</div>
+    </div>
+    <div class="sheet-btns">
+      <div class="btn" onclick="lvlAbort();closeOvl('lvlOvl')">CANCEL</div>
+      <div class="btn btn-go" id="lvlGo" onclick="applyLevel()">RAISE TARGETS</div>
+    </div>
+  </div>
+</div>
+
 <div class="ovl" id="timerOvl">
   <div class="sheet" style="max-width:400px">
     <h3>Quick timer</h3>
@@ -1154,7 +1356,7 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
 <div class="ovl" id="themeOvl">
   <div class="sheet" style="max-width:400px">
     <h3>Choose a theme</h3>
-    <p>Each one changes the whole app: palette, lettering, and the sounds it makes.</p>
+    <p>Each one is its own place, and changes everything: palette, lettering, and the sounds it makes.</p>
     <div class="mk-acts" id="themeSheet"></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('themeOvl')">CLOSE</div></div>
   </div>
@@ -1166,6 +1368,15 @@ html.light #splash,body.light #splash{transition:background-color .4s ease .6s;}
     <p id="mkActSub"></p>
     <div class="mk-acts" id="mkActBody"></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('mkActOvl')">CANCEL</div></div>
+  </div>
+</div>
+
+<div class="ovl" id="mkSlotOvl">
+  <div class="sheet" style="max-width:420px">
+    <h3 id="mkSlotTtl">Which day does it take?</h3>
+    <p>The week keeps its seven slots. Your day replaces what is on the one you pick &mdash; the original can be put back any time.</p>
+    <div class="lvl-list" id="mkSlotBody"></div>
+    <div class="sheet-btns"><div class="btn" onclick="closeOvl('mkSlotOvl')">CANCEL</div></div>
   </div>
 </div>
 
@@ -1368,6 +1579,9 @@ function R(ref){
   var e = EX[id];
   var out = {name:e.name,note:e.note,sets:e.sets,rest:e.rest};
   if(ov){ for(var k in ov){ out[k]=ov[k]; } }
+  // a levelled target outranks the day's own override - it is the newer decision
+  var up=(typeof DB!=='undefined'&&DB.up)?DB.up[id]:null;
+  if(up)out.sets=up;
   return out;
 }
 
@@ -1538,7 +1752,12 @@ function dayC(wk){
   return W[wk]?W[wk].color:'#6fd9ff';
 }
 var KEY='baseline:db',TKEY='baseline:theme';
-var THEMES=[['dark','Obsidian'],['light','Frost'],['forge','Forge'],['moon','Moonwell']];
+var THEMES=[
+  ['dark','Obsidian','A dark study. Ink and ledger lines, an orrery turning slowly behind the week.'],
+  ['light','Tundra','An expedition depot. Wind across open ice, field notes, ground covered.'],
+  ['forge','Forge','A smithy. Heat, hammer and quench \u2014 every finished day a piece worked.'],
+  ['moon','Moonwell','A still pool under the sky. Bowed glass, phases, nothing hurried.']
+];
 // The picker used to show a moon for Obsidian and a moon-with-star for Moonwell, and a sun
 // for Frost - two of them read as the same idea and none of them said which theme it was.
 // Each entry is now that theme's own sigil, the same mark it puts on the splash and on
@@ -1577,6 +1796,29 @@ function TXT(k){
     closeTtl:  'Close Moonwell?',
     closeMsg:  'Moonwell closes. Your session stays exactly where it is \u2014 nothing is lost.'
   })[k];
+  if(l)return ({
+    done:      'Marked',
+    unsealBtn: 'Retrace the week',
+    unsealMsg: 'Every marked day opens again so you can walk it a second time. Nothing is deleted \u2014 all of it stays in your history.',
+    unsealTtl: 'Retrace the week?',
+    unsealYes: 'RETRACE',
+    sealTtl1:  'Mark the open session?',
+    sealTtlN:  'Mark the open sessions?',
+    sealYes:   'MARK & CONTINUE',
+    sealLine:  ' Opening this one will mark your current session',
+    sealAlt:   'BACK TO SESSION',
+    sealMore:  ' Or go back to it and pick up where you left off.',
+    restingTtl:'Resting',
+    restingBody:'Next set at',
+    skipAct:   'Move on',
+    week:      'Your Week',
+    ready:     'Push on',
+    splashTag: 'Breaking trail',
+    restTtl:   'Rest over',
+    restBody:  'Next set is ready.',
+    closeTtl:  'Break camp?',
+    closeMsg:  'Camp comes down. Your session stays exactly where it is \u2014 nothing is lost.'
+  })[k];
   return ({
     done:      f?'Forged':'Sealed',
     unsealBtn: f?'Back to the fire':'Unseal the week',
@@ -1598,9 +1840,9 @@ function TXT(k){
     splashTag: f?'Lighting the forge':'Loading',
     restTtl:   f?'Back to the anvil':'Rest over',
     restBody:  f?'The iron is ready.':'Next set is ready.',
-    closeTtl:  f?'Bank the fire?':l?'Close Frost?':'Close Arcanum?',
+    closeTtl:  f?'Bank the fire?':l?'Break camp?':'Close Arcanum?',
     closeMsg:  f?'Forge closes. Your piece stays exactly where it is \u2014 nothing is lost.'
-                :l?'Frost closes. Your session stays exactly where it is \u2014 nothing is lost.'
+                :l?'Camp comes down. Your session stays exactly where it is \u2014 nothing is lost.'
                 :'Arcanum closes. Your session stays exactly where it is \u2014 nothing is lost.'
   })[k];
 }
@@ -1638,11 +1880,10 @@ function drawThemeSheet(){
   var e=document.getElementById('themeSheet');if(!e)return;
   var c=curTheme();
   e.innerHTML=THEMES.map(function(t){
-    return '<div class="btn'+(t[0]===c?' btn-go':'')+'" onclick="setTheme(\''+t[0]+'\');drawThemeSheet()" '+
-      'style="display:flex;align-items:center;gap:11px;text-align:left">'+
-      '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+
-        themeIcon(t[0])+
-      '</span>'+t[1]+(t[0]===c?'<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CURRENT</span>':'')+'</div>';
+    return '<div class="thcard'+(t[0]===c?' sel':'')+'" onclick="setTheme(\''+t[0]+'\');drawThemeSheet()">'+
+      '<span class="th-ic">'+themeIcon(t[0])+'</span>'+
+      '<span class="th-b"><b>'+t[1]+'</b><small>'+t[2]+'</small></span>'+
+      (t[0]===c?'<span class="th-cur">CURRENT</span>':'')+'</div>';
   }).join('');
 }
 // Themes used to be choosable in two places at once - a plain grid in Settings and this
@@ -1655,8 +1896,8 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v12.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
-var DB={logs:[],active:{},custom:{},slots:{},cex:{}};
+var APPV='v15.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
   try{var raw=localStorage.getItem(KEY+':bak');var p=raw?JSON.parse(raw):null;if(p&&p.db&&p.db.logs)bak=p.db;}catch(e){}
@@ -1667,7 +1908,7 @@ async function loadDB(){
       if(cnt(bak)>cnt(d))d=bak;
     }
   }
-  if(d&&d.logs){DB=d;if(!DB.active)DB.active={};}
+  if(d&&d.logs){DB=d;if(!DB.active)DB.active={};if(!DB.up)DB.up={};if(!DB.upSkip)DB.upSkip={};if(!DB.extra)DB.extra=[];if(!DB.walks)DB.walks=[];if(DB.walkRun===undefined)DB.walkRun=null;}
   mergeCustom();
 }
 var saveT=null;
@@ -1868,6 +2109,118 @@ function readyCount(wk){
   });});
   return n;
 }
+var ARROW='<svg viewBox="0 0 20 20"><path d="M10 15.5V5M10 5l-4.6 4.6M10 5l4.6 4.6"/></svg>';
+// Small jumps, held clean: 5 lb once a lift is heavy enough to carry it, 2.5 below that.
+function stepFor(w){return w>=40?5:2.5;}
+// Every lift that met all its targets last time, with the numbers it would move to. Nothing
+// is written until the sheet is confirmed - this only describes the change.
+function levelPlan(wk){
+  var w=W[wk],out=[];
+  if(!w)return out;
+  var A=DB.active[wk];
+  w.sections.forEach(function(sec){sec.rows.forEach(function(row){
+    // resolve through any swap: readiness and the raise both belong to the lift actually
+    // performed, not to the plan slot it sits in
+    var rf=rowFor(A&&A.swaps,row);
+    var id=rf.exId;
+    var tg=rf.data.sets.split('\n').map(parseTarget);
+    if(!isReady(id,tg))return;
+    var lines=rf.data.sets.split('\n');
+    var next=lines.map(function(s){
+      var t=parseTarget(s);
+      if(t.type!=='wr')return s;         // timed and rep-only work has no weight to add
+      var nw=t.w+stepFor(t.w);
+      return (nw%1?nw.toFixed(1):nw)+'x'+t.r;
+    });
+    if(next.join('\n')===lines.join('\n'))return;
+    // A declined raise stays declined until the lift is beaten again. The signature pins the
+    // refusal to one session and one set of targets, so a newer log - or a target that moved
+    // for any other reason - brings the arrow back on its own.
+    if((DB.upSkip||{})[id]===skipSig(id,lines))return;
+    out.push({id:id,name:rf.data.name,from:lines,to:next});
+  });});
+  return out;
+}
+function skipSig(exId,lines){
+  var L=lastFor(exId);
+  return (L&&L.date||'')+'|'+lines.join(',');
+}
+var LVLWK=null;
+function lvlFmt(s){return String(s).replace('x','&thinsp;&times;&thinsp;');}
+function openLevel(wk){
+  LVLWK=wk;
+  var plan=levelPlan(wk),W1=W[wk];
+  document.getElementById('lvlTitle').textContent='Level up \u2014 '+(W1?W1.name:'');
+  var go=document.getElementById('lvlGo');
+  document.getElementById('lvlSub').textContent=plan.length?
+    'These lifts met every target last session. Confirm to set the new targets.':
+    'Nothing to raise here yet.';
+  go.style.display=plan.length?'':'none';
+  document.getElementById('lvlSkipRow').style.display=plan.length?'':'none';
+  document.getElementById('lvlList').innerHTML=plan.map(function(p){
+    // three identical sets read as one line with a count, not the same numbers three times
+    var g=[];
+    p.from.forEach(function(f,i){
+      var last=g[g.length-1];
+      if(last&&last.f===f&&last.t===p.to[i])last.n++;
+      else g.push({f:f,t:p.to[i],n:1});
+    });
+    return '<div class="lvl-row"><div class="lvl-n">'+p.name+'</div><div class="lvl-d">'+
+      g.map(function(x){
+        return '<span>'+(x.n>1?x.n+'&times; ':'')+'<b>'+lvlFmt(x.f)+'</b> &rarr; <b class="up">'+lvlFmt(x.t)+'</b><i class="lvl-spark"></i></span>';
+      }).join('')+'</div></div>';
+  }).join('');
+  document.getElementById('lvlOvl').classList.add('on');
+}
+var LVLBUSY=false,LVLT=null;
+function applyLevel(){
+  if(LVLBUSY)return;                       // a second tap mid-animation must not double-write
+  var plan=levelPlan(LVLWK);
+  if(!plan.length){closeOvl('lvlOvl');return;}
+  LVLBUSY=true;
+  var rows=document.querySelectorAll('#lvlList .lvl-row');
+  document.getElementById('lvlOvl').classList.add('busy');
+  // The spark runs from the trailing edge of the old figure to the leading edge of the new
+  // one, so it tracks the real text rather than a guessed distance.
+  var last=0;
+  [].forEach.call(rows,function(r,i){
+    var d=i*0.11;
+    r.style.setProperty('--sd',d+'s');
+    [].forEach.call(r.querySelectorAll('.lvl-d span'),function(sp){
+      var bs=sp.querySelectorAll('b'),k=sp.querySelector('.lvl-spark');
+      if(!k||bs.length<2)return;
+      var o=sp.getBoundingClientRect(),a=bs[0].getBoundingClientRect(),b=bs[1].getBoundingClientRect();
+      k.style.setProperty('--x0',(a.right-o.left)+'px');
+      k.style.setProperty('--x1',(b.left-o.left+b.width*0.5)+'px');
+    });
+    r.classList.add('xfer');
+    last=d;
+  });
+  sfxIgnite();
+  LVLT=setTimeout(function(){
+    LVLT=null;
+    DB.up=DB.up||{};DB.upSkip=DB.upSkip||{};
+    plan.forEach(function(p){DB.up[p.id]=p.to.join('\n');delete DB.upSkip[p.id];});
+    saveDB();closeOvl('lvlOvl');renderHome();
+    if(sessionOpen())renderSession();
+  },(last+1.05)*1000);
+}
+// Any exit from the sheet drops a pending write. Without this the animation's timeout still
+// fires after a cancel and raises the targets anyway.
+function lvlAbort(){
+  if(LVLT){clearTimeout(LVLT);LVLT=null;}
+  LVLBUSY=false;
+  var o=document.getElementById('lvlOvl');
+  if(o)o.classList.remove('busy');
+}
+function skipLevel(){
+  lvlAbort();
+  var plan=levelPlan(LVLWK);
+  DB.upSkip=DB.upSkip||{};
+  plan.forEach(function(p){DB.upSkip[p.id]=skipSig(p.id,p.from);});
+  saveDB();closeOvl('lvlOvl');renderHome();
+  if(sessionOpen())renderSession();
+}
 function totalSets(wk){
   var w=W[wk],n=0;
   w.sections.forEach(function(sec){sec.rows.forEach(function(row){n+=R(row).sets.split('\n').length;});});
@@ -1898,12 +2251,14 @@ function roman(n){
 function card(e){
   var wk=effWk(e.wk),mine=wk!==e.wk;
   var w=W[wk]||W[e.wk],v=mine?null:(e.v||null),isToday=new Date().getDay()===e.js;
-  var live=loggedCount(wk)>0,rdy=v?0:readyCount(wk);
+  // gate on the plan itself: a lit arrow must always have something behind it. Readiness
+  // also counts timed rows, which have no weight to add and never enter the plan.
+  var live=loggedCount(wk)>0,rdy=v?0:levelPlan(wk).length;
   var sealed=!live&&!!loggedThisWeek()[wk];
   var pills='';
   if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(wk)+'/'+totalSets(wk)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
-  else if(rdy)pills+='<span class="pill pill-ready">'+TXT('ready')+' '+roman(rdy)+'</span>';
+  else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+wk+'\')">'+ARROW+'</span>';
   if(isToday)pills+='';
   var meta=v==='rest'?(e.label||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(wk)+' sets &middot; lift, walk, or rest':totalSets(wk)+' sets');
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+e.wk+'" style="--c:'+dayC(wk)+';--gd:-'+(e.js*0.77).toFixed(2)+'s" onclick="mkTap(\''+wk+'\')">'+
@@ -1912,6 +2267,24 @@ function card(e){
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
+// A kept day has no weekday and no slot, so it carries the day's own name where the weekday
+// would go. Everything else on the card behaves as a week card does.
+function xcard(id,i){
+  var w=W[id];if(!w)return '';
+  var live=loggedCount(id)>0,rdy=levelPlan(id).length;
+  var sealed=!live&&!!loggedThisWeek()[id];
+  var pills='';
+  if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(id)+'/'+totalSets(id)+'</span>';
+  else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
+  else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
+  return '<div class="card'+(sealed?' sealed':'')+'" data-extra="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.63).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+    (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
+    '<div class="card-top"><span class="card-day">'+MKTXT().xc+' &middot; YOURS</span><span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
+    '<div class="card-meta">'+totalSets(id)+' sets</div></div>';
+}
+function extraIds(){return (DB.extra||[]).filter(function(id){return !!W[id];});}
+
 /* ---- live logo mark: four bars, one per training day, filled when that day is logged this week ---- */
 function weekStartTs(){
   var d=new Date();d.setHours(0,0,0,0);
@@ -2067,6 +2440,27 @@ var motesBuilt=false;
 function renderBg(){
   var wm=document.querySelector('.bg-wm');
   if(wm)wm.innerHTML='<svg viewBox="0 0 100 100" fill="none">'+ouroboros('currentColor','var(--bg)',false)+'</svg>';
+  var wd=document.querySelector('.bg-wind');
+  if(wd&&!wd.firstChild){
+    var wh='',R=function(a,b){return a+Math.random()*(b-a);};
+    for(var j=0;j<14;j++){
+      // right edge to past the left, sagging as it goes, with the amplitude changing along
+      // the run so no two bends match - and a curl back on itself at the tail of some
+      var y=R(-4,104),am=R(3,11),sag=R(2,14),d='M104 '+y.toFixed(1);
+      var x=104,yy=y;
+      for(var s=0;s<4;s++){
+        var nx=x-R(22,34),ny=yy+sag/4+R(-am,am);
+        d+=' C '+(x-8).toFixed(1)+' '+(yy-am*R(.4,1.2)).toFixed(1)+
+           ' '+(nx+8).toFixed(1)+' '+(ny+am*R(.4,1.2)).toFixed(1)+
+           ' '+nx.toFixed(1)+' '+ny.toFixed(1);
+        x=nx;yy=ny;
+      }
+      if(Math.random()<0.45)d+=' c -5 -3.5 -10 1.5 -5.5 5 4.5 3.5 9 -1 3.5 -4.5';
+      wh+='<path d="'+d+'" style="--dash:'+R(14,40).toFixed(0)+';--d:'+R(3.4,7.2).toFixed(2)+'s;'+
+          '--dl:-'+R(0,8).toFixed(2)+'s;opacity:'+R(.4,1).toFixed(2)+'"/>';
+    }
+    wd.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+wh+'</svg>';
+  }
   var m=document.querySelector('.bg-motes');
   if(!m||motesBuilt)return;
   var h='';
@@ -2083,12 +2477,12 @@ function renderBg(){
 
 // The app is Arcanum. Every other theme is its own place, so each wears its own name on
 // the home screen - the mark underneath is what says it is still the same app.
-function APPNAME(){return MW()?'MOONWELL':FG()?'FORGE':LT()?'FROST':'ARCANUM';}
+function APPNAME(){return MW()?'MOONWELL':FG()?'FORGE':LT()?'TUNDRA':'ARCANUM';}
 function renderName(){
   var w=document.querySelector('.wordmark');
   if(w)w.textContent=APPNAME();
   var sp=document.querySelector('.sp-word');
-  if(sp)sp.textContent=MW()?'Moonwell':FG()?'Forge':LT()?'Frost':'Arcanum';
+  if(sp)sp.textContent=MW()?'Moonwell':FG()?'Forge':LT()?'Tundra':'Arcanum';
   var wl=document.getElementById('weekLabel');
   if(wl)wl.innerHTML=TXT('week');
 }
@@ -2163,6 +2557,12 @@ function renderHome(){
       '<div class="card-name">'+W.pump.name+'</div>'+
       '<div class="card-meta">Still open &mdash; pick up where you left off</div></div>':'';
   document.getElementById('weekCards').innerHTML=pumpOpen+WEEK.map(card).join('');
+  document.getElementById('mkNewBtn').innerHTML=PLUS+MKTXT().mk;
+  var xs=extraIds();
+  document.getElementById('extraCards').innerHTML=xs.map(xcard).join('');
+  document.getElementById('extraLabel').textContent=MKTXT().xl;
+  document.getElementById('extraLabel').style.display=xs.length?'':'none';
+  document.getElementById('extraHint').style.display=xs.length?'':'none';
   mkBindCards();
   syncPumpBtn();
   document.getElementById('weekHint').textContent=MKTXT().hint;
@@ -2285,6 +2685,7 @@ function rowFor(swaps,row){
 function renderSession(){
   stopHold();resetHoldState();
   var wk=CUR,w=W[wk],A=DB.active[wk],html='';
+  var canRaise={};levelPlan(wk).forEach(function(p){canRaise[p.id]=1;});
 
   w.sections.forEach(function(sec){
     html+='<div class="sect-t">'+(sec.ss?'<span class="ss">&#8942; </span>':'')+sec.title+'</div>';
@@ -2296,7 +2697,7 @@ function renderSession(){
       var L=lastFor(rf.exId),ready=isReady(rf.exId,tg),bst=bestEver(rf.exId);
       html+='<div class="exc'+(allDone?' alldone':'')+'" id="exc-'+id+'">';
       html+='<div class="ex-h"><div class="ex-nrow"><div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
-            '<div class="ex-tools">'+(ready?'<span class="pill pill-ready">Ready</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
+            '<div class="ex-tools">'+(ready&&canRaise[rf.exId]?'<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(CUR)">'+ARROW+'</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
       html+='<div class="ex-stats">'+
             '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
@@ -2514,9 +2915,10 @@ var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',blocks:[]};
 var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','2-3 min'];
 function MKTXT(){
-  if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again'};
-  if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again'};
-  return {t:'Inscribe a day',save:'INSCRIBE THIS DAY',hint:'Hold a day to inscribe your own',act:'Inscribe this day again'};
+  if(LT())return {t:'Stake a day',save:'STAKE THIS DAY',hint:'Hold a day to stake your own',act:'Stake this day again',mk:'STAKE A NEW DAY',xl:'Cached days',xa:'Cache it off the week',xc:'CACHED'};
+  if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again',mk:'DRAW A NEW DAY',xl:'Kept days',xa:'Keep it off the week',xc:'KEPT'};
+  if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again',mk:'FORGE A NEW DAY',xl:'On the rack',xa:'Rack it off the week',xc:'RACKED'};
+  return {t:'Inscribe a day',save:'INSCRIBE THIS DAY',hint:'Hold a day to inscribe your own',act:'Inscribe this day again',mk:'INSCRIBE A NEW DAY',xl:'Kept days',xa:'Keep it off the week',xc:'KEPT'};
 }
 function effWk(wk){return (DB.slots&&DB.slots[wk])||wk;}
 function baseOf(wk){for(var s in (DB.slots||{}))if(DB.slots[s]===wk)return s;return wk;}
@@ -2541,16 +2943,16 @@ function mkNote(msg,title){ask(msg,function(){},title||'Hold on',"OK",null,null)
 function mkTap(wk){if(LP.fired){LP.fired=false;return;}openW(wk);}
 var LP={t:null,fired:false,x:0,y:0};
 function mkBindCards(){
-  [].forEach.call(document.querySelectorAll('#weekCards .card'),function(el){
-    var base=el.getAttribute('data-base');
-    if(!base)return;              // the pump card is not a week slot - nothing to reshape
+  [].forEach.call(document.querySelectorAll('#weekCards .card,#extraCards .card'),function(el){
+    var base=el.getAttribute('data-base'),xid=el.getAttribute('data-extra');
+    if(!base&&!xid)return;        // the pump card is not a week slot - nothing to reshape
     el.addEventListener('pointerdown',function(ev){
       LP.fired=false;LP.x=ev.clientX;LP.y=ev.clientY;
       clearTimeout(LP.t);
       LP.t=setTimeout(function(){
         LP.fired=true;
         try{if(navigator.vibrate)navigator.vibrate(14);}catch(e){}
-        mkActions(base);
+        if(xid)mkActionsX(xid);else mkActions(base);
       },520);
     });
     el.addEventListener('pointermove',function(ev){
@@ -2562,6 +2964,39 @@ function mkBindCards(){
     el.addEventListener('contextmenu',function(ev){ev.preventDefault();});
   });
 }
+var PLUS='<svg viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg>';
+// The builder always writes into a week slot, so a new day starts by choosing which slot it
+// takes. Same model as holding a card - this just makes it findable.
+function openNewDay(){openSlotPick(null);}
+// id === null builds a new day; an id moves an existing kept day onto a slot.
+function openSlotPick(id){
+  SLOTFOR=id;
+  document.getElementById('mkSlotTtl').textContent=id?'Put it on the week':MKTXT().t;
+  var head='';
+  if(!id)head='<div class="slotrow" onclick="closeOvl(\'mkSlotOvl\');openMake(null,null)">'+
+    '<span class="sd">OFF</span><span class="sn">'+MKTXT().xa+'</span>'+
+    '<span class="sm">kept day</span></div>';
+  document.getElementById('mkSlotBody').innerHTML=head+WEEK.map(function(e){
+    var wk=effWk(e.wk),w=W[wk],mine=wk!==e.wk,busy=openHere(wk);
+    return '<div class="slotrow'+(busy?' off':'')+'"'+(busy?'':' onclick="slotPicked(\''+e.wk+'\')"')+'>'+
+      '<span class="sd">'+e.day.slice(0,3).toUpperCase()+'</span>'+
+      '<span class="sn">'+w.name.replace('Optional: ','')+'</span>'+
+      '<span class="sm">'+(busy?'session open':mine?'yours':totalSets(wk)+' sets')+'</span></div>';
+  }).join('');
+  document.getElementById('mkSlotOvl').classList.add('on');
+}
+var SLOTFOR=null;
+function slotPicked(base){
+  var id=SLOTFOR;SLOTFOR=null;
+  closeOvl('mkSlotOvl');
+  if(!id){openMake(base,null);return;}
+  DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+  for(var s in DB.slots)if(DB.slots[s]===id)delete DB.slots[s];
+  var out=DB.slots[base];                  // the slot's current tenant goes to the shelf
+  if(out&&out!==id)shelve(out);
+  DB.slots[base]=id;
+  saveDB();mergeCustom();renderHome();
+}
 function mkActions(base){
   var wk=effWk(base),mine=wk!==base,w=W[wk],e=null;
   WEEK.forEach(function(x){if(x.wk===base)e=x;});
@@ -2570,17 +3005,65 @@ function mkActions(base){
   var h='';
   if(mine)h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+wk+'\')">'+MKTXT().act.toUpperCase()+'</div>';
   h+='<div class="btn'+(mine?'':' btn-go')+'" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null)">'+(mine?'REPLACE WITH A NEW DAY':MKTXT().save)+'</div>';
-  if(mine)h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
+  if(mine){
+    h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
+    h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
+  }
   document.getElementById('mkActBody').innerHTML=h;
   document.getElementById('mkActOvl').classList.add('on');
+}
+function mkActionsX(id){
+  var w=W[id];if(!w)return;
+  document.getElementById('mkActTtl').textContent=w.name.replace('Optional: ','');
+  document.getElementById('mkActSub').textContent='Kept off the week \u2014 '+totalSets(id)+' sets';
+  document.getElementById('mkActBody').innerHTML=
+    '<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(null,\''+id+'\')">'+MKTXT().act.toUpperCase()+'</div>'+
+    '<div class="btn" onclick="closeOvl(\'mkActOvl\');openSlotPick(\''+id+'\')">PUT IT ON THE WEEK</div>'+
+    '<div class="btn btn-bad" onclick="mkDeleteX(\''+id+'\')">DELETE THIS DAY</div>';
+  document.getElementById('mkActOvl').classList.add('on');
+}
+function mkDeleteX(id){
+  if(openHere(id)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
+  var nm=(W[id]&&W[id].name.replace('Optional: ',''))||'this day';
+  closeOvl('mkActOvl');
+  ask('Delete '+nm+'? Sessions you already logged stay in your history.',function(){
+    DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+    if(DB.custom)delete DB.custom[id];
+    saveDB();mergeCustom();renderHome();
+  },'Delete this day','DELETE');
 }
 function mkRestore(base){
   var wk=effWk(base);
   if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
-  delete DB.slots[base];saveDB();
+  delete DB.slots[base];
+  shelve(wk);                              // it keeps existing, just not on the week
+  saveDB();mergeCustom();
   closeOvl('mkActOvl');renderHome();
 }
+// Anything that comes off a slot lands under Kept days. Without this a custom day taken off
+// the week had no card anywhere and no route back, while still sitting in storage.
+function shelve(id){
+  if(!id||!DB.custom||!DB.custom[id])return;
+  DB.extra=DB.extra||[];
+  if(DB.extra.indexOf(id)<0)DB.extra.push(id);
+}
 function openHere(wk){var a=DB.active[wk];return !!(a&&Object.keys(a.entries||{}).length);}
+// Putting the original back leaves the custom day in store, so it can be dropped onto a slot
+// again later. Deleting is the one that discards it. Logged history is never touched - those
+// sessions happened, whatever the day was called.
+function mkDelete(base){
+  var wk=effWk(base);
+  if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
+  var nm=(W[wk]&&W[wk].name)||'this day';
+  closeOvl('mkActOvl');
+  ask('Delete '+nm+'? '+(W[base]?W[base].name.replace('Optional: ','')+' comes back to this slot.':'')+
+      ' Sessions you already logged stay in your history.',
+    function(){
+      delete DB.slots[base];
+      if(DB.custom)delete DB.custom[wk];
+      saveDB();mergeCustom();renderHome();
+    },'Delete this day','DELETE');
+}
 function openMake(base,editId){
   if(editId&&DB.custom[editId]){
     var w=DB.custom[editId];
@@ -2596,7 +3079,7 @@ function openMake(base,editId){
       })};
   }else{
     MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:base,tag:'Yours',time:'~9:00 PM',
-      blocks:[{title:'Straight sets',ss:false,rows:[]}]};
+      blocks:[{title:'',ss:false,rows:[]}]};
   }
   document.getElementById('mkTitle').textContent=MK.id?MK.name:MKTXT().t;
   mkRender();
@@ -2611,18 +3094,21 @@ function mkRender(){
   var h='',T=MKTXT();
   document.getElementById('mkSub').textContent=MK.blocks.reduce(function(a,b){return a+b.rows.reduce(function(x,r){return x+(r.n||0);},0);},0)+' sets';
   h+='<div class="mk-lbl">Name</div>'+
-     '<input class="mk-in" placeholder="Chest + Triceps" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
-  h+='<div class="mk-lbl">Which day it takes</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
+     '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
+  h+='<div class="mk-lbl">Where it lives</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
+  // The eighth chip takes it off the week entirely - reachable from inside the editor, not
+  // only from the picker you came in through.
+  h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>OFF</b><small>'+T.xl+'</small></div>';
   WEEK.forEach(function(e){
     var cur=effWk(e.wk),nm=W[cur]?W[cur].name.replace('Optional: ',''):'';
     h+='<div class="mk-slot'+(MK.slot===e.wk?' sel':'')+'" onclick="MK.slot=\''+e.wk+'\';mkRender()"><b>'+e.day.slice(0,3).toUpperCase()+'</b><small>'+mkEsc(nm)+'</small></div>';
   });
   h+='</div>';
-  h+='<div class="mk-lbl">Its colour</div><div class="mk-cols">';
+  h+='<div class="mk-lbl">Its color</div><div class="mk-cols">';
   MK_COLS.forEach(function(c){
     h+='<div class="mk-col'+(MK.color===c?' sel':'')+'" style="background:'+c+'" onclick="MK.color=\''+c+'\';mkRender()"></div>';
   });
-  h+='<label class="mk-col'+(MK_COLS.indexOf(MK.color)<0?' sel':'')+'" style="background:'+MK.color+';position:relative;overflow:hidden" title="Any colour">'+
+  h+='<label class="mk-col'+(MK_COLS.indexOf(MK.color)<0?' sel':'')+'" style="background:'+MK.color+';position:relative;overflow:hidden" title="Any color">'+
        '<input type="color" value="'+MK.color+'" oninput="MK.color=this.value;mkRender()" style="position:absolute;inset:-4px;opacity:0;cursor:pointer">'+
        '<svg viewBox="0 0 20 20" style="width:14px;height:14px;position:absolute;left:7px;top:7px;fill:none;stroke:rgba(0,0,0,.55);stroke-width:2;stroke-linecap:round"><path d="M10 5v10M5 10h10"/></svg></label>';
   h+='</div>';
@@ -2631,7 +3117,7 @@ function mkRender(){
   MK.blocks.forEach(function(b,i){
     h+='<div class="mk-blk">'+
        '<div class="mk-bh">'+
-         '<input class="mk-in mk-bt" placeholder="Block name" value="'+mkEsc(b.title)+'" oninput="MK.blocks['+i+'].title=this.value">'+
+         '<input class="mk-in mk-bt" placeholder="'+(b.ss?'Superset':'Straight sets')+'" value="'+mkEsc(b.title)+'" oninput="MK.blocks['+i+'].title=this.value">'+
          '<div class="btn'+(b.ss?' btn-go':'')+'" onclick="mkToggleSS('+i+')">'+(b.ss?'SUPERSET':'STRAIGHT')+'</div>'+
          '<div class="mk-x" onclick="mkDelBlock('+i+')" title="Remove block"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div>'+
        '</div>';
@@ -2675,7 +3161,7 @@ function mkToggleSS(i){
   else if(b.title==='Superset'&&!b.ss)b.title='Straight sets';
   mkRender();
 }
-function mkAddBlock(){MK.blocks.push({title:'Straight sets',ss:false,rows:[]});mkRender();}
+function mkAddBlock(){MK.blocks.push({title:'',ss:false,rows:[]});mkRender();}
 function mkDelBlock(i){MK.blocks.splice(i,1);mkRender();}
 function mkDelRow(i,j){MK.blocks[i].rows.splice(j,1);mkRender();}
 
@@ -2770,6 +3256,8 @@ function mkSave(){
   if(!MK.name.trim()){mkNote('Name the day first \u2014 it goes on the card.');return;}
   var w=mkBuild();
   if(!w.sections.length){mkNote('Add at least one exercise before saving.');return;}
+  // Nothing on the week is being displaced, so none of the replace warnings apply.
+  if(!MK.slot){mkCommit();return;}
   var cur=effWk(MK.slot),e=null;
   WEEK.forEach(function(x){if(x.wk===MK.slot)e=x;});
   var dayName=e?e.day:'that day';
@@ -2788,7 +3276,12 @@ function mkCommit(){
   var id=MK.id||('cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36));
   DB.custom[id]=mkBuild();
   for(var s in DB.slots)if(DB.slots[s]===id)delete DB.slots[s];
-  DB.slots[MK.slot]=id;
+  if(MK.slot){
+    var out=DB.slots[MK.slot];             // whoever held this slot keeps existing, off the week
+    if(out&&out!==id)shelve(out);
+    DB.slots[MK.slot]=id;
+  }
+  else{DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id);}
   mergeCustom();saveDB();
   try{sfxLog();}catch(e){}
   closeMake();renderHome();
@@ -3244,6 +3737,17 @@ function topSet(sets){
   if(b.unit==='sec')return b.r+' sec';
   return (b.w?b.w+'\u00d7'+b.r:b.r+' reps');
 }
+// Walks are graded on turning up, not on load, so they get a strip of their own rather than
+// a row in the vs-last-session table.
+function walkStrip(){
+  if(!(DB.walks||[]).length)return '';
+  var st=walkStreak(),wkm=walkWeek(),best=0,tot=0;
+  DB.walks.forEach(function(w){tot+=(w.min||0);if((w.min||0)>best)best=w.min;});
+  return '<div class="pg-sec">WALKS</div>'+
+    '<div class="pg-row"><div class="pg-n">Streak at '+WALK_TGT+' min</div><div class="pg-v">'+st+(st===1?' day':' days')+'</div><div class="pg-d '+(st?'up':'fl')+'">'+(st?'ON':'\u2014')+'</div></div>'+
+    '<div class="pg-row"><div class="pg-n">This week</div><div class="pg-v">'+wkm+' / '+(WALK_TGT*7)+' min</div><div class="pg-d '+(wkm>=WALK_TGT*7?'up':'fl')+'">'+Math.round(wkm/(WALK_TGT*7)*100)+'%</div></div>'+
+    '<div class="pg-row"><div class="pg-n">Longest walk</div><div class="pg-v">'+best+' min</div><div class="pg-d fl">'+Math.round(tot/60)+'h all time</div></div>';
+}
 function showProgress(){
   var rows=[],ids={};
   DB.logs.forEach(function(l){for(var k in l.entries)ids[exOfKey(l,k)]=1;});
@@ -3263,7 +3767,7 @@ function showProgress(){
   });
   var body=document.getElementById('progBody');
   if(!rows.length){
-    body.innerHTML='<div class="pg-empty">Nothing logged yet. Finish a session and this fills in.</div>';
+    body.innerHTML=walkStrip()+'<div class="pg-empty">Nothing logged yet. Finish a session and this fills in.</div>';
   }else{
     function block(label,key){
       var sorted=rows.slice().sort(function(a,b){
@@ -3277,7 +3781,7 @@ function showProgress(){
       });
       return h;
     }
-    body.innerHTML=block('VS LAST SESSION','dLast')+block('VS YOUR BEST EVER','dBest');
+    body.innerHTML=walkStrip()+block('VS LAST SESSION','dLast')+block('VS YOUR BEST EVER','dBest');
   }
   document.getElementById('progSub').textContent=DB.logs.length+' session'+(DB.logs.length===1?'':'s')+' logged';
   document.getElementById('progOvl').classList.add('on');
@@ -3416,7 +3920,10 @@ function ask(msg,onYes,title,yesLabel,onNo,alt){
   }
   document.getElementById('askOvl').classList.add('on');
 }
-function closeOvl(id){document.getElementById(id).classList.remove('on');}
+function closeOvl(id){
+  if(id==='lvlOvl')lvlAbort();
+  document.getElementById(id).classList.remove('on');
+}
 
 // ---------- hardware back button ----------
 // The stack is kept at [home, guard]. Back pops the guard and lands here, we act on it
@@ -3435,6 +3942,7 @@ function sessionOpen(){
 // each call site, and the system back button went through leaveSession() without ever
 // putting it back - which stranded a half-finished pump day with no way to reopen it.
 function syncPumpBtn(){
+  syncWalkBtn();
   var b=document.getElementById('pumpBtn');if(!b)return;
   var mk=document.getElementById('make');
   b.style.display=(sessionOpen()||(mk&&mk.classList.contains('on')))?'none':'';
@@ -3448,6 +3956,7 @@ function onBackButton(){
   var ov=topOvl();
   if(ov){                                  // an open sheet closes first
     if(ov.id==='histOvl'&&HIST.sel!==null){histBack();backGuard();return;}
+    if(ov.id==='lvlOvl')lvlAbort();   // back out of the sheet mid-transfer and nothing is written
     ov.classList.remove('on');backGuard();return;
   }
   if(sessionOpen()){leaveSession();backGuard();return;}
@@ -4093,6 +4602,10 @@ function sfxHold(){
 // slide grinds DOWN as it loads the rail and settles, and lands on a stop. Same length,
 // opposite gesture - which is most of why the old sound gave the theme away.
 function sfxPage(){
+  if(LT())return sfx(function(t){          // a short gust crossing, no page anywhere
+    breath(t,0.52,0.042,420,1250);
+    breath(t+0.10,0.40,0.026,1300,520);
+  });
   if(MW())return sfx(function(t){          // light passing over, nothing struck
     glass(t,392,0.5,0.075,0.17);
     breath(t,0.42,0.03,1400,700);
@@ -4130,6 +4643,13 @@ function sfxPage(){
 // Launch. Arcanum riffles a cover open; Forge drags the plate clear of the fire and
 // drops it, so this is the same slide as above but longer, heavier and lower.
 function sfxRiffle(){
+  // Tundra launches on weather: a gust builds, tops out, and falls away, with a second
+  // lower body under it so it reads as open ground rather than a vent.
+  if(LT())return sfx(function(t){
+    breath(t,2.5,0.075,240,880);
+    breath(t+0.30,1.9,0.055,900,320);
+    breath(t+0.95,1.5,0.030,1500,600);
+  });
   // Launch waxes in from silence: the low pair first, the fifth above them last.
   if(MW())return whenRunning(function(){sfx(function(t){
     glass(t,130.8,2.4,0.13,1.1);
@@ -4786,6 +5306,120 @@ function stopTimer(){
   var p=document.getElementById('timerPill');
   p.classList.remove('on');p.classList.remove('ring');
 }
+// ---------- walks ----------
+// A walk is not a set: it has minutes and distance, not weight and reps, and it happens on
+// days with no session at all. So it keeps its own log, and the clock is stored as a start
+// timestamp rather than a running counter - the screen can lock and the app can close, and
+// the elapsed time is still whatever the wall clock says it is.
+var WALK_TGT=60,WALKT=null,WKFEEL=null;
+// local date, not UTC - toISOString would roll the day over at 7pm here
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function walkDay(d){return (DB.walks||[]).filter(function(w){return w.date===d;});}
+function walkMin(d){return walkDay(d).reduce(function(a,w){return a+(w.min||0);},0);}
+function walkRunning(){return !!(DB.walkRun&&DB.walkRun.start);}
+function walkElapsed(){return walkRunning()?Math.max(0,Math.floor((Date.now()-DB.walkRun.start)/1000)):0;}
+function mmss(s){var m=Math.floor(s/60);return m+':'+String(s%60).padStart(2,'0');}
+// consecutive days meeting the target, counted back from today - or from yesterday, so the
+// streak does not read as broken before you have been out
+function walkStreak(){
+  var n=0,d=new Date();d.setHours(0,0,0,0);
+  if(walkMin(iso(d))<WALK_TGT)d.setDate(d.getDate()-1);
+  for(var i=0;i<400;i++){
+    if(walkMin(iso(d))<WALK_TGT)break;
+    n++;d.setDate(d.getDate()-1);
+  }
+  return n;
+}
+
+function walkWeek(){
+  var ws=weekStartTs(),t=0;
+  (DB.walks||[]).forEach(function(w){
+    var ts=new Date(w.date+'T12:00:00').getTime();
+    if(!isNaN(ts)&&ts>=ws)t+=(w.min||0);
+  });
+  return t;
+}
+function syncWalkBtn(){
+  var b=document.getElementById('walkBtn');if(!b)return;
+  var mk=document.getElementById('make');
+  b.style.display=(sessionOpen()||(mk&&mk.classList.contains('on')))?'none':'';
+  b.classList.toggle('going',walkRunning());
+  var tag=b.querySelector('b');
+  if(walkRunning()){
+    if(!tag){tag=document.createElement('b');b.appendChild(tag);}
+    tag.textContent=Math.floor(walkElapsed()/60)+'m';
+  }else if(tag)tag.remove();
+}
+function wkTick(){
+  var c=document.getElementById('wkClock');
+  if(c&&document.getElementById('walkOvl').classList.contains('on')){
+    c.textContent=walkRunning()?mmss(walkElapsed()):mmss(0);
+    c.classList.toggle('going',walkRunning());
+  }
+  syncWalkBtn();
+  if(!walkRunning()&&WALKT){clearInterval(WALKT);WALKT=null;}
+}
+function wkArm(){if(!WALKT&&walkRunning())WALKT=setInterval(wkTick,1000);}
+function wkToggle(){
+  if(walkRunning()){
+    var mins=Math.max(1,Math.round(walkElapsed()/60));
+    document.getElementById('wkMin').value=mins;
+    DB.walkRun=null;saveDB();
+    try{sfxTick(false);}catch(e){}
+  }else{
+    DB.walkRun={start:Date.now()};saveDB();wkArm();
+    try{sfxTick(true);}catch(e){}
+  }
+  drawWalk();
+}
+function wkPace(){
+  var m=parseFloat(document.getElementById('wkMin').value),d=parseFloat(document.getElementById('wkDist').value);
+  var el=document.getElementById('wkPace');
+  if(m>0&&d>0){
+    var p=m/d,mm=Math.floor(p),ss=Math.round((p-mm)*60);
+    if(ss===60){mm++;ss=0;}
+    el.textContent=mm+':'+String(ss).padStart(2,'0')+' per mile';
+  }else el.textContent='';
+}
+function wkSetFeel(f){WKFEEL=(WKFEEL===f?null:f);drawFeel();}
+function drawFeel(){
+  document.getElementById('wkFeel').innerHTML=['Easy','Steady','Hard'].map(function(f){
+    return '<div class="'+(WKFEEL===f?'sel':'')+'" onclick="wkSetFeel(\''+f+'\')">'+f+'</div>';
+  }).join('');
+}
+function drawWalk(){
+  var r=walkRunning(),td=walkMin(iso(new Date())),wkm=walkWeek(),st=walkStreak();
+  document.getElementById('wkClock').textContent=r?mmss(walkElapsed()):mmss(0);
+  document.getElementById('wkClock').classList.toggle('going',r);
+  document.getElementById('wkHint').textContent=r?'Walking \u2014 the clock keeps time with the screen off'
+    :(td?td+' min logged today':'Start the clock, or just type the minutes');
+  document.getElementById('wkTog').textContent=r?'STOP':'START';
+  document.getElementById('wkTog').className='btn'+(r?' btn-bad':'');
+  document.getElementById('wkStats').innerHTML=
+    '<div class="wk-s"><b>'+st+'<small>'+(st===1?'day':'days')+'</small></b><span>Streak at '+WALK_TGT+' min</span></div>'+
+    '<div class="wk-s"><b>'+wkm+'<small>/ '+(WALK_TGT*7)+'</small></b><span>Minutes this week</span></div>';
+  drawFeel();wkPace();
+}
+function openWalk(){
+  WKFEEL=null;
+  document.getElementById('wkMin').value=walkRunning()?'':'';
+  document.getElementById('wkDist').value='';
+  document.getElementById('wkSteps').value='';
+  drawWalk();wkArm();
+  document.getElementById('walkOvl').classList.add('on');
+}
+function saveWalk(){
+  var m=parseFloat(document.getElementById('wkMin').value);
+  if(!(m>0)&&walkRunning())m=Math.max(1,Math.round(walkElapsed()/60));
+  if(!(m>0)){document.getElementById('wkHint').textContent='How many minutes? Start the clock or type it in.';return;}
+  var d=parseFloat(document.getElementById('wkDist').value),s=parseInt(document.getElementById('wkSteps').value,10);
+  DB.walks=DB.walks||[];
+  DB.walks.push({date:iso(new Date()),min:Math.round(m*10)/10,
+    dist:(d>0?Math.round(d*100)/100:null),steps:(s>0?s:null),feel:WKFEEL,ts:Date.now()});
+  DB.walkRun=null;saveDB();
+  try{sfxLog();}catch(e){}
+  closeOvl('walkOvl');renderHome();
+}
 function openPump(){
   if(loggedCount('pump')>0){openW('pump');return;}
   document.getElementById('pumpOvl').classList.add('on');
@@ -4812,6 +5446,7 @@ function openSettings(){
   var t=await Store.get(TKEY);
   applyTheme(t||'dark');
   renderHome();
+  wkArm();                                 // a walk left running keeps counting across a cold start
   drawNotifTog();
   initBack();
 })();
