@@ -268,6 +268,28 @@ body.light .pumpbtn{opacity:.55;box-shadow:0 1px 3px rgba(16,20,24,.08);}
   font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--go);background:var(--bg);padding:0 4px;border-radius:4px;}
 body.light .walkbtn{opacity:.6;box-shadow:0 1px 3px rgba(16,20,24,.08);}
 body.forge .walkbtn{border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,183,120,.14),inset 0 -1px 0 rgba(0,0,0,.45);}
+/* The launch animation used to hand straight over to a fully drawn board. The board now
+   arrives just behind it: the header first, then each card a beat after the one above it. */
+body.held #home > *,body.held #weekCards > *{opacity:0;}
+body.arriving #home > *{opacity:0;animation:arrive .5s cubic-bezier(.32,.9,.36,1) forwards;}
+body.arriving .brand{animation-delay:.02s;}
+body.arriving .sec-label,body.arriving .mk-hint{animation-delay:.10s;}
+body.arriving #weekCards{opacity:1;animation:none;}
+body.arriving #weekCards > *{opacity:0;animation:arrive .46s cubic-bezier(.32,.9,.36,1) forwards;}
+body.arriving #weekCards > *:nth-child(1){animation-delay:.14s;}
+body.arriving #weekCards > *:nth-child(2){animation-delay:.20s;}
+body.arriving #weekCards > *:nth-child(3){animation-delay:.26s;}
+body.arriving #weekCards > *:nth-child(4){animation-delay:.32s;}
+body.arriving #weekCards > *:nth-child(5){animation-delay:.38s;}
+body.arriving #weekCards > *:nth-child(6){animation-delay:.44s;}
+body.arriving #weekCards > *:nth-child(7){animation-delay:.50s;}
+body.arriving #weekCards > *:nth-child(n+8){animation-delay:.56s;}
+body.arriving .mk-new{animation-delay:.62s;}
+body.arriving .foot{animation-delay:.68s;}
+@keyframes arrive{from{opacity:0;transform:translateY(9px);}to{opacity:1;transform:none;}}
+@media(prefers-reduced-motion:reduce){
+  body.arriving #home > *,body.arriving #weekCards > *{animation-duration:.01s;}}
+
 /* Four worlds is too many to tell apart by name alone, so each one says what it is. */
 .thcard{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--line);
   border-radius:12px;background:var(--surface2);cursor:pointer;transition:.15s;position:relative;}
@@ -480,6 +502,7 @@ body.forge .s-head{background:rgba(12,9,7,.95);
   box-shadow:0 1px 0 color-mix(in srgb,var(--gold) 26%,transparent),0 10px 30px -18px rgba(255,140,60,.45);}
 body.forge::after{opacity:.13;}
 html.forge #splash,body.forge #splash{background:#080403;}
+html.forge #splash.out,body.forge #splash.out{background:transparent;}
 html.forge .sp-board,body.forge .sp-board{background:radial-gradient(125% 105% at 34% 16%,#331a0d 0%,#180d07 48%,#080403 100%);}
 html.forge .sp-board::after,body.forge .sp-board::after{background:radial-gradient(closest-side,rgba(255,140,50,.18),rgba(196,78,20,.08) 50%,transparent 72%);}
 
@@ -577,6 +600,7 @@ body.moon #turn .tspine{display:none;}
 @keyframes wanepage{0%{opacity:0;transform:scale(.97);}38%{opacity:1;transform:scale(1);}100%{opacity:0;transform:scale(1.03);}}
 /* the launch waxes in and wanes out on the same idea - no cover, no leaves turning */
 html.moon #splash,body.moon #splash{background:#07050d;perspective:none;}
+html.moon #splash.out,body.moon #splash.out{background:transparent;}
 html.moon .sp-board,body.moon .sp-board{transform-origin:center;
   background:radial-gradient(125% 105% at 50% 30%,#2b2049 0%,#140e24 50%,#07050d 100%);
   box-shadow:inset 0 0 90px rgba(0,0,0,.6),0 0 70px -18px rgba(190,170,255,.3);
@@ -1108,6 +1132,7 @@ html.light #splash.out .sp-leaf.l3,body.light #splash.out .sp-leaf.l3{animation:
   50%{transform:translate(-28%,2.6%) rotate(2.6deg) scale(.965);opacity:.86;}
   100%{transform:translate(-150%,6%) rotate(6deg) scale(.88);opacity:0;}}
 html.light #splash,body.light #splash{transition:background-color .4s ease .6s;background:#e4eaf1;}
+html.light #splash.out,body.light #splash.out{background:transparent;}
 /* Tundra is the one theme lit from outside. The splash used to inherit Obsidian's night
    board, which is why the lettering was unreadable on it - it is now overcast light on snow,
    with the ink and shadows inverted to match. */
@@ -1868,7 +1893,18 @@ function applyTheme(t){
   drawThemeSheet();
   refreshChks();
 }
-function setTheme(t){applyTheme(t);Store.set(TKEY,t);}
+// Each world has its own launch - its own light, sound and gesture - and switching used to
+// swap the palette underneath you without ever showing it. A relaunch is the only way to see
+// the place you just chose. Everything is already on disk, so nothing is lost in the reload.
+function setTheme(t){
+  applyTheme(t);
+  persistNow();
+  var done=function(){setTimeout(function(){location.reload();},220);};
+  try{
+    var p=Store.set(TKEY,t);
+    if(p&&p.then)p.then(done,done);else done();
+  }catch(e){done();}
+}
 // The header button used to cycle. With four worlds a cycle means up to three wrong ones
 // on the way to the one you wanted, so it opens the picker instead.
 function toggleTheme(){openThemePick();}
@@ -1896,7 +1932,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v15.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v16.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2379,15 +2415,24 @@ function dismissSplash(){
   initAudio();
   var s=document.getElementById('splash');
   if(!s)return;
+  document.body.classList.add('held');
   s.classList.add('turning');          // promote the layers...
   void s.offsetWidth;                  // ...let that raster land...
   requestAnimationFrame(function(){s.classList.add('out');});   // ...then turn
   sfxRiffle();
+
   setTimeout(function(){
     s.style.display='none';
     s.style.width='';s.style.height='';
     document.body.classList.remove('booting');
     document.documentElement.style.background='';
+    // only now, with the launch fully off the screen, does the board start arriving - run any
+    // earlier and most of the stagger is spent behind an animation you are still watching
+    document.body.classList.add('arriving');
+    document.body.classList.remove('held');
+    setTimeout(function(){document.body.classList.remove('arriving');},2000);
+    // a dismiss during the launch must not leave the board held down
+    setTimeout(function(){document.body.classList.remove('held');},60);
   },1400);
 }
 // The universal mark: one ring for every world, a different glyph in the middle. The
