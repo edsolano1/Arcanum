@@ -158,6 +158,67 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .foot a{color:var(--txt2);cursor:pointer;text-decoration:none;border-bottom:1px solid var(--line);}
 .foot a:hover{color:var(--txt);}
 
+/* ---------- REORDER ---------- */
+.blk{position:relative;transition:transform .19s cubic-bezier(.2,0,.2,1);}
+.blk.dragging{z-index:60;opacity:.94;transition:none;}
+.blk.dragging .exc{box-shadow:0 20px 44px -14px rgba(0,0,0,.65);}
+.exdrag{display:flex;align-items:center;justify-content:center;width:26px;height:30px;border-radius:9px;margin-left:-7px;
+  cursor:grab;touch-action:none;color:var(--txt3);flex-shrink:0;transition:.15s;}
+.exdrag:hover{color:var(--txt2);background:var(--surface2);}
+.exdrag:active{cursor:grabbing;}
+.exdrag svg{width:16px;height:16px;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;fill:none;}
+#blkMark{position:fixed;height:2px;background:var(--go);z-index:61;pointer-events:none;display:none;border-radius:2px;
+  box-shadow:0 0 12px color-mix(in srgb,var(--go) 65%,transparent);}
+
+/* ---------- EXERCISE EDIT ---------- */
+.exed-n{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;text-align:center;}
+.exed-n .preset{font-size:17px;padding:11px 0;}
+#exEdSets{font-family:var(--mono);font-size:24px;color:var(--txt);}
+.exed-sub{font-size:11.5px;color:var(--txt3);margin-top:7px;line-height:1.5;text-wrap:pretty;}
+.exed-off{opacity:.4;pointer-events:none;}
+
+/* ---------- TUTORIAL ---------- */
+/* The mask is one box with an enormous spread shadow, so the "hole" is the element
+   itself. pointer-events stay off it - every tap in the tour reaches the real UI. */
+#tutHole{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:14px;
+  box-shadow:0 0 0 9999px rgba(4,5,7,.78);border:1.5px solid var(--go);opacity:0;transition:opacity .25s;}
+#tutHole.on{opacity:1;}
+/* The pulsing ring sits on the one control the step wants tapped, so a lit panel still
+   points at something specific. */
+#tutPing{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:12px;
+  border:2px solid var(--go);box-shadow:0 0 0 5px color-mix(in srgb,var(--go) 20%,transparent);
+  opacity:0;animation:tutping 1.5s ease-in-out infinite;}
+#tutPing.on{opacity:1;}
+@keyframes tutping{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--go) 26%,transparent)}
+  50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--go) 6%,transparent)}}
+/* The card must not read as another layer of the surface it is explaining, so it takes a
+   tint of the live colour and a brighter rim than any sheet in the app. */
+#tutCard{position:fixed;z-index:401;left:50%;transform:translateX(-50%);top:40vh;
+  width:min(430px,calc(100vw - 26px));border-radius:var(--r);padding:16px 17px 14px;display:none;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--go) 15%,var(--surface2)),color-mix(in srgb,var(--go) 7%,var(--surface2)));
+  border:1px solid color-mix(in srgb,var(--go) 45%,var(--line));
+  box-shadow:0 22px 50px -14px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.35);}
+#tutCard.on{display:block;}
+#tutCard.shake{animation:tutshake .46s;}
+@keyframes tutshake{
+  15%{transform:translateX(calc(-50% - 8px))}35%{transform:translateX(calc(-50% + 7px))}
+  55%{transform:translateX(calc(-50% - 5px))}75%{transform:translateX(calc(-50% + 3px))}
+  100%{transform:translateX(-50%)}}
+.tut-step{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--go);margin-bottom:8px;}
+.tut-t{font-size:18px;margin-bottom:7px;color:var(--txt);}
+.tut-b{font-size:13.5px;line-height:1.62;color:var(--txt);opacity:.88;text-wrap:pretty;}
+.tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
+  border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
+.tut-nudge.on{display:block;}
+.tut-btns{display:flex;gap:9px;margin-top:15px;align-items:center;}
+.tut-btns .btn{padding:10px 15px;background:var(--surface);}
+.tut-skip{margin-right:auto;font-size:11.5px;color:var(--txt2);cursor:pointer;letter-spacing:.03em;white-space:nowrap;
+  text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--txt2) 45%,transparent);}
+.tut-skip:hover{color:var(--txt);}
+.tut-wait{font-size:11.5px;color:var(--go);letter-spacing:.04em;display:flex;align-items:center;gap:8px;}
+.tut-wait::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--go);animation:tutp 1.25s infinite;}
+@keyframes tutp{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
+
 /* ---------- SESSION ---------- */
 #session,#make{display:none;position:fixed;inset:0;background:var(--bg);overflow-y:auto;z-index:100;padding-bottom:100px;}
 #session.on,#make.on{display:block;}
@@ -264,34 +325,31 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
   .thcard.sel:hover{border-color:var(--gold);}
   .mk-new:hover{background:color-mix(in srgb,var(--go) 4%,transparent);
     border-color:color-mix(in srgb,var(--go) 40%,var(--line));}
-  .walkbtn:hover,.pumpbtn:hover{transform:none;}
+  .side:hover{border-color:var(--line);background:var(--surface);}
   .swapitem:hover{border-color:var(--line);background:transparent;}
 }
 /* and the release that ended the long press must not land on a button that was not there
    when the finger went down */
 .ovl.fresh .sheet-btns,.ovl.fresh .mk-acts{pointer-events:none;}
 
-/* pump day - deliberately small, bottom right */
-.pumpbtn{position:fixed;bottom:20px;right:18px;width:46px;height:46px;border-radius:15px;border:1px solid var(--line);background:var(--surface);font-size:19px;line-height:1;cursor:pointer;z-index:60;opacity:.42;transition:.2s;display:flex;align-items:center;justify-content:center;padding:0;}
-.pumpbtn:hover{opacity:1;border-color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface));transform:translateY(-2px) rotate(-6deg);}
-.pumpbtn:active{transform:scale(.94);}
-body.light .pumpbtn{opacity:.55;box-shadow:0 1px 3px rgba(16,20,24,.08);}
-/* walks live outside the week, so the door to them sits outside the board too - opposite
-   corner from the pump day, same weight */
-.walkbtn{position:fixed;bottom:20px;left:18px;width:46px;height:46px;border-radius:15px;
-  border:1px solid var(--line);background:var(--surface);cursor:pointer;z-index:60;opacity:.72;
-  display:flex;align-items:center;justify-content:center;color:var(--txt2);transition:.18s;}
-.walkbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
-.walkbtn:hover{opacity:1;border-color:var(--gold);color:var(--gold);background:color-mix(in srgb,var(--gold) 12%,var(--surface));transform:translateY(-2px);}
-.walkbtn:active{transform:scale(.94);}
-.walkbtn.going{opacity:1;color:var(--go);border-color:color-mix(in srgb,var(--go) 55%,var(--line));
-  animation:walkgo 2.6s ease-in-out infinite;}
-@keyframes walkgo{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 30%,transparent);}
-  50%{box-shadow:0 0 14px 1px color-mix(in srgb,var(--go) 45%,transparent);}}
-.walkbtn b{position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);font-family:var(--mono);
-  font-size:9px;font-weight:400;letter-spacing:.04em;color:var(--go);background:var(--bg);padding:0 4px;border-radius:4px;}
-body.light .walkbtn{opacity:.6;box-shadow:0 1px 3px rgba(16,20,24,.08);}
-body.forge .walkbtn{border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,183,120,.14),inset 0 -1px 0 rgba(0,0,0,.45);}
+/* Cardio and the pump day are not week slots, so they sit under the board rather than in
+   it - two plain doors below the builder. They used to be 46px pebbles pinned to the bottom
+   corners, which put the two things you do most often behind the least legible control on
+   the screen. Cardio leads: it happens every day, the pump day almost never. */
+.sides{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
+.side{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--line);
+  border-radius:var(--r);background:var(--surface);cursor:pointer;transition:.15s;}
+.side:hover{border-color:color-mix(in srgb,var(--gold) 45%,var(--line));background:var(--surface2);}
+.side:active{transform:scale(.995);}
+.side-i{display:flex;color:var(--txt2);flex-shrink:0;}
+.side-i svg{width:19px;height:19px;display:block;}
+.side b{font-size:13.5px;font-weight:600;color:var(--txt);letter-spacing:.01em;}
+.side small{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--txt3);letter-spacing:.03em;white-space:nowrap;}
+.side.going{border-color:color-mix(in srgb,var(--go) 55%,var(--line));animation:walkgo 2.6s ease-in-out infinite;}
+.side.going .side-i,.side.going small{color:var(--go);}
+@keyframes walkgo{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 22%,transparent);}
+  50%{box-shadow:0 0 14px 1px color-mix(in srgb,var(--go) 32%,transparent);}}
+body.light .side{box-shadow:0 1px 3px rgba(16,20,24,.08);}
 /* The launch animation used to hand straight over to a fully drawn board. The board now
    arrives just behind it: the header first, then each card a beat after the one above it. */
 body.held #home > *,body.held #weekCards > *{opacity:0;}
@@ -309,7 +367,8 @@ body.arriving #weekCards > *:nth-child(6){animation-delay:.44s;}
 body.arriving #weekCards > *:nth-child(7){animation-delay:.50s;}
 body.arriving #weekCards > *:nth-child(n+8){animation-delay:.56s;}
 body.arriving .mk-new{animation-delay:.62s;}
-body.arriving .foot{animation-delay:.68s;}
+body.arriving .sides{animation-delay:.66s;}
+body.arriving .foot{animation-delay:.72s;}
 @keyframes arrive{from{opacity:0;transform:translateY(9px);}to{opacity:1;transform:none;}}
 @media(prefers-reduced-motion:reduce){
   body.arriving #home > *,body.arriving #weekCards > *{animation-duration:.01s;}}
@@ -594,7 +653,7 @@ html.forge .sp-tag{font-family:'Share Tech Mono',ui-monospace,monospace;letter-s
    technical mono so weights read like annotations on a blueprint. */
 body.forge{font-family:'Barlow',system-ui,sans-serif;}
 body.forge .wordmark,body.forge .sec-label,body.forge .card-name,body.forge .s-title,
-body.forge .ex-n,body.forge .sect-t,body.forge .sheet h3,body.forge .finishbtn,
+body.forge .ex-n,body.forge .sect-t,body.forge .sheet h3,body.forge .finishbtn,body.forge .tut-t,
 body.forge .ed-ex,body.forge .swaphead,body.forge .sp-word,body.forge .unsealbtn{
   font-family:'Big Shoulders Display','Barlow Condensed',sans-serif;font-weight:700;}
 body.forge .num,body.forge .ttime,body.forge .inp,body.forge .sp-tag,
@@ -685,7 +744,7 @@ body.moon .sheet p{font-weight:600;font-size:14.5px;line-height:1.6;}
 body.moon .ex-rest{font-weight:600;font-size:13px;}
 body.moon .notebox textarea{font-family:'Cormorant Garamond',Georgia,serif;font-size:16px;font-weight:500;}
 body.moon .wordmark,body.moon .sec-label,body.moon .card-name,body.moon .s-title,
-body.moon .ex-n,body.moon .sect-t,body.moon .sheet h3,body.moon .finishbtn,
+body.moon .ex-n,body.moon .sect-t,body.moon .sheet h3,body.moon .finishbtn,body.moon .tut-t,
 body.moon .ed-ex,body.moon .swaphead,body.moon .sp-word,body.moon .unsealbtn{
   font-family:'Marcellus',Georgia,serif;font-weight:400;}
 body.moon .num,body.moon .ttime,body.moon .inp,body.moon .sp-tag,
@@ -702,7 +761,7 @@ body.moon .pill{font-size:10px;letter-spacing:.05em;}
 body.moon .sp-word{font-size:25px;letter-spacing:.42em;}
 
 /* ===== ARCANUM ===== cold glass, classical serif, arcane cyan */
-.wordmark,.sec-label,.card-name,.s-title,.ex-n,.sect-t,.sheet h3,.finishbtn,.ed-ex,.swaphead{font-family:'Marcellus',serif;font-weight:400;}
+.wordmark,.sec-label,.card-name,.s-title,.ex-n,.sect-t,.sheet h3,.finishbtn,.ed-ex,.swaphead,.tut-t{font-family:'Marcellus',serif;font-weight:400;}
 .wordmark{font-size:24px;letter-spacing:.15em;text-transform:uppercase;}
 @media(max-width:400px){.wordmark{font-size:21px;letter-spacing:.12em;}}
 .sec-label{letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--txt2);}
@@ -1108,10 +1167,9 @@ body.forge .unsealbtn:hover{border-color:color-mix(in srgb,var(--gold) 60%,#5730
   box-shadow:inset 0 1px 0 rgba(255,196,140,.22),0 0 24px -10px rgba(255,138,31,.9);}
 body.forge .footnote{font-family:'Barlow',system-ui,sans-serif;}
 body.forge .storenote{font-family:'Barlow',system-ui,sans-serif;}
-/* the pump button is a struck plate too, not a pebble */
-body.forge .pumpbtn{border-radius:5px;
+/* the side doors are struck plates too, not pebbles */
+body.forge .side{border-radius:5px;
   box-shadow:inset 0 1px 0 rgba(255,183,120,.14),inset 0 -1px 0 rgba(0,0,0,.45);}
-body.forge .pumpbtn:hover{transform:translateY(-2px);}
 
 /* ---------- launch ---------- */
 #splash{position:fixed;left:0;top:0;right:0;bottom:0;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
@@ -1327,6 +1385,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   <div class="mk-hint" id="extraHint" style="display:none">Not part of the week &mdash; open one whenever you want it</div>
   <div id="extraCards"></div>
   <div class="mk-new" id="mkNewBtn" onclick="openNewDay()"></div>
+  <div class="sides" id="sides"></div>
   <div class="foot" id="foot"></div>
 </div>
 
@@ -1358,10 +1417,6 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
   <div class="s-body" id="mkBody"></div>
 </div>
-<button class="pumpbtn" id="pumpBtn" onclick="openPump()" title="Pump day" aria-label="Pump day" style="color:var(--gold)"><svg viewBox="0 0 20 20" style="width:19px;height:19px;fill:currentColor"><path d="M10 1.6l2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4 6-2.4z"/></svg></button>
-
-<button class="walkbtn" id="walkBtn" onclick="openWalk()" title="Walks" aria-label="Walks"><svg viewBox="0 0 20 20"><path d="M3.5 17c3.4-.6 5.4-2.4 6-5.4.6-3 2.6-4.8 6-5.4" stroke-dasharray="2.6 2.4"/><path d="M15.5 6.2V2.6M15.5 3.1l3.2 1.1-3.2 1.1"/></svg></button>
-
 <div class="ovl" id="walkOvl">
   <div class="sheet" style="max-width:400px">
     <h3 id="wkTtl">Walks</h3>
@@ -1445,6 +1500,64 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
 </div>
 
+<div class="ovl" id="exEditOvl">
+  <div class="sheet" style="max-width:420px">
+    <h3 id="exEdName">Exercise</h3>
+    <div class="sfx-lbl" style="margin-top:2px"><span>Rest</span></div>
+    <div class="presets" id="exEdRest" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="sfx-lbl"><span>Sets</span></div>
+    <div class="exed-n">
+      <button class="preset sm" onclick="exEdSet(-1)">&minus;</button>
+      <span id="exEdSets">3</span>
+      <button class="preset sm" onclick="exEdSet(1)">+</button>
+    </div>
+    <div class="exed-sub" id="exEdSub"></div>
+    <div class="mk-acts" id="exEdGrp" style="margin-top:14px"></div>
+    <div class="mk-acts" style="margin-top:9px">
+      <button class="preset sm" id="exEdRm" onclick="exEdRemove()">Remove this exercise</button>
+    </div>
+    <div class="sheet-btns">
+      <div class="btn" onclick="closeOvl('exEditOvl')">CANCEL</div>
+      <div class="btn" onclick="exEdSave(false)">JUST TODAY</div>
+      <div class="btn btn-go" onclick="exEdSave(true)">KEEP IT</div>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="exJoinOvl">
+  <div class="sheet">
+    <h3>Superset it with</h3>
+    <p>The two run back to back, sharing one rest. It lands straight after the exercise you held.</p>
+    <div class="swaplist" id="exJoinList" style="margin-top:12px"></div>
+    <div class="sheet-btns"><div class="btn" onclick="closeOvl('exJoinOvl')">CANCEL</div></div>
+  </div>
+</div>
+
+<div class="ovl" id="exAddOvl">
+  <div class="sheet">
+    <h3>Add to this day</h3>
+    <input class="mk-in" id="exAddSearch" placeholder="Search the library" oninput="exAddList()" autocomplete="off">
+    <div class="swaplist" id="exAddList" style="margin-top:12px"></div>
+    <div class="sheet-btns"><div class="btn" onclick="closeOvl('exAddOvl')">CANCEL</div></div>
+  </div>
+</div>
+
+<div id="blkMark"></div>
+<div id="tutHole"></div>
+<div id="tutPing"></div>
+<div id="tutCard">
+  <div class="tut-step" id="tutStep"></div>
+  <div class="tut-t" id="tutT"></div>
+  <div class="tut-b" id="tutB"></div>
+  <div class="tut-nudge" id="tutNudge"></div>
+  <div class="tut-btns">
+    <span class="tut-skip" id="tutSkip" onclick="tutEnd()">End tour</span>
+    <span class="tut-wait" id="tutWait" style="display:none"></span>
+    <div class="btn" id="tutSfx" onclick="tutSample()" style="display:none">HEAR IT</div>
+    <div class="btn btn-go" id="tutNext" onclick="tutAdvance()">NEXT</div>
+  </div>
+</div>
+
 <div class="ovl" id="askOvl">
   <div class="sheet" style="max-width:400px">
     <h3 id="askTitle">Are you sure?</h3>
@@ -1497,6 +1610,9 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="sfx-lbl"><span>Rest alert volume</span></div>
     <div class="presets" id="alertLvl" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="sfx-lbl"><span>Rest notice</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
+    <div class="sfx-lbl"><span>Guided tour</span></div>
+    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
+    <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -1721,7 +1837,95 @@ for(var __pg in PUMPGRP){GRP[__pg]=PUMPGRP[__pg];}
 function grpOf(id){return GRP[id]||'other';}
 
 // Resolve a row reference: "id" or ["id",{override}]
-function R(ref){
+// ---- changes made to a day from inside the session ----
+// Two layers. What you changed for today only lives on the open session and dies when the
+// day is sealed; what you kept lives on the day and rides it every week. Today wins, so a
+// one-off never has to be undone.
+function edToday(wk){var A=DB.active[wk];if(!A)return null;A.edit=A.edit||{};return A.edit;}
+function edKept(wk){DB.dayEdit=DB.dayEdit||{};DB.dayEdit[wk]=DB.dayEdit[wk]||{};return DB.dayEdit[wk];}
+function edGet(wk,id,k){
+  if(typeof DB==='undefined'||!wk)return null;
+  var A=DB.active&&DB.active[wk];
+  var t=(A&&A.edit&&A.edit[k])?A.edit[k][id]:null;
+  if(t!=null&&t!=='')return t;
+  if(t==='')return '';
+  var p=(DB.dayEdit&&DB.dayEdit[wk]&&DB.dayEdit[wk][k])?DB.dayEdit[wk][k][id]:null;
+  return (p==null)?null:p;
+}
+function edHidden(wk,id){return !!edGet(wk,id,'hide');}
+function edRows(wk,sec){
+  return sec.rows.filter(function(row){return !edHidden(wk,typeof row==='string'?row:row[0]);});
+}
+// Anything added lands in a section of its own at the foot of the day, so nothing has to be
+// squeezed into a superset it was never part of.
+function edAdded(wk){
+  if(typeof DB==='undefined')return [];
+  var out=[],seen={},A=DB.active&&DB.active[wk];
+  [((DB.dayEdit&&DB.dayEdit[wk]&&DB.dayEdit[wk].add)||[]),((A&&A.edit&&A.edit.add)||[])].forEach(function(a){
+    a.forEach(function(id){if(!seen[id]&&EX[id]&&!edHidden(wk,id)){seen[id]=1;out.push(id);}});
+  });
+  return out;
+}
+// A day is a list of blocks, not a flat list of exercises: a superset is one block and
+// moves as one, a straight set is a block of its own. Once the user reorders or regroups
+// anything, an explicit plan is stored and it supersedes the day's own grouping entirely.
+function edRowMap(wk){
+  var m={},w=W[wk];
+  if(!w)return m;
+  w.sections.forEach(function(sec){edRows(wk,sec).forEach(function(r){
+    m[typeof r==='string'?r:r[0]]={row:r,title:sec.title,ss:!!sec.ss};
+  });});
+  edAdded(wk).forEach(function(id){m[id]={row:id,title:'Added to this day',ss:false};});
+  return m;
+}
+function edBlocksDefault(wk){
+  var w=W[wk],out=[];
+  if(!w)return out;
+  w.sections.forEach(function(sec){
+    var rows=edRows(wk,sec);
+    if(!rows.length)return;
+    var ids=rows.map(function(r){return typeof r==='string'?r:r[0];});
+    if(sec.ss)out.push({k:ids[0],title:sec.title,ss:true,ids:ids,rows:rows});
+    else ids.forEach(function(id,n){out.push({k:id,title:sec.title,ss:false,ids:[id],rows:[rows[n]]});});
+  });
+  edAdded(wk).forEach(function(id){out.push({k:id,title:'Added to this day',ss:false,ids:[id],rows:[id]});});
+  return out;
+}
+function edBlocks(wk){
+  var map=edRowMap(wk),def=edBlocksDefault(wk);
+  var plan=edGet(wk,'_','plan');
+  if(!plan||!plan.length)return def;
+  var used={},out=[];
+  function push(ids,title,ss){
+    ids=ids.filter(function(id){return map[id]&&!used[id];});
+    if(!ids.length)return;
+    ids.forEach(function(id){used[id]=1;});
+    // A group can fall to one member any number of ways - the partner removed, swapped off
+    // the day, hidden for today. Whatever the route, it stops being a superset here, and
+    // the heading has to stop saying so.
+    if(ss&&ids.length<2){ss=false;title=exSoloTitle(wk,ids[0]);}
+    out.push({k:ids[0],title:title||map[ids[0]].title,ss:!!ss,ids:ids,
+              rows:ids.map(function(id){return map[id].row;})});
+  }
+  plan.forEach(function(p){push(p.ids||[],p.title,p.ss);});
+  // anything the plan has never seen - a lift added since - keeps its own place at the end
+  def.forEach(function(b){push(b.ids,b.title,b.ss);});
+  return out;
+}
+function edWritePlan(wk,blocks){
+  var t=edKept(wk);
+  t.plan=t.plan||{};
+  t.plan['_']=blocks.map(function(b){return {ss:!!b.ss,title:b.title,ids:b.ids.slice()};});
+  saveDB();
+}
+function edAllRows(wk){
+  var w=W[wk],rows=[];
+  if(!w)return rows;
+  w.sections.forEach(function(sec){edRows(wk,sec).forEach(function(r){rows.push(r);});});
+  edAdded(wk).forEach(function(id){rows.push(id);});
+  return rows;
+}
+function R(ref,wk){
   var id = typeof ref === 'string' ? ref : ref[0];
   var ov = typeof ref === 'string' ? null : ref[1];
   var e = EX[id];
@@ -1730,6 +1934,11 @@ function R(ref){
   // a levelled target outranks the day's own override - it is the newer decision
   var up=(typeof DB!=='undefined'&&DB.up)?DB.up[id]:null;
   if(up)out.sets=up;
+  // a change made on the day itself is newer than either, so it lands last
+  if(wk){
+    var es=edGet(wk,id,'sets');if(es)out.sets=es;
+    var er=edGet(wk,id,'rest');if(er!=null)out.rest=er;
+  }
   return out;
 }
 
@@ -2055,8 +2264,8 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v16.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
-var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],walks:[],walkRun:null};
+var APPV='v17.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
   try{var raw=localStorage.getItem(KEY+':bak');var p=raw?JSON.parse(raw):null;if(p&&p.db&&p.db.logs)bak=p.db;}catch(e){}
@@ -2076,6 +2285,7 @@ var saveT=null;
 // the session came back empty and reconcileActive then deleted the stub outright.
 function persistNow(){
   clearTimeout(saveT);saveT=null;
+  if(TUTON)return;   // the tour runs on a swapped-in DB; nothing it does may reach storage
   try{Store.set(KEY,DB);}catch(e){}
   try{localStorage.setItem(KEY+':bak',JSON.stringify({t:Date.now(),db:DB}));}catch(e){}
 }
@@ -2103,7 +2313,7 @@ function parseTarget(s){
   if(t)return {type:'val',w:0,r:parseInt(t[1]),unit:t[2].toLowerCase()};
   return {type:'val',w:0,r:0,unit:'',raw:s};
 }
-function targetsOf(row){return R(row).sets.split('\n').map(parseTarget);}
+function targetsOf(row,wk){return R(row,wk).sets.split('\n').map(parseTarget);}
 
 function exOfKey(L,k){return ((L&&L.swaps)||{})[k]||k;}
 function lastFor(exId){
@@ -2277,10 +2487,10 @@ function levelPlan(wk){
   var w=W[wk],out=[];
   if(!w)return out;
   var A=DB.active[wk];
-  w.sections.forEach(function(sec){sec.rows.forEach(function(row){
+  edAllRows(wk).forEach(function(row){
     // resolve through any swap: readiness and the raise both belong to the lift actually
     // performed, not to the plan slot it sits in
-    var rf=rowFor(A&&A.swaps,row);
+    var rf=rowFor(A&&A.swaps,row,wk);
     var id=rf.exId;
     var tg=rf.data.sets.split('\n').map(parseTarget);
     if(!isReady(id,tg))return;
@@ -2297,7 +2507,7 @@ function levelPlan(wk){
     // for any other reason - brings the arrow back on its own.
     if((DB.upSkip||{})[id]===skipSig(id,lines))return;
     out.push({id:id,name:rf.data.name,from:lines,to:next});
-  });});
+  });
   return out;
 }
 function skipSig(exId,lines){
@@ -2382,7 +2592,7 @@ function skipLevel(){
 }
 function totalSets(wk){
   var w=W[wk],n=0;
-  w.sections.forEach(function(sec){sec.rows.forEach(function(row){n+=R(row).sets.split('\n').length;});});
+  edAllRows(wk).forEach(function(row){n+=R(row,wk).sets.split('\n').length;});
   return n;
 }
 function loggedCount(wk){
@@ -2394,22 +2604,40 @@ function loggedCount(wk){
 // ============================================================
 // HOME
 // ============================================================
+// The week opens on Sunday. Both optional days then sit at the front, where a day you may
+// or may not take belongs, and the week closes on Saturday's heavy session instead of
+// trailing off into an add-on. Sealing lands on Sunday morning, before the week starts.
 var WEEK=[
+  {wk:"opt5",day:"Sunday",js:0,v:"opt"},
   {wk:"opt6",day:"Monday",js:1,v:"opt"},
   {wk:"d1",  day:"Tuesday",js:2},
   {wk:"d2",  day:"Wednesday",js:3},
   {wk:"rest",day:"Thursday",js:4,v:"rest",label:"Office day - no gym + optional 200-300 cal cardio"},
   {wk:"d3",  day:"Friday",js:5},
-  {wk:"d4",  day:"Saturday",js:6},
-  {wk:"opt5",day:"Sunday",js:0,v:"opt"}
+  {wk:"d4",  day:"Saturday",js:6}
 ];
 function roman(n){
   var R=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
   return R[n]||String(n);
 }
+// Whether a day is optional is the user's call, not the plan's. The override is filed
+// against the week slot, so it holds even after a day of their own is dropped onto it.
+function wkVar(e,mine){
+  var o=(typeof DB!=='undefined'&&DB.vOvr)?DB.vOvr[e.wk]:undefined;
+  if(o!==undefined)return o||null;
+  return mine?null:(e.v||null);
+}
+function setWkVar(base,v){
+  DB.vOvr=DB.vOvr||{};
+  var e=null;WEEK.forEach(function(x){if(x.wk===base)e=x;});
+  var def=e?(e.v||''):'';
+  if((v||'')===def)delete DB.vOvr[base];else DB.vOvr[base]=v||'';
+  saveDB();closeOvl('mkActOvl');renderHome();
+  try{sfxLog();}catch(err){}
+}
 function card(e){
   var wk=effWk(e.wk),mine=wk!==e.wk;
-  var w=W[wk]||W[e.wk],v=mine?null:(e.v||null),isToday=new Date().getDay()===e.js;
+  var w=W[wk]||W[e.wk],v=wkVar(e,mine),isToday=new Date().getDay()===e.js;
   // gate on the plan itself: a lit arrow must always have something behind it. Readiness
   // also counts timed rows, which have no weight to add and never enter the plan.
   var live=loggedCount(wk)>0,rdy=v?0:levelPlan(wk).length;
@@ -2447,7 +2675,7 @@ function extraIds(){return (DB.extra||[]).filter(function(id){return !!W[id];});
 /* ---- live logo mark: four bars, one per training day, filled when that day is logged this week ---- */
 function weekStartTs(){
   var d=new Date();d.setHours(0,0,0,0);
-  d.setDate(d.getDate()-((d.getDay()+6)%7)); /* Monday */
+  d.setDate(d.getDate()-d.getDay()); /* Sunday */
   return d.getTime();
 }
 function loggedThisWeek(){
@@ -2670,16 +2898,33 @@ function renderName(){
   if(wl)wl.innerHTML=TXT('week');
 }
 // Arcanum's four-point star is kept verbatim and restored on the way back out.
-var PUMP_ICON_0=null;
-function renderPumpIcon(){
-  var b=document.getElementById('pumpBtn');
-  if(!b)return;
-  if(PUMP_ICON_0===null)PUMP_ICON_0=b.innerHTML;
-  b.innerHTML=FG()
-    ?'<svg viewBox="0 0 20 20" style="width:19px;height:19px;fill:currentColor"><g transform="rotate(-18 10 10)"><path d="M4.2 3.4h11.6v4.4H4.2z"/><path d="M8.8 7.8h2.4v8.8h-2.4z"/></g></svg>'
+var PUMP_ICON_0='<svg viewBox="0 0 20 20" style="fill:currentColor"><path d="M10 1.6l2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4 6-2.4z"/></svg>';
+function pumpIconSvg(){
+  return FG()
+    ?'<svg viewBox="0 0 20 20" style="fill:currentColor"><g transform="rotate(-18 10 10)"><path d="M4.2 3.4h11.6v4.4H4.2z"/><path d="M8.8 7.8h2.4v8.8h-2.4z"/></g></svg>'
     :MW()
-    ?'<svg viewBox="0 0 20 20" style="width:19px;height:19px;fill:currentColor"><path d="M14.8 13.2A6.6 6.6 0 016 4.4a6.9 6.9 0 108.8 8.8z"/></svg>'
+    ?'<svg viewBox="0 0 20 20" style="fill:currentColor"><path d="M14.8 13.2A6.6 6.6 0 016 4.4a6.9 6.9 0 108.8 8.8z"/></svg>'
     :PUMP_ICON_0;
+}
+var WALK_ICON_SVG='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 17c3.4-.6 5.4-2.4 6-5.4.6-3 2.6-4.8 6-5.4" stroke-dasharray="2.6 2.4"/><path d="M15.5 6.2V2.6M15.5 3.1l3.2 1.1-3.2 1.1"/></svg>';
+// what the cardio row says on its right: the clock while you are out, the day's total after
+function walkStatus(){
+  if(walkRunning())return 'WALKING \u00b7 '+Math.floor(walkElapsed()/60)+'m';
+  var td=walkMin(iso(new Date()));
+  return td?td+' / '+WALK_TGT+' min today':'None today';
+}
+function renderSides(){
+  var el=document.getElementById('sides');if(!el)return;
+  var open=loggedCount('pump');
+  el.innerHTML=
+    '<div class="side'+(walkRunning()?' going':'')+'" id="sideWalk" onclick="openWalk()">'+
+      '<span class="side-i">'+WALK_ICON_SVG+'</span><b>Log cardio</b>'+
+      '<small>'+walkStatus()+'</small></div>'+
+    '<div class="side" id="sidePump" onclick="openPump()">'+
+      '<span class="side-i" style="color:var(--gold)">'+pumpIconSvg()+'</span><b>Pump day</b>'+
+      '<small>'+(open?'OPEN \u00b7 '+open+'/'+totalSets('pump'):'Bonus \u00b7 30-40 min')+'</small></div>';
+}
+function renderPumpIcon(){renderSides();
 }
 var _setTheme0=setTheme;
 setTheme=function(t){_setTheme0(t);try{
@@ -2857,29 +3102,40 @@ function openWNow(wk){
   sv.scrollTop=0;sv.classList.add('on');
   syncPumpBtn();
 }
-function rowFor(swaps,row){
+function rowFor(swaps,row,wk){
   var base=typeof row==='string'?row:row[0];
   var sw=(swaps||{})[base];
   // id  = the plan slot the sets are filed under (stable, never collides)
   // exId = the lift actually performed, which is what history and grading key on
-  if(sw)return {id:base,baseId:base,exId:sw,swapId:sw,data:R(sw)};
-  return {id:base,baseId:base,exId:base,swapId:null,data:R(row)};
+  if(sw){
+    // an override is filed against the slot, not the lift standing in it, or swapping
+    // out and back would quietly drop the change
+    var d=R(sw,null);
+    if(wk){var s=edGet(wk,base,'sets');if(s)d.sets=s;var r=edGet(wk,base,'rest');if(r!=null)d.rest=r;}
+    return {id:base,baseId:base,exId:sw,swapId:sw,data:d};
+  }
+  return {id:base,baseId:base,exId:base,swapId:null,data:R(row,wk)};
 }
+var DRAGSVG='<div class="exdrag" title="Drag to reorder"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/></svg></div>';
 function renderSession(){
   stopHold();resetHoldState();
   var wk=CUR,w=W[wk],A=DB.active[wk],html='';
   var canRaise={};levelPlan(wk).forEach(function(p){canRaise[p.id]=1;});
 
-  w.sections.forEach(function(sec){
-    html+='<div class="sect-t">'+(sec.ss?'<span class="ss">&#8942; </span>':'')+sec.title+'</div>';
+  var lastT=null;
+  edBlocks(wk).forEach(function(sec){
+    html+='<div class="blk" data-k="'+sec.k+'">';
+    // the heading travels with the first block that carries it, so a moved block does not
+    // strand its title behind
+    if(sec.title!==lastT){html+='<div class="sect-t">'+(sec.ss?'<span class="ss">&#8942; </span>':'')+sec.title+'</div>';lastT=sec.title;}
     sec.rows.forEach(function(row){
-      var rf=rowFor(A.swaps,row),r=rf.data,id=rf.id;
-      var tg=rf.swapId?r.sets.split('\n').map(parseTarget):targetsOf(row);
+      var rf=rowFor(A.swaps,row,wk),r=rf.data,id=rf.id;
+      var tg=rf.swapId?r.sets.split('\n').map(parseTarget):targetsOf(row,wk);
       var ent=A.entries[id]||[];
       var allDone=tg.length>0&&tg.every(function(_,i){return ent[i];});
       var L=lastFor(rf.exId),ready=isReady(rf.exId,tg),bst=bestEver(rf.exId);
       html+='<div class="exc'+(allDone?' alldone':'')+'" id="exc-'+id+'">';
-      html+='<div class="ex-h"><div class="ex-nrow"><div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
+      html+='<div class="ex-h"><div class="ex-nrow">'+DRAGSVG+'<div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
             '<div class="ex-tools">'+(ready&&canRaise[rf.exId]?'<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(CUR)">'+ARROW+'</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
       html+='<div class="ex-stats">'+
@@ -2912,12 +3168,15 @@ function renderSession(){
       if(r.rest)html+='<div class="ex-rest">Rest '+r.rest+'</div>';
       html+='</div>';
     });
+    html+='</div>';
   });
+  html+='<div class="mk-new" onclick="exEdAdd()" style="margin-top:22px">'+PLUS+'ADD AN EXERCISE</div>';
   html+='<div class="notebox"><div class="sect-t">Session notes</div><textarea id="noteBox" placeholder="Form issues, how it felt, equipment problems, anything worth remembering...">'+(A.note||'')+'</textarea></div>';
   html+='<div class="finish-inline"><button class="finishbtn" onclick="finishSession()">Finish &amp; export</button>'+
-        '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--txt3);line-height:1.55;text-wrap:pretty">Every set saves the moment you tap it. Leave whenever you like \u2014 this day stays open until you finish it.</div>'+
+        '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--txt3);line-height:1.55;text-wrap:pretty">Every set saves the moment you tap it. Hold an exercise to change its rest or its sets. Leave whenever you like \u2014 this day stays open until you finish it.</div>'+
         '<div style="text-align:center;margin-top:14px"><span class="btn" onclick="clearSession()">Reset this session</span></div></div>';
   document.getElementById('sBody').innerHTML=html;
+  bindExHold();blkBind();
   var nb=document.getElementById('noteBox');
   nb.oninput=function(){DB.active[CUR].note=nb.value;saveSoon();};
   updateProg();
@@ -3188,11 +3447,16 @@ function mkActions(base){
   document.getElementById('mkActTtl').textContent=e?e.day:'This day';
   document.getElementById('mkActSub').textContent=w.name.replace('Optional: ','')+' \u2014 '+totalSets(wk)+' sets';
   var h='';
-  if(mine)h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+wk+'\')">'+MKTXT().act.toUpperCase()+'</div>';
-  h+='<div class="btn'+(mine?'':' btn-go')+'" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null)">'+(mine?'REPLACE WITH A NEW DAY':MKTXT().save)+'</div>';
+  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+(mine?wk:'')+'\')">EDIT THIS DAY</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD ONE FROM SCRATCH</div>';
   if(mine){
     h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
     h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
+  }
+  if(e){
+    var cv=wkVar(e,mine),back=(e.v==='rest')?'rest':'';
+    h+='<div class="btn" onclick="setWkVar(\''+base+'\',\''+(cv==='opt'?back:'opt')+'\')">'+
+       (cv==='opt'?'MAKE IT A REQUIRED DAY':'MAKE IT OPTIONAL')+'</div>';
   }
   document.getElementById('mkActBody').innerHTML=h;
   openHeld('mkActOvl');
@@ -3259,10 +3523,15 @@ function mkDelete(base){
       saveDB();mergeCustom();renderHome();
     },'Delete this day','DELETE');
 }
-function openMake(base,editId){
-  if(editId&&DB.custom[editId]){
-    var w=DB.custom[editId];
-    MK={id:editId,name:w.name,color:w.color,slot:base,tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+// Reshaping a day starts from the day that is already there. Building from nothing is still
+// available, but it is the rarer thing and no longer the default.
+function openMake(base,editId,blank){
+  var isEdit=!!(editId&&DB.custom[editId]);
+  var src=isEdit?DB.custom[editId]:(blank?null:W[effWk(base)]);
+  if(src){
+    var w=src;
+    MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
+        color:w.color||MK_COLS[0],slot:base,tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
       blocks:w.sections.map(function(s){
         return {title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
           var id=typeof row==='string'?row:row[0];
@@ -3276,7 +3545,7 @@ function openMake(base,editId){
     MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:base,tag:'Yours',time:'~9:00 PM',
       blocks:[{title:'',ss:false,rows:[]}]};
   }
-  document.getElementById('mkTitle').textContent=MK.id?MK.name:MKTXT().t;
+  document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
   mkRender();
   document.getElementById('make').scrollTop=0;
   document.getElementById('make').classList.add('on');
@@ -4073,9 +4342,9 @@ function renderHist(){
     var p=logParts(L);
     if(p.y===m.y&&p.m===m.m)byDay[p.d]=i;
   });
-  var first=new Date(m.y,m.m,1),lead=(first.getDay()+6)%7,days=new Date(m.y,m.m+1,0).getDate();
+  var first=new Date(m.y,m.m,1),lead=first.getDay(),days=new Date(m.y,m.m+1,0).getDate();
   var now=new Date(),isNow=now.getFullYear()===m.y&&now.getMonth()===m.m;
-  var cells=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){return '<div class="hdow">'+d.toUpperCase()+'</div>';}).join('');
+  var cells=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return '<div class="hdow">'+d.toUpperCase()+'</div>';}).join('');
   for(var i=0;i<lead;i++)cells+='<div class="hcell pad">0</div>';
   for(var d=1;d<=days;d++){
     var idx=byDay[d],w=idx!==undefined?W[DB.logs[idx].day]:null;
@@ -4136,12 +4405,9 @@ function sessionOpen(){
 // One place decides whether the pump button is on screen. It used to be toggled inline at
 // each call site, and the system back button went through leaveSession() without ever
 // putting it back - which stranded a half-finished pump day with no way to reopen it.
-function syncPumpBtn(){
-  syncWalkBtn();
-  var b=document.getElementById('pumpBtn');if(!b)return;
-  var mk=document.getElementById('make');
-  b.style.display=(sessionOpen()||(mk&&mk.classList.contains('on')))?'none':'';
-}
+// The two side doors live on the home board now, so nothing has to be hidden when a session
+// or the builder covers it - this only keeps their labels current.
+function syncPumpBtn(){renderSides();}
 function leaveSession(){
   pageTurn(true,function(){document.getElementById('session').classList.remove('on');syncPumpBtn();});
   stopTimer();stopHold();resetHoldState();renderHome();
@@ -4732,6 +4998,7 @@ function playAlertElement(){
 var restRep=null;
 function restAlert(){
   stopRestAlert();
+  if(TUTON)return;   // the tour starts a real rest so you can watch it; it must not fire
   // Hidden, or the context went to sleep anyway: the element is the only path that fires.
   var bg=(document.visibilityState!=='visible')||(actx&&actx.state!=='running');
   var used=false;
@@ -5048,6 +5315,7 @@ function notifReg(){
   });
 }
 function pushNotif(title,body,extra){
+  if(TUTON)return;
   if(!NOTIF_ON||!notifOk()||Notification.permission!=='granted')return;
   var o={body:body,tag:'arcanum-rest',icon:'icons/arcanum-192.png',badge:'icons/arcanum-192.png',silent:true,renotify:false};
   o.timestamp=Date.now();
@@ -5535,15 +5803,10 @@ function walkWeek(){
   return t;
 }
 function syncWalkBtn(){
-  var b=document.getElementById('walkBtn');if(!b)return;
-  var mk=document.getElementById('make');
-  b.style.display=(sessionOpen()||(mk&&mk.classList.contains('on')))?'none':'';
-  b.classList.toggle('going',walkRunning());
-  var tag=b.querySelector('b');
-  if(walkRunning()){
-    if(!tag){tag=document.createElement('b');b.appendChild(tag);}
-    tag.textContent=Math.floor(walkElapsed()/60)+'m';
-  }else if(tag)tag.remove();
+  var r=document.getElementById('sideWalk');if(!r)return;
+  r.classList.toggle('going',walkRunning());
+  var s=r.querySelector('small');
+  if(s)s.innerHTML=walkStatus();
 }
 function wkTick(){
   var c=document.getElementById('wkClock');
@@ -5630,7 +5893,591 @@ function openTimerSheet(){
 function openSettings(){
   initAudio();
   drawSfxTog();drawNotifTog();drawAlertLvl();drawThemePick();
+  var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
+}
+
+// ============================================================
+// CHANGING A DAY MID-SESSION
+// ============================================================
+// Held from the session screen. Rest and set count are edited in place; adding and removing
+// exercises go through the same two-button save, so nothing changes the plan by accident.
+var EXED=null;
+var REST_OPTS=[['','None'],['30 sec','30 s'],['45 sec','45 s'],['60 sec','60 s'],
+               ['90 sec','90 s'],['2 min','2 min'],['2.5 min','2.5 min'],['3 min','3 min']];
+function exRef(wk,id){
+  var found=null,w=W[wk];
+  if(!w)return null;
+  w.sections.forEach(function(sec){edRows(wk,sec).forEach(function(row){
+    if((typeof row==='string'?row:row[0])===id)found=row;
+  });});
+  if(!found&&edAdded(wk).indexOf(id)>=0)found=id;
+  return found;
+}
+function exLogged(wk,id){
+  var A=DB.active[wk];
+  return !!(A&&A.entries[id]&&A.entries[id].some(function(x){return x;}));
+}
+function exBlockOf(wk,id){
+  var bl=edBlocks(wk),out=null,at=-1;
+  bl.forEach(function(b,n){if(b.ids.indexOf(id)>=0){out=b;at=n;}});
+  return {blocks:bl,blk:out,at:at};
+}
+function openExEdit(id){
+  if(!CUR)return;
+  var wk=CUR,ref=exRef(wk,id);
+  if(!ref)return;
+  var cur=R(ref,wk),b=exBlockOf(wk,id);
+  // rounds and rest belong to the whole superset, so the sheet edits every member of it
+  EXED={wk:wk,id:id,rest:cur.rest||'',lines:cur.sets.split('\n'),
+        ids:(b.blk?b.blk.ids.slice():[id]),ss:!!(b.blk&&b.blk.ss),at:b.at};
+  drawExEdit();
+  openHeld('exEditOvl');
+}
+function drawExEdit(){
+  var e=EXED;if(!e)return;
+  var rf=rowFor(DB.active[e.wk].swaps,exRef(e.wk,e.id),e.wk);
+  document.getElementById('exEdName').textContent=rf.data.name;
+  document.getElementById('exEdRest').innerHTML=REST_OPTS.map(function(o){
+    var on=o[0]===e.rest;
+    return '<button class="preset sm"'+(on?' style="border-color:var(--go);color:var(--go)"':'')+
+      ' onclick="exEdRest(\''+o[0]+'\')">'+o[1]+'</button>';
+  }).join('');
+  document.getElementById('exEdSets').textContent=e.lines.length;
+  document.getElementById('exEdSub').textContent=
+    (e.ids.length>1?'Rest and rounds apply to all '+e.ids.length+' exercises in this superset. ':'')+
+    'Target for each set: '+e.lines.join(', ')+'. A new set copies the last one.';
+  var b=exBlockOf(e.wk,e.id),grp=document.getElementById('exEdGrp'),gh='';
+  if(b.blk&&b.blk.ids.length>2)
+    gh+='<button class="preset sm" onclick="exEdLeave()">Take this one out of the superset</button>';
+  if(b.blk&&b.blk.ids.length>1)
+    gh+='<button class="preset sm" onclick="exEdBreak()">Break the whole superset apart</button>';
+  if(b.blocks.length>1)
+    gh+='<button class="preset sm" onclick="exEdJoinPick()">Superset with another exercise</button>';
+  if(b.blk&&b.blk.ids.length>1){
+    var pos=b.blk.ids.indexOf(e.id);
+    if(pos>0)gh+='<button class="preset sm" onclick="exEdMove(-1)">Move earlier in the superset</button>';
+    if(pos<b.blk.ids.length-1)gh+='<button class="preset sm" onclick="exEdMove(1)">Move later in the superset</button>';
+  }
+  grp.innerHTML=gh;
+  var logged=exLogged(e.wk,e.id),rm=document.getElementById('exEdRm');
+  rm.textContent=logged?'Sets logged here \u00b7 cannot remove':'Remove this exercise';
+  rm.className='preset sm'+(logged?' exed-off':'');
+}
+function exEdRest(v){EXED.rest=v;drawExEdit();}
+function exEdSet(d){
+  var L=EXED.lines;
+  if(d>0)L.push(L[L.length-1]);
+  else if(L.length>1)L.pop();
+  try{sfxTick(d>0);}catch(e){}
+  drawExEdit();
+}
+function exEdWrite(keep,fn){
+  var wk=EXED?EXED.wk:CUR;
+  var tgt=keep?edKept(wk):edToday(wk);
+  if(!tgt)return;
+  fn(tgt);
+  // a kept change supersedes the one-off, or today's would keep winning forever
+  if(keep){
+    var t=edToday(wk);
+    if(t&&EXED){EXED.ids.forEach(function(id){['rest','sets','hide'].forEach(function(k){if(t[k])delete t[k][id];});});}
+  }
+  saveDB();closeOvl('exEditOvl');closeOvl('exAddOvl');closeOvl('exJoinOvl');
+  if(CUR)renderSession();
+  renderHome();
+}
+function exEdSave(keep){
+  var e=EXED;if(!e)return;
+  exEdWrite(keep,function(t){
+    t.rest=t.rest||{};t.sets=t.sets||{};
+    e.ids.forEach(function(id){
+      t.rest[id]=e.rest;
+      // each lift keeps its own numbers; only how many rounds is shared
+      var cur=R(exRef(e.wk,id)||id,e.wk).sets.split('\n'),out=[];
+      for(var i=0;i<e.lines.length;i++)out.push(cur[Math.min(i,cur.length-1)]);
+      t.sets[id]=(id===e.id?e.lines:out).join('\n');
+    });
+  });
+  try{sfxLog();}catch(err){}
+}
+function exEdRemove(){
+  var e=EXED;if(!e||exLogged(e.wk,e.id))return;
+  var n=document.getElementById('exEdName').textContent;
+  ask('It comes off this day. Nothing already in your history is touched.',
+    function(){exEdWrite(true,function(t){t.hide=t.hide||{};t.hide[e.id]=1;});},
+    'Remove '+n+'?','EVERY WEEK',null,
+    {label:'JUST TODAY',fn:function(){exEdWrite(false,function(t){t.hide=t.hide||{};t.hide[e.id]=1;});}});
+}
+// A block that stops being a superset must lose the superset's heading too, or a lone
+// exercise is left sitting under a title that no longer describes it.
+function exSoloTitle(wk,id){
+  var m=edRowMap(wk)[id];
+  return (m&&!m.ss&&m.title)?m.title:'Straight sets';
+}
+function exEdBreak(){
+  var e=EXED,b=exBlockOf(e.wk,e.id);
+  if(!b.blk||b.blk.ids.length<2)return;
+  var bl=b.blocks,parts=b.blk.ids.map(function(id){
+    return {k:id,title:exSoloTitle(e.wk,id),ss:false,ids:[id]};
+  });
+  bl.splice.apply(bl,[b.at,1].concat(parts));
+  edWritePlan(e.wk,bl);
+  closeOvl('exEditOvl');renderSession();renderHome();
+  try{sfxLog();}catch(err){}
+}
+// Taking one out leaves the others linked - the common case once a group is three deep.
+function exEdLeave(){
+  var e=EXED,b=exBlockOf(e.wk,e.id);
+  if(!b.blk||b.blk.ids.length<3)return;
+  var rest=b.blk.ids.filter(function(id){return id!==e.id;});
+  var bl=b.blocks;
+  bl.splice(b.at,1,
+    {k:e.id,title:exSoloTitle(e.wk,e.id),ss:false,ids:[e.id]},
+    {k:rest[0],title:b.blk.title,ss:true,ids:rest});
+  edWritePlan(e.wk,bl);
+  closeOvl('exEditOvl');renderSession();renderHome();
+  try{sfxLog();}catch(err){}
+}
+// Joining is a choice of partner, not "whatever is underneath". The picked block's
+// exercises land straight after the one you held, and the move buttons take it from there.
+function exEdJoinPick(){
+  var e=EXED,b=exBlockOf(e.wk,e.id),h='';
+  b.blocks.forEach(function(x,n){
+    if(n===b.at)return;
+    var names=x.ids.map(function(id){return rowFor(DB.active[e.wk].swaps,exRef(e.wk,id)||id,e.wk).data.name;});
+    h+='<div class="swapitem" onclick="exEdJoinWith('+n+')">'+names[0]+
+       '<small>'+(names.length>1?'superset \u00b7 '+names.slice(1).join(', '):x.title)+'</small></div>';
+  });
+  document.getElementById('exJoinList').innerHTML=h;
+  document.getElementById('exJoinOvl').classList.add('on');
+}
+function exEdJoinWith(n){
+  var e=EXED,b=exBlockOf(e.wk,e.id);
+  if(b.at<0||n===b.at||!b.blocks[n])return;
+  var bl=b.blocks,mine=b.blk.ids.slice(),other=bl[n].ids.slice();
+  var at=mine.indexOf(e.id);
+  mine.splice.apply(mine,[at+1,0].concat(other));
+  var merged={k:mine[0],title:'Superset',ss:true,ids:mine};
+  var keep=bl.filter(function(x,i){return i!==b.at&&i!==n;});
+  keep.splice(Math.min(b.at,n),0,merged);
+  edWritePlan(e.wk,keep);
+  closeOvl('exJoinOvl');closeOvl('exEditOvl');renderSession();renderHome();
+  try{sfxLog();}catch(err){}
+}
+function exEdMove(d){
+  var e=EXED,b=exBlockOf(e.wk,e.id);
+  if(!b.blk)return;
+  var ids=b.blk.ids.slice(),i=ids.indexOf(e.id),j=i+d;
+  if(i<0||j<0||j>=ids.length)return;
+  ids.splice(j,0,ids.splice(i,1)[0]);
+  var bl=b.blocks;bl[b.at]={k:ids[0],title:b.blk.title,ss:true,ids:ids};
+  edWritePlan(e.wk,bl);
+  renderSession();drawExEdit();
+  try{sfxTick(d>0);}catch(err){}
+}
+function exEdAdd(){
+  document.getElementById('exAddSearch').value='';
+  exAddList();
+  document.getElementById('exAddOvl').classList.add('on');
+}
+function exAddList(){
+  var q=(document.getElementById('exAddSearch').value||'').toLowerCase();
+  var here={};edAllRows(CUR).forEach(function(r){here[typeof r==='string'?r:r[0]]=1;});
+  var out=[];
+  for(var k in EX){
+    if(here[k])continue;
+    if(k.indexOf('p_')===0)continue;
+    if(q&&EX[k].name.toLowerCase().indexOf(q)<0)continue;
+    out.push(k);
+  }
+  out.sort(function(a,b){return EX[a].name<EX[b].name?-1:1;});
+  document.getElementById('exAddList').innerHTML=out.length?out.slice(0,60).map(function(k){
+    return '<div class="swapitem" onclick="exAddPick(\''+k+'\')">'+EX[k].name+
+      '<small>'+EX[k].sets.split('\n').join(', ')+'</small></div>';
+  }).join(''):'<div class="exed-sub">Nothing matches that.</div>';
+}
+function exAddPick(id){
+  ask(EX[id].name+' goes to the foot of the day with its usual targets.',
+    function(){exAddWrite(id,true);},'Add it every week?','EVERY WEEK',null,
+    {label:'JUST TODAY',fn:function(){exAddWrite(id,false);}});
+}
+function exAddWrite(id,keep){
+  var wk=CUR,tgt=keep?edKept(wk):edToday(wk);
+  if(!tgt)return;
+  tgt.add=tgt.add||[];
+  if(tgt.add.indexOf(id)<0)tgt.add.push(id);
+  if(tgt.hide)delete tgt.hide[id];
+  saveDB();closeOvl('exAddOvl');closeOvl('exEditOvl');
+  renderSession();renderHome();
+  try{sfxLog();}catch(e){}
+}
+// ---- reordering ----
+// The dragged block is the only thing that moves; a line marks where it will land. Live
+// reflow of everything else costs a layout pass per frame on a list this tall.
+var DRAG=null;
+function blkBind(){
+  [].forEach.call(document.querySelectorAll('#sBody .exdrag'),function(hd){
+    hd.addEventListener('pointerdown',function(ev){
+      var el=hd.closest('.blk');if(!el)return;
+      ev.preventDefault();ev.stopPropagation();
+      var blks=[].slice.call(document.querySelectorAll('#sBody .blk'));
+      // rects are cached: the others are about to move, and measuring them mid-shift
+      // makes the target index oscillate
+      var rects=blks.map(function(b){return b.getBoundingClientRect();});
+      var i=blks.indexOf(el),gap=14;
+      if(blks.length>1)gap=Math.max(4,Math.round(rects[1].top-rects[0].bottom));
+      DRAG={el:el,i:i,to:i,y0:ev.clientY,blks:blks,rects:rects,
+            h:rects[i].height+gap,top:rects[i].top};
+      el.classList.add('dragging');
+      try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
+      document.addEventListener('pointermove',blkMove);
+      document.addEventListener('pointerup',blkEnd);
+      document.addEventListener('pointercancel',blkEnd);
+    });
+  });
+}
+function blkMove(ev){
+  if(!DRAG)return;
+  var dy=ev.clientY-DRAG.y0;
+  DRAG.el.style.transform='translateY('+dy+'px)';
+  var mid=DRAG.top+DRAG.rects[DRAG.i].height/2+dy,j=DRAG.i;
+  DRAG.rects.forEach(function(br,n){
+    if(n===DRAG.i)return;
+    var bm=br.top+br.height/2;
+    if(n<DRAG.i&&mid<bm)j=Math.min(j,n);
+    if(n>DRAG.i&&mid>bm)j=Math.max(j,n);
+  });
+  DRAG.to=j;
+  // everything the block passes slides the other way, so the space it will take opens up
+  DRAG.blks.forEach(function(b,n){
+    if(n===DRAG.i)return;
+    var s=0;
+    if(j>DRAG.i&&n>DRAG.i&&n<=j)s=-DRAG.h;
+    else if(j<DRAG.i&&n>=j&&n<DRAG.i)s=DRAG.h;
+    b.style.transform=s?'translateY('+s+'px)':'';
+  });
+}
+function blkEnd(){
+  document.removeEventListener('pointermove',blkMove);
+  document.removeEventListener('pointerup',blkEnd);
+  document.removeEventListener('pointercancel',blkEnd);
+  if(!DRAG)return;
+  var d=DRAG;DRAG=null;
+  d.blks.forEach(function(b){b.style.transform='';});
+  d.el.classList.remove('dragging');
+  if(d.to==null||d.to===d.i)return;
+  var bl=edBlocks(CUR);
+  bl.splice(d.to,0,bl.splice(d.i,1)[0]);
+  edWritePlan(CUR,bl);
+  renderSession();
+  try{sfxLog();}catch(e){}
+}
+
+// Same gesture the week cards use, so there is one way to reshape anything in the app.
+function bindExHold(){
+  [].forEach.call(document.querySelectorAll('#sBody .exc'),function(el){
+    var id=(el.id||'').replace(/^exc-/,'');
+    if(!id)return;
+    el.addEventListener('pointerdown',function(ev){
+      if(ev.target.closest('input,button,a,.ex-swap,.lvl,.exdrag,textarea'))return;
+      LP.fired=false;LP.x=ev.clientX;LP.y=ev.clientY;
+      clearTimeout(LP.t);
+      LP.t=setTimeout(function(){
+        LP.fired=true;
+        try{if(navigator.vibrate)navigator.vibrate(14);}catch(e){}
+        try{var s=window.getSelection();if(s&&s.removeAllRanges)s.removeAllRanges();}catch(e){}
+        openExEdit(id);
+      },520);
+    });
+    el.addEventListener('pointermove',function(ev){
+      if(Math.abs(ev.clientX-LP.x)>8||Math.abs(ev.clientY-LP.y)>8)clearTimeout(LP.t);
+    });
+    ['pointerup','pointerleave','pointercancel'].forEach(function(n){
+      el.addEventListener(n,function(){clearTimeout(LP.t);});
+    });
+    el.addEventListener('contextmenu',function(ev){ev.preventDefault();});
+  });
+}
+
+// ============================================================
+// GUIDED TOUR
+// ============================================================
+// The whole app renders from one global DB, so the tour swaps in a seeded one and
+// blocks every write (see persistNow). Nothing tapped in here can reach storage, which
+// is what lets the tour run over the real screens instead of a mock-up of them.
+var TUTON=false,TUTI=0,TUTDB=null,TUTPOLL=null,TUTRAF=0;
+
+function tutSeed(){
+  function d(n){var x=new Date();x.setDate(x.getDate()-n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
+  function S(a){return a.map(function(p){return {w:p[0],r:p[1],unit:'',g:'match'};});}
+  return {
+    // Bench tops out at 140x8 three weeks in, so taking it to 145 during the tour is a
+    // real record against real stored history - the grading demo is not faked.
+    logs:[
+      {day:'d1',date:d(24),entries:{bench:S([[130,8],[130,8],[130,7],[130,7]]),incdb:S([[50,12],[50,12],[50,11]]),mbench:S([[150,10],[130,15],[130,14]])},note:'',swaps:{}},
+      {day:'d2',date:d(22),entries:{latpd:S([[115,10],[115,10],[115,9]]),row:S([[100,12],[100,12],[100,11]]),preacher:S([[50,10],[50,10],[50,9]]),hammer:S([[30,12],[30,12],[30,12]])},note:'',swaps:{}},
+      {day:'d3',date:d(20),entries:{hack:S([[180,10],[180,10],[180,9]]),lpress:S([[270,12],[270,12],[270,11]]),hthrust:S([[185,12],[185,12],[185,10]])},note:'',swaps:{}},
+      {day:'d1',date:d(17),entries:{bench:S([[135,8],[135,8],[135,8],[135,7]]),incdb:S([[55,12],[55,11],[55,11]]),mbench:S([[150,10],[130,15],[130,15]])},note:'',swaps:{}},
+      {day:'d2',date:d(15),entries:{latpd:S([[120,10],[120,10],[120,10]]),row:S([[105,12],[105,12],[105,11]]),preacher:S([[50,12],[50,11],[50,10]])},note:'',swaps:{}},
+      {day:'d1',date:d(10),entries:{bench:S([[140,8],[140,8],[140,7],[140,7]]),incdb:S([[55,12],[55,12],[55,12]]),mbench:S([[150,11],[130,15],[130,15]])},note:'Felt strong off the chest.',swaps:{}}
+    ],
+    active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null
+  };
+}
+
+// Shape is shared; only the words change per theme. A new world adds one copy block.
+// sel   - what the spotlight lights up (kept wide enough to stay readable)
+// hit   - what the fence lets you tap; everything else shakes the card instead
+// ping  - the one control the pulsing ring sits on
+var TUT_STEPS=[
+  {sel:'#weekCards',pad:6,nudge:'Read this one, then tap NEXT. End tour leaves at any point.'},
+  {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',
+   w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card inside the highlight.',
+   when:function(){return document.getElementById('session').classList.contains('on');}},
+  {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',
+   w:'Waiting for a tap on the weight',nudge:'Tap the weight itself, inside the highlight.',
+   when:function(){return tutOn('editOvl');}},
+  {sel:'#editOvl .edsheet',pad:10,ovl:'editOvl',hit:'#editOvl .edsheet|#w-bench-0',ping:'#editOvl .btn-go',
+   reopen:true,w:'Waiting for 150 or more, then DONE',nudge:'It has to reach 150 before DONE will take it.',
+   when:function(){return !tutOn('editOvl')&&tutW()>=150;}},
+  {sel:'#sr-bench-0',hit:'#sr-bench-0 .chk',ping:'#sr-bench-0 .chk',
+   w:'Waiting for the sigil',nudge:'Tap the sigil at the end of the highlighted row.',
+   when:function(){var e=document.getElementById('sr-bench-0');return !!(e&&e.classList.contains('done'));}},
+  {sel:'#timerPill',pad:10,sample:true,nudge:'Tap NEXT when you have had a look.'},
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench',
+   w:'Waiting for a long press',nudge:'Press and hold the exercise until the sheet opens.',
+   when:function(){return tutOn('exEditOvl');}},
+  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
+  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',
+   w:'Waiting for Finish',nudge:'Tap Finish inside the highlight.',
+   // Between the tap and the export sheet the day seals itself. Get out of the way.
+   hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
+   when:function(){return tutOn('exportOvl');}},
+  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
+  {sel:'#foot .unsealbtn',pad:6,last:true,nudge:'Tap DONE to close the tour.'}
+];
+function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
+function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e.value)||0:0;}
+
+function TUTC(){
+  var t=curTheme();
+  var C={
+    dark:{btn:'Walk me through it',ttl:'First time here?',
+      msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
+      yes:'SHOW ME',steps:[
+      {t:'Your week',b:'Seven slots, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample data, so your own history stays untouched.'},
+      {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
+      {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
+      {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
+      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is sealed; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
+      {t:'How a set is graded',b:'That one landed gold: 150 beats every bench in your history. Cyan means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
+      {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
+    forge:{btn:'Walk me through it',ttl:'First time at the forge?',
+      msg:'A short guided pass over the real screens, on sample stock. A few minutes at most, and your own work stays untouched.',
+      yes:'SHOW ME',steps:[
+      {t:'The week\u2019s work',b:'Seven slots, Sunday through Saturday. Hold any one of them to rework it or make it optional. Everything from here on is sample stock, so your own work stays untouched.'},
+      {t:'Take a piece off the rack',b:'Tap Tuesday. Chest, triceps and core.'},
+      {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+      {t:'Set the number',b:'The steppers move in the jumps the iron can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Strike it',b:'Tap the sigil at the end of the row. The set lands the instant you tap it, and the cooling timer starts on its own.'},
+      {t:'The cooling timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
+      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the piece is quenched; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
+      {t:'How a set is graded',b:'That one came out gold: 150 beats every bench on record. Violet means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole piece. Tap Finish when the work is done.'},
+      {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
+      {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
+    moon:{btn:'Walk me through it',ttl:'First time at the well?',
+      msg:'A short guided pass over the real screens, on sample water. A few minutes at most, and your own record stays untouched.',
+      yes:'SHOW ME',steps:[
+      {t:'Your week',b:'Seven nights, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample water, so your own record stays untouched.'},
+      {t:'Open a night',b:'Tap Tuesday. Chest, triceps and core.'},
+      {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Mark it',b:'Tap the sigil at the end of the row. The set is kept the instant you touch it, and the rest begins on its own.'},
+      {t:'The rest',b:'It began the moment the set was kept, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen dark and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
+      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the night at all. Save it for tonight only and it clears when the night is kept; keep it and the night carries the change every week. You can also add an exercise from the library, which lands at the foot of the night.'},
+      {t:'How a set is graded',b:'That one came up white: 150 passes every bench in your record. Moon-gold means you matched your best, grey is a first attempt or a fall. The ring in the header counts the whole night. Tap Finish when it is done.'},
+      {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
+      {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
+    light:{btn:'Walk me through it',ttl:'First time out?',
+      msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
+      yes:'SHOW ME',steps:[
+      {t:'Your week',b:'Seven days, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample data, so your own logs stay untouched.'},
+      {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
+      {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Mark it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
+      {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
+      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is marked; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
+      {t:'How a set is graded',b:'That one landed gold: 150 beats every bench in your logs. Blue means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same day written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
+      {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]}
+  };
+  return C[t]||C.dark;
+}
+
+/* ---- the fence ----
+   Every tap outside the step's own control is swallowed and answered with a shake, so a
+   stray tap can no longer strand the tour halfway through a screen it never opened.
+   The card itself is always live, which is what keeps End tour reachable. */
+function tutEls(sel){
+  if(!sel)return [];
+  return sel.split('|').map(function(s){return document.querySelector(s);}).filter(Boolean);
+}
+function tutGuard(e){
+  if(!TUTON)return;
+  var t=e.target;
+  if(!t||!t.closest)return;
+  if(t.closest('#tutCard'))return;
+  if(tutEls(TUT_STEPS[TUTI].hit).some(function(el){return el===t||el.contains(t);}))return;
+  e.preventDefault();e.stopPropagation();
+  if(e.type==='pointerdown'||e.type==='mousedown')tutNudge();
+}
+['pointerdown','mousedown','touchstart','click','dblclick','contextmenu'].forEach(function(ev){
+  document.addEventListener(ev,tutGuard,true);
+});
+var tutNT=null;
+function tutNudge(){
+  var c=document.getElementById('tutCard'),n=document.getElementById('tutNudge');
+  c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');
+  n.textContent=TUT_STEPS[TUTI].nudge||'Use the highlighted control, or End tour to leave.';
+  n.classList.add('on');
+  try{vib(25);}catch(e){}
+  clearTimeout(tutNT);tutNT=setTimeout(function(){n.classList.remove('on');},3200);
+}
+
+function tutStart(){
+  if(TUTON)return;
+  closeOvl('settingsOvl');closeOvl('askOvl');
+  tutSeen();
+  TUTDB=DB;DB=tutSeed();TUTON=true;
+  if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
+  stopTimer();stopHold();resetHoldState();
+  renderHome();window.scrollTo(0,0);
+  document.getElementById('tutCard').classList.add('on');
+  TUTPOLL=setInterval(tutTick,180);
+  TUTRAF=requestAnimationFrame(tutFrame);
+  tutGo(0);
+}
+function tutEnd(){
+  if(!TUTON)return;
+  TUTON=false;
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);
+  ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
+    if(document.getElementById(id))closeOvl(id);
+  });
+  document.getElementById('session').classList.remove('on');
+  CUR=null;stopTimer();stopHold();resetHoldState();
+  DB=TUTDB;TUTDB=null;
+  document.getElementById('tutCard').classList.remove('on');
+  document.getElementById('tutHole').classList.remove('on');
+  document.getElementById('tutPing').classList.remove('on');
+  document.getElementById('tutNudge').classList.remove('on');
+  mergeCustom();renderHome();window.scrollTo(0,0);
+}
+function tutGo(i){
+  TUTI=i;
+  if(i>8)stopTimer();   // the demo rest is a prop for one step, not a clock to sit through
+  var st=TUT_STEPS[i],c=TUTC().steps[i];
+  document.getElementById('tutStep').textContent='SAMPLE DATA \u00b7 '+(i+1)+' / '+TUT_STEPS.length;
+  document.getElementById('tutT').textContent=c.t;
+  document.getElementById('tutB').innerHTML=c.b;
+  document.getElementById('tutNudge').classList.remove('on');
+  var nx=document.getElementById('tutNext'),wt=document.getElementById('tutWait');
+  if(st.when){nx.style.display='none';wt.style.display='';wt.textContent=st.w||'Waiting for you';}
+  else{nx.style.display='';wt.style.display='none';nx.textContent=st.last?'DONE':'NEXT';}
+  document.getElementById('tutSfx').style.display=st.sample?'':'none';
+  document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
+  tutScroll();
+}
+function tutSample(){
+  try{initAudio();sfxRest();}catch(e){}
+}
+function tutAdvance(){
+  var st=TUT_STEPS[TUTI];
+  if(st.act)st.act();
+  if(st.last){tutEnd();return;}
+  tutGo(TUTI+1);
+}
+// A tap where a hold was meant used to open a sheet the step knew nothing about, and the
+// fence then locked every button on it. Anything the step did not ask for is closed.
+var TUT_STRAY=['editOvl','exEditOvl','exAddOvl','exJoinOvl','swapOvl','settingsOvl','themeOvl','timerOvl',
+  'pumpOvl','walkOvl','lvlOvl','mkActOvl','mkSlotOvl','mkPickOvl','progOvl','histOvl','backupOvl','askOvl'];
+function tutStray(){
+  var keep=TUT_STEPS[TUTI].ovl||'';
+  TUT_STRAY.forEach(function(id){
+    if(id!==keep&&document.getElementById(id)&&tutOn(id))closeOvl(id);
+  });
+}
+function tutTick(){
+  if(!TUTON)return;
+  var st=TUT_STEPS[TUTI];
+  // Leaving the number sheet under 150 would strand the step, so it comes straight back.
+  if(st.reopen&&!tutOn('editOvl')&&tutW()<150){
+    tutNudge();openEdit('bench',0,'w');
+    return;
+  }
+  if(st.when&&st.when()){tutGo(TUTI+1);return;}
+  tutStray();
+}
+// Placement runs every frame: the target may be inside a scroller the user is dragging,
+// and a hole that lags behind its element reads as broken.
+function tutFrame(){
+  if(!TUTON)return;
+  tutPlace();
+  TUTRAF=requestAnimationFrame(tutFrame);
+}
+function tutBox(el,box,p){
+  var r=el.getBoundingClientRect();
+  box.style.top=(r.top-p)+'px';box.style.left=(r.left-p)+'px';
+  box.style.width=Math.max(0,r.width+p*2)+'px';box.style.height=Math.max(0,r.height+p*2)+'px';
+  box.classList.add('on');
+}
+function tutPlace(){
+  var st=TUT_STEPS[TUTI],hole=document.getElementById('tutHole'),card=document.getElementById('tutCard');
+  var ping=document.getElementById('tutPing');
+  if(st.hide&&st.hide()){hole.classList.remove('on');ping.classList.remove('on');card.style.opacity='0';return;}
+  card.style.opacity='';
+  var el=tutEls(st.sel)[0],ch=card.offsetHeight,vh=window.innerHeight;
+  var pel=tutEls(st.ping)[0];
+  if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
+  if(!el||!el.offsetHeight){
+    hole.classList.remove('on');
+    card.style.top=Math.max(14,(vh-ch)/2)+'px';
+    return;
+  }
+  tutBox(el,hole,st.pad==null?8:st.pad);
+  var r=el.getBoundingClientRect(),p=st.pad==null?8:st.pad;
+  if(st.top){card.style.top='14px';return;}   // instructions first, then the thing itself
+  var below=r.bottom+p+14,above=r.top-p-14-ch;
+  card.style.top=(below+ch<vh-12?below:(above>12?above:Math.max(12,vh-ch-14)))+'px';
+}
+// scrollIntoView drags whatever ancestor it likes; walk to the real scroller instead.
+function tutScroll(){
+  var el=tutEls(TUT_STEPS[TUTI].sel)[0];
+  if(!el)return;
+  var r=el.getBoundingClientRect(),want=r.top-window.innerHeight*0.30;
+  if(Math.abs(want)<50)return;
+  var sc=el.closest('.ovl')||el.closest('#session')||el.closest('#make');
+  try{
+    if(sc)sc.scrollTo({top:sc.scrollTop+want,behavior:'smooth'});
+    else window.scrollTo({top:window.scrollY+want,behavior:'smooth'});
+  }catch(e){}
+}
+function tutSeen(){try{localStorage.setItem(KEY+':tut','1');}catch(e){}}
+function tutWasSeen(){try{return !!localStorage.getItem(KEY+':tut');}catch(e){return true;}}
+function tutOffer(){
+  if(TUTON||tutWasSeen())return;
+  if(DB.logs.length||Object.keys(DB.active||{}).length)return;
+  tutSeen();
+  var C=TUTC();
+  ask(C.msg,tutStart,C.ttl,C.yes);
 }
 
 // ---------- boot ----------
@@ -5644,6 +6491,7 @@ function openSettings(){
   wkArm();                                 // a walk left running keeps counting across a cold start
   drawNotifTog();
   initBack();
+  setTimeout(tutOffer,1600);               // after the launch animation has cleared
 })();
 </script>
 </body>
