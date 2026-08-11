@@ -47,7 +47,13 @@
 }
 body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;}
 input,button,textarea{font-family:inherit;}
-button{-webkit-tap-highlight-color:transparent;}
+/* A long press on a phone is also the browser's own gesture for selecting text and raising
+   the callout menu. The sheet opens under the finger mid-gesture, so the selection lands on
+   whatever button arrived there - CANCEL - and paints it highlighted. Nothing in the app is
+   prose worth selecting except what you type, so selection is off everywhere but the fields. */
+html{-webkit-tap-highlight-color:transparent;}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 
 /* ---------- HOME ---------- */
@@ -246,6 +252,24 @@ button{-webkit-tap-highlight-color:transparent;}
 .btn-bad{--bad:#e0736b;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 42%,var(--line));}
 .btn-bad:hover{color:var(--bad);background:color-mix(in srgb,var(--bad) 11%,var(--surface));
   border-color:color-mix(in srgb,var(--bad) 72%,var(--line));}
+/* A touch screen has no pointer to hover with, but it applies :hover to whatever you last
+   touched and keeps it. After a long press the sheet opens under your finger and its first
+   button comes up already lit. */
+@media(hover:none){
+  .btn:hover{color:var(--txt2);border-color:var(--line);}
+  .btn-go:hover{color:var(--go);border-color:var(--go);}
+  .btn-c:hover{color:var(--c);}
+  .btn-bad:hover{background:var(--surface);border-color:color-mix(in srgb,var(--bad) 42%,var(--line));}
+  .slotrow:hover,.thcard:hover{border-color:var(--line);}
+  .thcard.sel:hover{border-color:var(--gold);}
+  .mk-new:hover{background:color-mix(in srgb,var(--go) 4%,transparent);
+    border-color:color-mix(in srgb,var(--go) 40%,var(--line));}
+  .walkbtn:hover,.pumpbtn:hover{transform:none;}
+  .swapitem:hover{border-color:var(--line);background:transparent;}
+}
+/* and the release that ended the long press must not land on a button that was not there
+   when the finger went down */
+.ovl.fresh .sheet-btns,.ovl.fresh .mk-acts{pointer-events:none;}
 
 /* pump day - deliberately small, bottom right */
 .pumpbtn{position:fixed;bottom:20px;right:18px;width:46px;height:46px;border-radius:15px;border:1px solid var(--line);background:var(--surface);font-size:19px;line-height:1;cursor:pointer;z-index:60;opacity:.42;transition:.2s;display:flex;align-items:center;justify-content:center;padding:0;}
@@ -1932,7 +1956,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v16.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v16.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2474,10 +2498,17 @@ function ouroboros(fill,cut,glyph){
          '<circle cx="'+OU_EYE.x+'" cy="'+OU_EYE.y+'" r="'+OU_EYE.r+'" fill="'+cut+'"/>'+
          (glyph?MARK_GLYPH[curTheme()]||MARK_GLYPH.dark:'');
 }
-// No centre glyph at this size: at 36px the glyph and the serpent crowd each other and
-// both stop reading. The world's glyph lives on the splash, where it has room.
+// The header used to carry the serpent, which is the same ring in every world. Standing on
+// its own at 36px the world's own sigil says which world you are in, so the week board wears
+// that instead. Same geometry as the splash glyph and the set tick, cut to fill the box.
+var HEAD_GLYPH={
+  dark: '<g transform="translate(50 50) scale(3.4) translate(-50 -44.5)"><path d="M50 34.5l10 10-10 10-10-10z" fill="none" stroke="var(--go)" stroke-width="1.3"/><path d="M50 40.5l4 4-4 4-4-4z" fill="var(--go)"/></g>',
+  light:'<g transform="translate(50 50) scale(2.7) translate(-50 -50)" stroke="var(--go)" stroke-width="2" stroke-linecap="round" fill="none"><path d="M50 36v28M38 43l24 14M62 43L38 57"/></g>',
+  forge:'<g transform="translate(50 50) scale(3.2) translate(-9.8 -12.05)"><path d="'+ANVIL+'" fill="var(--go)"/></g>',
+  moon: '<g transform="translate(50 50) scale(2.6) translate(-50 -50)"><path d="M50 36.5l2.9 10.6L63.5 50l-10.6 2.9L50 63.5l-2.9-10.6L36.5 50l10.6-2.9z" fill="var(--go)"/></g>'
+};
 function renderMark(){
-  document.getElementById('mark').innerHTML=ouroboros('var(--go)','var(--bg)',false);
+  document.getElementById('mark').innerHTML=HEAD_GLYPH[curTheme()]||HEAD_GLYPH.dark;
 }
 // The ground behind the board. Only the watermark is redrawn on a theme change - rebuilding
 // the motes would restart every drift mid-flight.
@@ -2997,6 +3028,8 @@ function mkBindCards(){
       LP.t=setTimeout(function(){
         LP.fired=true;
         try{if(navigator.vibrate)navigator.vibrate(14);}catch(e){}
+        // belt and braces: drop any selection the press already started before the sheet lands
+        try{var s=window.getSelection();if(s&&s.removeAllRanges)s.removeAllRanges();}catch(e){}
         if(xid)mkActionsX(xid);else mkActions(base);
       },520);
     });
@@ -3055,7 +3088,17 @@ function mkActions(base){
     h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
   }
   document.getElementById('mkActBody').innerHTML=h;
-  document.getElementById('mkActOvl').classList.add('on');
+  openHeld('mkActOvl');
+}
+// opened from a long press: its buttons stay dead until the finger that opened it is up
+function openHeld(id){
+  var o=document.getElementById(id);
+  o.classList.add('on','fresh');
+  var clear=function(){o.classList.remove('fresh');};
+  setTimeout(clear,420);
+  ['pointerup','touchend','mouseup'].forEach(function(n){
+    document.addEventListener(n,function h(){document.removeEventListener(n,h);setTimeout(clear,60);});
+  });
 }
 function mkActionsX(id){
   var w=W[id];if(!w)return;
@@ -3065,7 +3108,7 @@ function mkActionsX(id){
     '<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(null,\''+id+'\')">'+MKTXT().act.toUpperCase()+'</div>'+
     '<div class="btn" onclick="closeOvl(\'mkActOvl\');openSlotPick(\''+id+'\')">PUT IT ON THE WEEK</div>'+
     '<div class="btn btn-bad" onclick="mkDeleteX(\''+id+'\')">DELETE THIS DAY</div>';
-  document.getElementById('mkActOvl').classList.add('on');
+  openHeld('mkActOvl');
 }
 function mkDeleteX(id){
   if(openHere(id)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
