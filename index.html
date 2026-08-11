@@ -514,6 +514,30 @@ body.forge .card,body.forge .exc,body.forge .sheet,body.forge .timer-pill{
   background:linear-gradient(180deg,rgba(255,150,70,.06),rgba(255,150,70,.012)),var(--surface);
   border-top-color:rgba(255,178,110,.14);}
 body.forge #home::before{background:radial-gradient(closest-side,rgba(255,110,24,.24),rgba(150,34,8,.09) 52%,transparent 74%);}
+/* The workshop itself, behind the board. It sits on a fixed layer under everything, so the
+   fire stays put while the week scrolls over it. body goes transparent for forge only -
+   otherwise its own --bg would paint over the layer. Two scrims: a heavy vertical one so
+   card text still reads, and a light warm wash to tie the art to the theme's gold. */
+html.forge{background:#080402;}
+body.forge{background:transparent;}
+/* The forge itself, drawn rather than photographed: a white-hot bed low and centred, the
+   heat climbing and thinning as it goes, and the walls falling to near-black at the edges.
+   It sits on a fixed layer under the board so the fire stays put while the week scrolls. */
+body.forge::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(58% 26% at 50% 99%,rgba(255,248,224,.92) 0%,rgba(255,206,92,.78) 16%,rgba(255,132,20,.52) 38%,rgba(196,52,6,.26) 62%,rgba(120,24,4,.10) 80%,transparent 100%),
+    radial-gradient(88% 62% at 50% 108%,rgba(255,120,24,.34) 0%,rgba(178,44,6,.16) 44%,rgba(90,18,4,.06) 70%,transparent 100%),
+    radial-gradient(120% 80% at 50% 128%,rgba(255,96,16,.14),transparent 66%),
+    radial-gradient(140% 100% at 50% 96%,transparent 30%,rgba(6,3,2,.72) 78%,#050201 100%),
+    linear-gradient(180deg,#0b0604 0%,#0a0503 46%,#120703 76%,#1d0b03 100%);
+  animation:moltenbreath 5.2s ease-in-out infinite;}
+/* molten iron does not hold one brightness - it swells and dulls as the air moves over it */
+@keyframes moltenbreath{
+  0%,100%{filter:brightness(.92) saturate(1);transform:scale(1);}
+  44%{filter:brightness(1.16) saturate(1.1);transform:scale(1.012);}
+  70%{filter:brightness(1.02) saturate(1.04);transform:scale(1.004);}}
+@media(prefers-reduced-motion:reduce){body.forge::before{animation:none;}}
+
 /* a finished piece is blackened steel, not blue-grey stone */
 body.forge .card.sealed{border-color:#3b2416;background:linear-gradient(180deg,#150c07,#0c0604);}
 body.forge .card.sealed::after{background:repeating-linear-gradient(135deg,rgba(255,168,96,.05) 0 2px,transparent 2px 6px),linear-gradient(180deg,transparent 55%,rgba(0,0,0,.5));}
@@ -729,17 +753,78 @@ body.booting #bg{opacity:0;}
 /* Obsidian gets an orrery instead of a ledger grid - concentric rings crossed by spokes,
    turning against the watermark. Straight rules read as a schematic; a circle reads as a
    summoning figure. The other themes keep engraved lines, which suit them. */
-.bg-rules{background-image:
-  repeating-radial-gradient(circle at 50% 32%,transparent 0 53px,color-mix(in srgb,var(--gold) 15%,transparent) 53px 54px),
-  repeating-conic-gradient(from 0deg at 50% 32%,color-mix(in srgb,var(--gold) 13%,transparent) 0deg .18deg,transparent .18deg 15deg),
-  radial-gradient(circle at 50% 32%,transparent 158px,color-mix(in srgb,var(--gold) 17%,transparent) 158px 159px,transparent 159px 205px,color-mix(in srgb,var(--gold) 11%,transparent) 205px 206px,transparent 206px);
-  transform-origin:50% 32%;animation:wmturn 540s linear infinite reverse;
-  -webkit-mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);
+/* The turning part is a huge square centred on the orrery's own axis, not a viewport-sized
+   rectangle: a rotating rectangle sweeps its corners and its short edges through the frame,
+   which on a wide screen reads as a spinning card. The mask stays on the parent so the fade
+   holds still while the rings turn under it. */
+.bg-rules{-webkit-mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);
   mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);}
-/* rolled steel: only the horizontal pass, tighter */
-body.forge .bg-rules{background-image:repeating-linear-gradient(0deg,color-mix(in srgb,var(--gold) 11%,transparent) 0 1px,transparent 1px 27px);}
-body.moon .bg-rules{background-image:repeating-linear-gradient(45deg,color-mix(in srgb,var(--gold) 9%,transparent) 0 1px,transparent 1px 58px);}
-body.forge .bg-rules,body.moon .bg-rules{animation:none;}
+/* Sized to exactly reach the far corners and no further: 220vmax overshot so badly that the
+   layer passed the texture the GPU will hand it and rasterised soft. The axis sits at 50%/32%,
+   so the bottom corners are the far ones - hypot is the honest measure, and it comes out
+   smaller than the crude sum on every ordinary screen. No clamp: a clamp puts the rectangle
+   edge back on anything wider than it. */
+.bg-rules > i{--orb:calc(100vw + 100vh);
+  --orb:calc(2 * hypot(50vw,68vh));
+  position:absolute;left:50%;top:32%;width:var(--orb);height:var(--orb);
+  margin:calc(var(--orb) / -2) 0 0 calc(var(--orb) / -2);display:block;
+  background-image:
+    repeating-radial-gradient(circle at 50% 50%,transparent 0 53px,color-mix(in srgb,var(--gold) 15%,transparent) 53px 54px),
+    repeating-conic-gradient(from 0deg at 50% 50%,color-mix(in srgb,var(--gold) 13%,transparent) 0deg .18deg,transparent .18deg 15deg),
+    radial-gradient(circle at 50% 50%,transparent 158px,color-mix(in srgb,var(--gold) 17%,transparent) 158px 159px,transparent 159px 205px,color-mix(in srgb,var(--gold) 11%,transparent) 205px 206px,transparent 206px);
+  transform-origin:50% 50%;animation:wmturn 540s linear infinite reverse;}
+/* the other three grounds draw their own weather and never want the rings */
+body.forge .bg-rules > i,body.light .bg-rules > i,body.moon .bg-rules > i{display:none;}
+/* the rolled-steel rules are off now that the workshop art carries the ground - ruled lines
+   over a drawn scene read as a scratched print */
+body.forge .bg-rules{background-image:none;}
+/* No beam. A moon sits high in the top-left corner as a broad soft body with a halo, and
+   its light falls across the room as one long diagonal wash rather than a defined shaft -
+   at this distance the light has no edges, only a direction. The well is the far corner it
+   reaches, bottom-right, where the wash pools and the rings spread. */
+body.moon .bg-rules{-webkit-mask-image:none;mask-image:none;background-image:none;animation:none;
+  background:
+    radial-gradient(circle at 13% 11%,rgba(236,242,255,.17) 0%,rgba(214,226,255,.09) 22%,rgba(190,208,255,.05) 44%,rgba(174,196,255,.032) 70%,rgba(164,188,255,.02) 100%),
+    linear-gradient(146deg,rgba(198,214,255,.10) 0%,rgba(190,208,255,.062) 36%,rgba(180,200,255,.042) 64%,rgba(184,204,255,.055) 88%,rgba(192,210,255,.07) 100%);}
+/* the disc itself - small, bright, and breathing behind the haze */
+body.moon .bg-rules::before{content:'';position:absolute;left:var(--moonx,13%);top:var(--moony,11%);
+  width:min(15vw,104px);height:min(15vw,104px);transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle,rgba(248,251,255,.40) 0%,rgba(226,236,255,.20) 44%,rgba(198,216,255,.06) 70%,transparent 100%);
+  filter:blur(9px);animation:moonbreath 13s ease-in-out infinite;}
+/* the far corner it lands in, low and wide */
+body.moon .bg-rules::after{content:'';position:absolute;right:-10%;bottom:-16%;
+  width:min(104vw,760px);height:min(40vw,280px);border-radius:50%;
+  background:radial-gradient(closest-side,rgba(212,226,255,.24),rgba(190,206,255,.10) 48%,rgba(180,198,255,.03) 74%,transparent 92%);}
+@media(max-width:820px){body.moon .bg-rules{--moonx:11%;--moony:19%;
+  background:
+    radial-gradient(circle at 11% 19%,rgba(236,242,255,.12) 0%,rgba(214,226,255,.065) 24%,rgba(186,204,255,.036) 48%,rgba(170,192,255,.024) 74%,rgba(164,188,255,.018) 100%),
+    linear-gradient(146deg,rgba(198,214,255,.075) 0%,rgba(190,208,255,.05) 36%,rgba(180,200,255,.038) 64%,rgba(184,204,255,.05) 88%,rgba(192,210,255,.066) 100%);}
+  body.moon .bg-rules::before{width:min(19vw,84px);height:min(19vw,84px);
+    background:radial-gradient(circle,rgba(248,251,255,.26) 0%,rgba(226,236,255,.13) 44%,rgba(198,216,255,.04) 70%,transparent 100%);}}
+@keyframes moonbreath{
+  0%,100%{opacity:.82;transform:translate(-50%,-50%) scale(1);}
+  50%{opacity:1;transform:translate(-50%,-50%) scale(1.06);}}
+
+/* the rings themselves: flattened, so they sit on a surface seen at a low angle, spreading
+   from where the light lands and dying out before they reach the walls */
+.bg-ripple{display:none;-webkit-mask-image:linear-gradient(0deg,#000 46%,transparent 92%);
+  mask-image:linear-gradient(0deg,#000 46%,transparent 92%);}
+body.moon .bg-ripple{display:block;}
+.bg-ripple i{position:absolute;right:-14%;bottom:-9%;display:block;
+  width:min(104vw,760px);height:min(40vw,280px);transform-origin:50% 50%;
+  border-radius:50%;
+  background:radial-gradient(closest-side,transparent 78%,rgba(206,222,255,.30) 90%,rgba(224,236,255,.42) 96%,transparent 100%);
+  filter:blur(1.4px);
+  opacity:0;transform:scale(.14);animation:ripple var(--d) cubic-bezier(.22,.62,.3,1) infinite;
+  animation-delay:var(--dl);}
+@keyframes ripple{
+  0%{transform:scale(.12);opacity:0;}
+  12%{opacity:.62;}
+  100%{transform:scale(1.32);opacity:0;}}
+@media(prefers-reduced-motion:reduce){
+  .bg-ripple i{animation-duration:calc(var(--d) * 2.2);}
+  body.moon .bg-rules{animation:none;}}
+body.forge .bg-rules{animation:none;}
 /* Frost is weather, not engraving: driving streaks raking across on the wind. The orrery's
    mask would clip the storm into an oval with a hard top edge, so the streaks run edge to
    edge and the layer is left unmasked. */
@@ -790,7 +875,7 @@ body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,v
 .bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
   opacity:0;animation:moterise var(--d) linear infinite;animation-delay:var(--dl);}
 /* the full set of flakes is only wanted in a storm - the other themes take the first 15 */
-body:not(.light) .bg-motes i:nth-child(n+16){display:none;}
+body:not(.light):not(.forge) .bg-motes i:nth-child(n+16){display:none;}
 body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5),0 0 0 1px rgba(120,148,178,.35);
   animation:motefall var(--d) linear infinite,motesway var(--sw) ease-in-out infinite alternate;
   animation-delay:var(--dl),calc(var(--dl) / 2);
@@ -800,7 +885,20 @@ body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5)
 /* Obsidian's dust is lit, so it reads as drifting sparks rather than specks. Obsidian is the
    themeless default, hence the negation rather than a .dark class. */
 body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix(in srgb,var(--gold) 70%,transparent);}
-body.forge .bg-motes i{filter:blur(.3px);}
+/* Embers, not dust: each one is a lit coal with a halo, it swells as it climbs, and it
+   flickers on its own clock so the field never pulses in unison. */
+body.forge .bg-motes i{background:radial-gradient(circle,#fff6dc 0%,#ffb43c 40%,#ff6a12 74%,rgba(255,90,10,0) 100%);
+  box-shadow:0 0 6px rgba(255,150,40,.9),0 0 16px rgba(255,88,10,.5);
+  animation:emberrise var(--d) linear infinite,emberflick var(--sw) ease-in-out infinite;
+  animation-delay:var(--dl),calc(var(--dl) / 3);}
+@keyframes emberrise{
+  0%{transform:translateY(104vh) translateX(0) scale(.6);opacity:0;}
+  9%{opacity:1;}
+  62%{opacity:.85;}
+  100%{transform:translateY(-10vh) translateX(6vw) scale(1.25);opacity:0;}}
+@keyframes emberflick{
+  0%,100%{filter:blur(.35px) brightness(.85);}
+  50%{filter:blur(.5px) brightness(1.75);}}
 body.moon .bg-motes i{filter:blur(.8px);}
 @keyframes moterise{
   0%{transform:translateY(108vh) translateX(0);opacity:0;}
@@ -824,7 +922,7 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
 
 /* battery saver and reduced motion keep the ground, lose the travel */
 @media(prefers-reduced-motion:reduce){
-  .bg-wm svg,.bg-motes i,.bg-rules{animation:none;}
+  .bg-wm svg,.bg-motes i,.bg-rules > i{animation:none;}
   .bg-motes i{opacity:.22;}
   .bg-light{animation:bgbreath 12s ease-in-out infinite;}
 }
@@ -1200,7 +1298,8 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
 </div>
 <div id="bg" aria-hidden="true">
-  <div class="bg-rules"></div>
+  <div class="bg-rules"><i></i></div>
+  <div class="bg-ripple"></div>
   <div class="bg-wind"></div>
   <div class="bg-wm"></div>
   <div class="bg-light"></div>
@@ -1956,7 +2055,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v16.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v16.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2504,7 +2603,7 @@ function ouroboros(fill,cut,glyph){
 var HEAD_GLYPH={
   dark: '<g transform="translate(50 50) scale(3.4) translate(-50 -44.5)"><path d="M50 34.5l10 10-10 10-10-10z" fill="none" stroke="var(--go)" stroke-width="1.3"/><path d="M50 40.5l4 4-4 4-4-4z" fill="var(--go)"/></g>',
   light:'<g transform="translate(50 50) scale(2.7) translate(-50 -50)" stroke="var(--go)" stroke-width="2" stroke-linecap="round" fill="none"><path d="M50 36v28M38 43l24 14M62 43L38 57"/></g>',
-  forge:'<g transform="translate(50 50) scale(3.2) translate(-9.8 -12.05)"><path d="'+ANVIL+'" fill="var(--go)"/></g>',
+  forge:'<g transform="translate(50 50) scale(3.2) translate(-9.8 -12.05)"><path d="'+ANVIL+'" fill="var(--gold)"/></g>',
   moon: '<g transform="translate(50 50) scale(2.6) translate(-50 -50)"><path d="M50 36.5l2.9 10.6L63.5 50l-10.6 2.9L50 63.5l-2.9-10.6L36.5 50l10.6-2.9z" fill="var(--go)"/></g>'
 };
 function renderMark(){
@@ -2536,6 +2635,14 @@ function renderBg(){
           '--dl:-'+R(0,8).toFixed(2)+'s;opacity:'+R(.4,1).toFixed(2)+'"/>';
     }
     wd.innerHTML='<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+wh+'</svg>';
+  }
+  var rp=document.querySelector('.bg-ripple');
+  if(rp&&!rp.firstChild){
+    // five rings on one clock, evenly offset, so a new one leaves the centre as the
+    // outermost fades - a drop landing every couple of seconds rather than a pulse
+    var rh='',RD=10.5;
+    for(var r=0;r<5;r++)rh+='<i style="--d:'+RD+'s;--dl:-'+(r*RD/5).toFixed(2)+'s"></i>';
+    rp.innerHTML=rh;
   }
   var m=document.querySelector('.bg-motes');
   if(!m||motesBuilt)return;
