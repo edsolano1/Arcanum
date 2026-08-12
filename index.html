@@ -203,6 +203,17 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
   border:1.5px solid var(--go);opacity:0;transition:opacity .25s;}
 #tutHole > i{position:fixed;display:block;background:rgba(4,5,7,.78);pointer-events:none;}
 #tutHole.on{opacity:1;}
+/* A one-shot entrance: the highlight is planted around the whole viewport and closes onto the
+   step's target, so the week is taken in whole before any one day is singled out. Geometry
+   and deliberately not transform - the scrim rectangles are position:fixed children of the
+   hole, and a transform here would make it their containing block and tear them off the
+   viewport, which is the same reason nothing else on this element may take one. It is the
+   identical write the tour already makes on every frame a target moves, so it asks nothing
+   new of the screen, and the class comes off the moment it lands. */
+#tutHole.sweep,#tutHole.sweep > i{transition:top .62s cubic-bezier(.32,.86,.36,1),
+  left .62s cubic-bezier(.32,.86,.36,1),width .62s cubic-bezier(.32,.86,.36,1),
+  height .62s cubic-bezier(.32,.86,.36,1);}
+@media(prefers-reduced-motion:reduce){#tutHole.sweep,#tutHole.sweep > i{transition:none;}}
 /* The pulsing ring sits on the one control the step wants tapped, so a lit panel still
    points at something specific. The pulse is a scaling pseudo-ring rather than an animated
    box-shadow: a shadow is a paint property, so that ring was repainting every frame it was
@@ -2489,7 +2500,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3629,6 +3640,11 @@ function mkBindCards(){
     el.addEventListener('pointerdown',function(ev){
       LP.fired=false;LP.x=ev.clientX;LP.y=ev.clientY;
       clearTimeout(LP.t);
+      // The tour hands the whole Tuesday card to the fence so it can be tapped open, and a
+      // press held on it was reaching the reshape sheet through that same opening. No step
+      // asks to reshape a week card, so the gesture is not armed at all while the tour runs.
+      // The exercise hold in bindExHold is left alone - one step does ask for that one.
+      if(TUTON)return;
       LP.t=setTimeout(function(){
         LP.fired=true;
         try{if(navigator.vibrate)navigator.vibrate(14);}catch(e){}
@@ -6560,9 +6576,14 @@ function tutSeed(){
 // sel   - what the spotlight lights up (kept wide enough to stay readable)
 // hit   - what the fence lets you tap; everything else shakes the card instead
 // ping  - the one control the pulsing ring sits on
+// quiet - a step that asks for nothing: taps are still swallowed, but in silence
+// sweep - the highlight arrives around the whole week and closes onto this step's target
 var TUT_STEPS=[
-  {sel:'#weekCards',pad:6,nudge:'Read this one, then tap NEXT. End tour leaves at any point.'},
-  {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',
+  // Nothing is being asked for yet, so nothing here is wrong: a tap while you are still
+  // taking the week in used to shake the card and tell you off before you had been given
+  // anything to do. It is swallowed all the same - the next step is the one that opens a day.
+  {sel:'#weekCards',pad:6,quiet:true,nudge:'Read this one, then tap NEXT. End tour leaves at any point.'},
+  {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',sweep:true,
    w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card inside the highlight.',
    when:function(){return document.getElementById('session').classList.contains('on');}},
   {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',
@@ -6596,7 +6617,7 @@ function TUTC(){
     dark:{btn:'Walk me through it',ttl:'First time here?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven slots, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
+      {t:'Your week',b:'Seven slots, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
@@ -6610,7 +6631,7 @@ function TUTC(){
     forge:{btn:'Walk me through it',ttl:'First time at the forge?',
       msg:'A short guided pass over the real screens, on sample stock. A few minutes at most, and your own work stays untouched.',
       yes:'SHOW ME',steps:[
-      {t:'The week\u2019s work',b:'Seven slots, Sunday to Saturday. Hold any one to rework it or make it optional.'},
+      {t:'The week\u2019s work',b:'Seven slots, Sunday to Saturday, set out in the order they come to the fire. Look them over \u2014 then tap NEXT and we will open one together.'},
       {t:'Take a piece off the rack',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the iron can actually make. Raise it to 150 or more, then tap DONE.'},
@@ -6624,7 +6645,7 @@ function TUTC(){
     moon:{btn:'Walk me through it',ttl:'First time at the well?',
       msg:'A short guided pass over the real screens, on sample water. A few minutes at most, and your own record stays untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven nights, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
+      {t:'Your week',b:'Seven nights, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a night',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
@@ -6638,7 +6659,7 @@ function TUTC(){
     light:{btn:'Walk me through it',ttl:'First time out?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven days, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
+      {t:'Your week',b:'Seven days, Sunday to Saturday, laid out as they come round. Have a look at all of them \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
@@ -6668,7 +6689,9 @@ function tutGuard(e){
   if(t.closest('#tutCard'))return;
   if(tutEls(TUT_STEPS[TUTI].hit).some(function(el){return el===t||el.contains(t);}))return;
   e.preventDefault();e.stopPropagation();
-  if(e.type==='pointerdown'||e.type==='mousedown')tutNudge();
+  // A quiet step is not waiting on anything, so a tap is not a mistake. Still swallowed -
+  // the day is opened by the next step - but without the shake and the correction.
+  if((e.type==='pointerdown'||e.type==='mousedown')&&!TUT_STEPS[TUTI].quiet)tutNudge();
 }
 ['pointerdown','mousedown','touchstart','click','dblclick','contextmenu'].forEach(function(ev){
   document.addEventListener(ev,tutGuard,true);
@@ -6702,7 +6725,8 @@ function tutEnd(){
   TUTON=false;
   document.body.classList.remove('tut');
   tutShift(null);   // put back any sheet the tour pushed down
-  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);
+  document.getElementById('tutHole').classList.remove('sweep');
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
   });
@@ -6729,7 +6753,10 @@ function tutGo(i){
   document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
   document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
-  tutScroll();
+  // A sweep step does not scroll. Its whole premise is that everything is already in view -
+  // that is what the deck is scaled to .76 for - and a smooth scroll running underneath would
+  // drag the target while the highlight is easing onto it, so the hole would trail the card.
+  if(st.sweep)tutSweep();else tutScroll();
 }
 function tutBack(){
   if(!TUTON||TUTI<=0)return;
@@ -6803,7 +6830,11 @@ function tutStray(i){
 }
 function tutTick(){
   if(!TUTON)return;
-  if(tutRev())return;   // replaying an earlier step: nothing here may fire again
+  // Replaying an earlier step: nothing that ADVANCES may fire again, or BACK would be undone
+  // the moment it landed. The stray sweep is not one of those - it only shuts what the step
+  // never asked for. Skipping it too is what let a sheet opened on a replayed step stay open
+  // and strand the tour, where the same sheet on the first pass had been swept away.
+  if(tutRev()){tutStray();return;}
   var st=TUT_STEPS[TUTI];
   // Leaving the number sheet under 150 would strand the step, so it comes straight back.
   if(st.reopen&&!tutOn('editOvl')&&tutW()<150){
@@ -6832,6 +6863,24 @@ function tutBox(el,box,p){
     if(box.id==='tutHole')tutScrim(r.top-p,r.left-p,Math.max(0,r.width+p*2),Math.max(0,r.height+p*2));
   }
   box.classList.add('on');
+}
+// The highlight opens around the whole week and closes onto the day the step is about. The
+// full-viewport box is planted with transitions off and the placement cache cleared, so the
+// very next frame writes the step's real target with transitions armed and CSS carries it in.
+// Nothing here chooses the target - tutPlace does that, exactly as it always has.
+var TUTSW=null;
+function tutSweep(){
+  var hole=document.getElementById('tutHole'),vw=window.innerWidth,vh=window.innerHeight;
+  hole.classList.remove('sweep');
+  hole._k=null;                  // whatever is cached, the next tutBox has to write over it
+  hole.style.top='0px';hole.style.left='0px';
+  hole.style.width=vw+'px';hole.style.height=vh+'px';
+  tutScrim(0,0,vw,vh);           // four rectangles of no area: nothing is dimmed yet
+  hole.classList.add('on');
+  void hole.offsetWidth;         // plant it before the transition is armed, or there is none
+  hole.classList.add('sweep');
+  clearTimeout(TUTSW);
+  TUTSW=setTimeout(function(){hole.classList.remove('sweep');},780);
 }
 // the four rectangles that make up the scrim, laid around the hole
 function tutScrim(t,l,w,h){
