@@ -964,6 +964,7 @@ body.moon .bg-wm svg{opacity:.04;animation-duration:420s;}
 
 /* one soft source that drifts and breathes on the same clock as the runes */
 .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 20%,transparent),transparent 72%);
+  will-change:transform,opacity;backface-visibility:hidden;
   width:74vw;height:74vw;max-width:560px;max-height:560px;inset:auto auto auto 50%;top:6vh;
   animation:bgdrift 46s ease-in-out infinite,bgbreath 6.4s ease-in-out infinite;}
 body.forge .bg-light{animation-duration:34s,4.4s;background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 26%,transparent),transparent 70%);}
@@ -976,6 +977,7 @@ body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,v
 
 /* motes: embers for Forge, snow for Frost, dust and moonlight for the other two */
 .bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
+  will-change:transform,opacity;
   opacity:0;animation:moterise var(--d) linear infinite;animation-delay:var(--dl);}
 /* the full set of flakes is only wanted in a storm - the other themes take the first 15 */
 body:not(.light):not(.forge) .bg-motes i:nth-child(n+16){display:none;}
@@ -1039,6 +1041,7 @@ body.amb-flat::after{display:none!important;}
 body.amb-flat .card-day,body.amb-flat .card.today::before,body.amb-flat .mark,
 body.amb-flat .lvl,body.amb-flat .side.going{animation:none!important;}
 body.amb-flat .card-day{text-shadow:none!important;}
+body.amb-flat .card-day::after{display:none!important;}
 /* ---- layer isolation (Settings > Find the flicker) ----
    One switch per animated layer, each killing only that layer's animation and leaving its
    paint alone, so the switch that stops a flicker names the exact layer responsible. */
@@ -1047,7 +1050,7 @@ body.d-wm .bg-wm svg{animation:none!important;}
 body.d-ground .bg-rules,body.d-ground .bg-rules > i,body.d-ground .bg-rules::before{animation:none!important;}
 body.d-light .bg-light{animation:none!important;}
 body.d-ripple .bg-ripple i{animation:none!important;}
-body.d-day .card-day{animation:none!important;}
+body.d-day .card-day,body.d-day .card-day::after{animation:none!important;}
 body.d-today .card.today::before{animation:none!important;}
 body.d-pr .srow.ispr .inp{animation:none!important;}
 body.d-chrome .mark,body.d-chrome .lvl,body.d-chrome .side.going{animation:none!important;}
@@ -1069,21 +1072,29 @@ body.diagfps #fpsBadge{display:block;}
 }
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
-   Each card carries its own --gd phase offset so the board never pulses in unison. */
-.card-day{text-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent);
+   Each card carries its own --gd phase offset so the board never pulses in unison.
+
+   The breath is NOT an animated text-shadow. A shadow is a paint property: animating it
+   repaints the label, its card and everything composited alongside on every frame, which
+   on a phone reads as the whole board flickering. Instead the label holds one still shadow
+   and a second copy of itself - transparent ink, glow only, on its own layer - fades in and
+   out over it. Same effect, one composited opacity, nothing repaints. */
+.card-day{position:relative;text-shadow:0 0 10px color-mix(in srgb,var(--c) 38%,transparent);}
+.card-day::after{content:attr(data-t);position:absolute;left:0;top:0;white-space:nowrap;
+  color:transparent;pointer-events:none;opacity:0;will-change:opacity;
+  text-shadow:0 0 14px color-mix(in srgb,var(--c) 95%,transparent),0 0 30px color-mix(in srgb,var(--c) 55%,transparent),0 0 54px color-mix(in srgb,var(--c) 22%,transparent);
   animation:runebreath 5.4s ease-in-out infinite;animation-delay:var(--gd,0s);}
-@keyframes runebreath{
-  0%,100%{text-shadow:0 0 8px color-mix(in srgb,var(--c) 22%,transparent);}
-  50%{text-shadow:0 0 14px color-mix(in srgb,var(--c) 95%,transparent),0 0 30px color-mix(in srgb,var(--c) 55%,transparent),0 0 54px color-mix(in srgb,var(--c) 22%,transparent);}}
+@keyframes runebreath{0%,100%{opacity:0;}50%{opacity:1;}}
 /* a PR is the brightest thing on the page and holds a faster heartbeat */
 @keyframes prbreath{
   0%,100%{text-shadow:0 0 10px color-mix(in srgb,var(--gold) 30%,transparent);}
   50%{text-shadow:0 0 18px color-mix(in srgb,var(--gold) 95%,transparent),0 0 40px color-mix(in srgb,var(--gold) 45%,transparent);}}
 .srow.ispr .inp{animation:prbreath 3.1s ease-in-out infinite;}
 /* forge runes sit closer to ember than moonlight; moonwell breathes at half speed */
-body.forge .card-day{animation-duration:3.6s;}
-body.moon .card-day{animation-duration:7.8s;}
+body.forge .card-day::after{animation-duration:3.6s;}
+body.moon .card-day::after{animation-duration:7.8s;}
 /* sealed days are spent, frost is printed on paper, and the launch turn stays cheap */
+.card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
 body.booting .card-day{animation:none;}
 /* the mark keeps the same breath as the runes */
@@ -1096,7 +1107,7 @@ body.moon .mark{animation-duration:9s;}
 body.light .mark,body.booting .mark{animation:none;}
 /* Reduced motion still gets a lit rune - just a slower, shallower breath. Killing it
    outright was hiding the effect entirely on phones with battery saver on. */
-@media (prefers-reduced-motion:reduce){.card-day{animation-duration:11s;}.srow.ispr .inp{animation-duration:7s;}}
+@media (prefers-reduced-motion:reduce){.card-day::after{animation-duration:11s;}.srow.ispr .inp{animation-duration:7s;}}
 .card:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 22%,transparent),0 16px 40px -22px color-mix(in srgb,var(--c) 60%,transparent);}
 .ring .bar{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--c) 65%,transparent));}
 .ring.full .bar{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--go) 75%,transparent));}
@@ -2200,6 +2211,9 @@ var FORGE_DAY={rest:'#7d6f61',d1:'#d9452f',d2:'#8f9c3a',d3:'#b8722f',
 // blue as it goes, then the pale of the hour before dawn.
 var MOON_DAY={rest:'#6b6480',d1:'#8259ad',d2:'#5f5fc4',d3:'#3f6fc4',
   d4:'#3286ad',pump:'#b98fd0',opt5:'#4a5aa8',opt6:'#9aa6c9'};
+// The label prints twice: once as ink, once as glow (see .card-day::after). Both read the
+// same string, so the copy travels in data-t rather than being rebuilt.
+function dayLbl(s){return '<span class="card-day" data-t="'+s+'">'+s+'</span>';}
 function dayC(wk){
   if(FG()&&FORGE_DAY[wk])return FORGE_DAY[wk];
   if(MW()&&MOON_DAY[wk])return MOON_DAY[wk];
@@ -2361,7 +2375,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2747,7 +2761,7 @@ function card(e){
   var meta=v==='rest'?(e.label||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(wk)+' sets &middot; lift, walk, or rest':totalSets(wk)+' sets');
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+e.wk+'" style="--c:'+dayC(wk)+';--gd:-'+(e.js*0.77).toFixed(2)+'s" onclick="mkTap(\''+wk+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top"><span class="card-day">'+e.day.toUpperCase()+(isToday?' &middot; TODAY':'')+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':'')+'</span><span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top">'+dayLbl(e.day.toUpperCase()+(isToday?' &middot; TODAY':'')+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
@@ -2763,7 +2777,7 @@ function xcard(id,i){
   else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
   return '<div class="card'+(sealed?' sealed':'')+'" data-extra="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.63).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top"><span class="card-day">'+MKTXT().xc+' &middot; YOURS</span><span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top">'+dayLbl(MKTXT().xc+' &middot; YOURS')+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+totalSets(id)+' sets</div></div>';
 }
@@ -3077,7 +3091,7 @@ function renderHome(){
   // nothing on this screen to carry you back into it.
   var pumpOpen=loggedCount('pump')>0?
     '<div class="card" style="--c:'+dayC('pump')+';--gd:-1.4s" onclick="openW(\'pump\')">'+
-      '<div class="card-top"><span class="card-day">PUMP DAY &middot; OPEN</span>'+
+      '<div class="card-top">'+dayLbl('PUMP DAY &middot; OPEN')+
       '<span style="display:flex;gap:0"><span class="pill pill-live">Resume '+loggedCount('pump')+'/'+totalSets('pump')+'</span></span></div>'+
       '<div class="card-name">'+W.pump.name+'</div>'+
       '<div class="card-meta">Still open &mdash; pick up where you left off</div></div>':'';
