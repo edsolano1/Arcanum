@@ -1012,6 +1012,11 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
    Each card carries its own --gd phase offset so the board never pulses in unison. */
 .card-day{text-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent);
   animation:runebreath 5.4s ease-in-out infinite;animation-delay:var(--gd,0s);}
+/* A foldable changes screen size mid-session and the browser answers with a burst of
+   resizes; every one restarts these looping animations from their negative delay, which
+   reads as a flicker that quickens as the burst thickens. Hold them still until the
+   viewport has been the same size for a beat. */
+body.vpshift .card-day,body.vpshift .bg-motes i,body.vpshift .card::after{animation:none!important;}
 @keyframes runebreath{
   0%,100%{text-shadow:0 0 8px color-mix(in srgb,var(--c) 22%,transparent);}
   50%{text-shadow:0 0 14px color-mix(in srgb,var(--c) 95%,transparent),0 0 30px color-mix(in srgb,var(--c) 55%,transparent),0 0 54px color-mix(in srgb,var(--c) 22%,transparent);}}
@@ -2293,7 +2298,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v18.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v18.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2787,6 +2792,20 @@ function lockSplash(){
   s.style.height=Math.max(window.innerHeight,document.documentElement.clientHeight||0)+'px';
 }
 lockSplash();
+// see .vpshift in the stylesheet: the fold/unfold resize storm is ridden out with the
+// looping glows frozen, and the splash box re-pinned once the size settles.
+var vpT=null;
+function vpShift(){
+  document.body.classList.add('vpshift');
+  clearTimeout(vpT);
+  vpT=setTimeout(function(){
+    document.body.classList.remove('vpshift');
+    if(!splashGone){splashLocked=false;lockSplash();}
+  },340);
+}
+window.addEventListener('resize',vpShift);
+window.addEventListener('orientationchange',vpShift);
+try{if(window.visualViewport)window.visualViewport.addEventListener('resize',vpShift);}catch(e){}
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
