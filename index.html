@@ -1069,6 +1069,14 @@ body.diagfps #fpsBadge{display:block;}
 @media(min-width:600px){
   body::after{mix-blend-mode:normal;opacity:.05;}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
+  /* A backdrop filter has to read back everything painted under it. Over a folded-open
+     panel that is four times the pixels, sampled behind a scrim that already sits over
+     several promoted layers - and Android gives up on parts of it, which is what left
+     pieces of an open sheet missing. The blur is dropped and the scrim carries the
+     separation on its own; at this opacity the ground behind it reads the same. */
+  .ovl{backdrop-filter:none;background:rgba(6,7,9,.86);}
+  body.light .ovl{backdrop-filter:none;background:rgba(20,24,30,.62);}
+  .s-head{backdrop-filter:none;}
 }
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
@@ -2375,7 +2383,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
