@@ -493,7 +493,18 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 
 /* sheets */
 .ovl{display:none;position:fixed;inset:0;background:rgba(6,7,9,.72);backdrop-filter:blur(3px);z-index:200;padding:26px 16px;overflow-y:auto;}
-.ovl.on{display:block;}
+.ovl.on{display:block;
+  /* An open sheet is a full-viewport fixed layer sitting over five animated ones. Left
+     unpromoted it shares their tiles, and on a folded-open panel Android rasters only
+     some of those tiles per frame - which is what left bands of the sheet, and of its
+     own scrim, unpainted. Promoted, the sheet owns one texture and paints whole.
+     translateZ rather than will-change: the hint only lasts while .on is set. */
+  transform:translateZ(0);isolation:isolate;}
+/* and nothing under it needs to keep moving - the ground is behind a scrim, so freezing it
+   while a sheet is open costs nothing visible and stops the invalidations underneath */
+body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
+body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
+body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today::before{animation-play-state:paused;}
 /* A confirm has to clear any sheet that is already open. Every .ovl shares z-index 200,
    so #askOvl lost on DOM order - which is what hid the blocked-notifications message
    behind the timer sheet, leaving only a dimmed window. */
@@ -2383,7 +2394,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
