@@ -1752,9 +1752,8 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
       <button class="preset sm" onclick="sfxPR()">Record</button>
       <button class="preset sm" onclick="sfxRest()">Rest over</button>
     </div>
-    <div class="sfx-lbl"><span>Rest alert volume</span></div>
+    <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="presets" id="alertLvl" style="grid-template-columns:repeat(4,1fr)"></div>
-    <div class="sfx-lbl"><span>Rest notice</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
     <div class="sfx-lbl"><span>Ambient motion</span></div>
     <div class="presets" id="ambRow" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="footnote" style="margin:6px 2px 0">Each step takes away more of the moving ground. If the screen flickers, work down until it stops.</div>
@@ -2425,7 +2424,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.4';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4644,7 +4643,7 @@ function loadForgeClips(){
   if(!grdBuf)decodeB64(GRDB64,function(b){grdBuf=b;});
 }
 // Play a decoded clip, optionally cut short and pitched. Defaults to the master bus:
-// only the rest alert belongs on abus, whose gain the "Rest alert volume" control drives
+// only the rest alert belongs on abus, whose gain the "Alert volume" control drives
 // up to 3.2x. Anything else routed there would be scaled by a setting that has nothing
 // to do with it - a launch flare at gym volume clips hard and startles.
 function whenRunning(fn){
@@ -5504,34 +5503,13 @@ function sfxTick(up){
   nz(t,up?3400:2400,2,0.02,0.18);
   pt(t,up?1400:1050,0.05,0.13,'square');
 });}
-// ---------- rest notice: a plain countdown notification while the timer runs ----------
-var NOTIF_ON=(function(){try{return localStorage.getItem('arc_notif')==='1'?1:0;}catch(e){return 0;}})();
+// ---------- rest notice ----------
+// Withdrawn. The control and its permission prompt are gone from Settings, so the notice
+// never arms; the posting code below stays because the service worker still references it,
+// and it is inert while NOTIF_ON is 0.
+var NOTIF_ON=0;
 var notifT=null;
 function notifOk(){return typeof Notification!=='undefined';}
-function drawNotifTog(){
-  var e=document.getElementById('notifTog');
-  if(!e)return;
-  if(!notifOk()){e.textContent='UNAVAILABLE';return;}
-  if(Notification.permission==='denied'){e.textContent='BLOCKED';return;}
-  e.textContent=NOTIF_ON?'NOTICE ON':'NOTICE OFF';
-}
-function toggleNotif(){
-  if(!notifOk()){ask('This browser cannot post notifications. Sound and vibration still work.',null,'Not available');return;}
-  if(NOTIF_ON){
-    NOTIF_ON=0;
-    try{localStorage.setItem('arc_notif',0);}catch(e){}
-    clearRestNotif();drawNotifTog();return;
-  }
-  if(Notification.permission==='denied'){
-    ask('Notifications are blocked for this site. Allow them in your browser settings for Arcanum, then switch this on again.',null,'Blocked by the browser');
-    return;
-  }
-  Notification.requestPermission().then(function(p){
-    NOTIF_ON=p==='granted'?1:0;
-    try{localStorage.setItem('arc_notif',NOTIF_ON);}catch(e){}
-    drawNotifTog();
-  }).catch(function(){});
-}
 // installed apps post through the service worker; a plain tab falls back to a page notification
 function notifReg(){
   return new Promise(function(res){
@@ -6122,7 +6100,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawNotifTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();
+  drawSfxTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
@@ -6689,8 +6667,54 @@ function tutGo(i){
 }
 function tutBack(){
   if(!TUTON||TUTI<=0)return;
-  tutStray();
-  tutGo(TUTI-1);
+  var i=TUTI-1;
+  tutStray(i);
+  if(TUT_STEPS[i].ovl!=='exportOvl'&&tutOn('exportOvl'))closeOvl('exportOvl');
+  var sc=TUT_SCENE[i];
+  if(sc){try{sc();}catch(e){}}
+  tutGo(i);
+}
+// ---- what each step needs on screen ----
+// BACK used to close sheets by the step it was LEAVING and reopen nothing, so every step
+// whose subject IS a sheet - the number pad, the exercise sheet, the export - came back
+// against a screen that had already closed, and the spotlight landed on whatever was
+// underneath it. Each step now states the scene it belongs to and BACK rebuilds it.
+var TUT_SCENE=[
+  function(){tutHome();},
+  function(){tutHome();},
+  function(){tutDay();},
+  function(){tutDay();openEdit('bench',0,'w');},
+  function(){tutDay();},
+  function(){tutDay();},
+  function(){tutDay();},
+  function(){tutDay();openExEdit('bench');},
+  function(){tutDay();},
+  function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
+  function(){tutWeek();}
+];
+function tutHome(){
+  tutUnseal();
+  if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
+  stopTimer();stopHold();resetHoldState();
+  renderHome();window.scrollTo(0,0);
+}
+function tutDay(){
+  tutUnseal();
+  if(CUR!=='d1'||!document.getElementById('session').classList.contains('on'))openWNow('d1');
+}
+// past the finish the week is what you look at, and the day stays sealed
+function tutWeek(){
+  if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
+  stopTimer();renderHome();
+}
+// The tour runs on a throwaway record, so stepping back over the finish only has to lift
+// the sealed log off it and put the day back where it was.
+function tutUnseal(){
+  for(var i=DB.logs.length-1;i>=0;i--){
+    if(!DB.logs[i].sealed)continue;
+    var l=DB.logs.splice(i,1)[0];
+    DB.active[l.day]={date:l.date,entries:l.entries,note:l.note||'',swaps:l.swaps||{}};
+  }
 }
 function tutSample(){
   try{initAudio();sfxRest();}catch(e){}
@@ -6705,8 +6729,8 @@ function tutAdvance(){
 // fence then locked every button on it. Anything the step did not ask for is closed.
 var TUT_STRAY=['editOvl','exEditOvl','exAddOvl','exJoinOvl','swapOvl','settingsOvl','themeOvl','timerOvl',
   'pumpOvl','walkOvl','lvlOvl','mkActOvl','mkSlotOvl','mkPickOvl','progOvl','histOvl','backupOvl','askOvl'];
-function tutStray(){
-  var keep=TUT_STEPS[TUTI].ovl||'';
+function tutStray(i){
+  var keep=TUT_STEPS[i==null?TUTI:i].ovl||'';
   TUT_STRAY.forEach(function(id){
     if(id!==keep&&document.getElementById(id)&&tutOn(id))closeOvl(id);
   });
@@ -6798,7 +6822,6 @@ function tutOffer(){
   applyDiag();if(DIAG._fps)fpsStart();
   renderHome();
   wkArm();                                 // a walk left running keeps counting across a cold start
-  drawNotifTog();
   initBack();
   setTimeout(tutOffer,1600);               // after the launch animation has cleared
 })();
