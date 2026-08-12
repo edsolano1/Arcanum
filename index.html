@@ -1011,6 +1011,16 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
   .bg-motes i{opacity:.22;}
   .bg-light{animation:bgbreath 12s ease-in-out infinite;}
 }
+/* An escape ladder for hardware the ground is too much for: each step takes away strictly
+   more than the one before, so the level that stops a flicker names its cause. */
+body.amb-still .bg-wm svg,body.amb-still .bg-motes i,body.amb-still .bg-rules,
+body.amb-still .bg-rules > i,body.amb-still .bg-rules::before,body.amb-still .bg-light,
+body.amb-still .bg-ripple i{animation:none!important;}
+body.amb-bare #bg,body.amb-flat #bg{display:none!important;}
+body.amb-flat::after{display:none!important;}
+body.amb-flat .card-day,body.amb-flat .card.today::before,body.amb-flat .mark,
+body.amb-flat .lvl,body.amb-flat .side.going{animation:none!important;}
+body.amb-flat .card-day{text-shadow:none!important;}
 /* The ground was drawn for a phone. On a tablet-sized panel - an unfolded foldable, a
    desktop window - the same layers cover four times the area, and because two full-viewport
    blend overlays sit above them, every frame of that motion re-blends the whole screen.
@@ -1654,6 +1664,9 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="sfx-lbl"><span>Rest alert volume</span></div>
     <div class="presets" id="alertLvl" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="sfx-lbl"><span>Rest notice</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
+    <div class="sfx-lbl"><span>Ambient motion</span></div>
+    <div class="presets" id="ambRow" style="grid-template-columns:repeat(4,1fr)"></div>
+    <div class="footnote" style="margin:6px 2px 0">Each step takes away more of the moving ground. If the screen flickers, work down until it stops.</div>
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
@@ -2315,7 +2328,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4606,6 +4619,21 @@ function setAlertLvl(n){
   drawAlertLvl();
   if(!alertMuted())sfxRest();
 }
+// see body.amb-* in the stylesheet: an escape ladder for hardware the moving ground is too
+// much for. Each step removes strictly more than the last.
+var AMB=(function(){try{return localStorage.getItem('arc_amb')||'full';}catch(e){return 'full';}})();
+function applyAmb(){
+  var c=document.body.classList;
+  c.remove('amb-still','amb-bare','amb-flat');
+  if(AMB!=='full')c.add('amb-'+AMB);
+}
+function setAmb(v){AMB=v;try{localStorage.setItem('arc_amb',v);}catch(e){}applyAmb();drawAmbRow();}
+function drawAmbRow(){
+  var e=document.getElementById('ambRow');if(!e)return;
+  e.innerHTML=[['full','Full'],['still','Still'],['bare','No ground'],['flat','Flat']].map(function(o){
+    return '<button class="preset sm" onclick="setAmb(\''+o[0]+'\')" style="'+(AMB===o[0]?'border-color:var(--gold);color:var(--gold)':'')+'">'+o[1]+'</button>';
+  }).join('');
+}
 function drawAlertLvl(){
   var e=document.getElementById('alertLvl');if(!e)return;
   e.innerHTML=['Low','Normal','High','Mute'].map(function(l,i){
@@ -5970,7 +5998,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawNotifTog();drawAlertLvl();drawThemePick();
+  drawSfxTog();drawNotifTog();drawAlertLvl();drawAmbRow();drawThemePick();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
@@ -6619,6 +6647,7 @@ function tutOffer(){
   reconcileActive();
   var t=await Store.get(TKEY);
   applyTheme(t||'dark');
+  applyAmb();
   renderHome();
   wkArm();                                 // a walk left running keeps counting across a cold start
   drawNotifTog();
