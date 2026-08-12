@@ -1039,6 +1039,26 @@ body.amb-flat::after{display:none!important;}
 body.amb-flat .card-day,body.amb-flat .card.today::before,body.amb-flat .mark,
 body.amb-flat .lvl,body.amb-flat .side.going{animation:none!important;}
 body.amb-flat .card-day{text-shadow:none!important;}
+/* ---- layer isolation (Settings > Find the flicker) ----
+   One switch per animated layer, each killing only that layer's animation and leaving its
+   paint alone, so the switch that stops a flicker names the exact layer responsible. */
+body.d-motes .bg-motes i{animation:none!important;}
+body.d-wm .bg-wm svg{animation:none!important;}
+body.d-ground .bg-rules,body.d-ground .bg-rules > i,body.d-ground .bg-rules::before{animation:none!important;}
+body.d-light .bg-light{animation:none!important;}
+body.d-ripple .bg-ripple i{animation:none!important;}
+body.d-day .card-day{animation:none!important;}
+body.d-today .card.today::before{animation:none!important;}
+body.d-pr .srow.ispr .inp{animation:none!important;}
+body.d-chrome .mark,body.d-chrome .lvl,body.d-chrome .side.going{animation:none!important;}
+body.d-blend::after{mix-blend-mode:normal!important;}
+body.d-blend .bg-grain{mix-blend-mode:normal!important;}
+#fpsBadge{display:none;position:fixed;top:9px;left:9px;z-index:500;pointer-events:none;
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:5px 9px;border-radius:9px;
+  background:rgba(0,0,0,.66);color:var(--go);border:1px solid var(--line);}
+body.diagfps #fpsBadge{display:block;}
+.diagrow{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.diagrow button{text-align:left;}
 /* The ground was drawn for a phone. On a tablet-sized panel the same layers cover four
    times the area, so the two full-viewport blend overlays stop reading back what is under
    them - a straight overlay at matched opacity looks the same and costs nothing. The motion
@@ -1604,6 +1624,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
 </div>
 
+<div id="fpsBadge"></div>
 <div id="blkMark"></div>
 <div id="tutHole"></div>
 <div id="tutPing"></div>
@@ -1676,6 +1697,9 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="sfx-lbl"><span>Ambient motion</span></div>
     <div class="presets" id="ambRow" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="footnote" style="margin:6px 2px 0">Each step takes away more of the moving ground. If the screen flickers, work down until it stops.</div>
+    <div class="sfx-lbl"><span>Find the flicker</span><span class="sfx-tog" id="fpsTog" onclick="toggleFps()"></span></div>
+    <div class="footnote" style="margin:0 2px 8px">Switch on the frame counter, then stop one layer at a time. A lit switch means that layer is frozen. Whichever one steadies the screen is the culprit.</div>
+    <div class="diagrow" id="diagRow"></div>
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
@@ -2337,7 +2361,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.5';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4629,6 +4653,47 @@ function drawAmbRow(){
     return '<button class="preset sm" onclick="setAmb(\''+o[0]+'\')" style="'+(AMB===o[0]?'border-color:var(--gold);color:var(--gold)':'')+'">'+o[1]+'</button>';
   }).join('');
 }
+// ---- layer isolation ----
+// see body.d-* in the stylesheet. Purely diagnostic: each switch freezes one animated
+// layer so the one that steadies the screen names the cause.
+var DIAG_L=[['motes','Dust'],['wm','Watermark'],['ground','Ground'],['light','Light'],
+  ['ripple','Ripples'],['day','Day glow'],['today','Today bar'],['pr','PR glow'],
+  ['chrome','Marks'],['blend','Blend']];
+var DIAG=(function(){try{return JSON.parse(localStorage.getItem('arc_diag')||'{}');}catch(e){return {};}})();
+function applyDiag(){
+  DIAG_L.forEach(function(o){document.body.classList.toggle('d-'+o[0],!!DIAG[o[0]]);});
+  document.body.classList.toggle('diagfps',!!DIAG._fps);
+}
+function setDiag(k){
+  DIAG[k]=!DIAG[k];
+  try{localStorage.setItem('arc_diag',JSON.stringify(DIAG));}catch(e){}
+  applyDiag();drawDiag();
+}
+function toggleFps(){setDiag('_fps');if(DIAG._fps)fpsStart();}
+function drawDiag(){
+  var e=document.getElementById('diagRow');if(!e)return;
+  e.innerHTML=DIAG_L.map(function(o){
+    return '<button class="preset sm" onclick="setDiag(\''+o[0]+'\')" style="'+(DIAG[o[0]]?'border-color:var(--gold);color:var(--gold)':'')+'">'+o[1]+'</button>';
+  }).join('');
+  var t=document.getElementById('fpsTog');
+  if(t)t.className='sfx-tog'+(DIAG._fps?' on':'');
+}
+var fpsRAF=0,fpsN=0,fpsT=0;
+function fpsStart(){
+  if(fpsRAF)return;
+  fpsT=0;fpsN=0;
+  fpsRAF=requestAnimationFrame(function loop(ts){
+    if(!DIAG._fps){fpsRAF=0;return;}
+    if(!fpsT)fpsT=ts;
+    fpsN++;
+    if(ts-fpsT>=500){
+      var b=document.getElementById('fpsBadge');
+      if(b)b.textContent=Math.round(fpsN*1000/(ts-fpsT))+' FPS';
+      fpsT=ts;fpsN=0;
+    }
+    fpsRAF=requestAnimationFrame(loop);
+  });
+}
 function drawAlertLvl(){
   var e=document.getElementById('alertLvl');if(!e)return;
   e.innerHTML=['Low','Normal','High','Mute'].map(function(l,i){
@@ -5993,7 +6058,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawNotifTog();drawAlertLvl();drawAmbRow();drawThemePick();
+  drawSfxTog();drawNotifTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
@@ -6666,6 +6731,7 @@ function tutOffer(){
   var t=await Store.get(TKEY);
   applyTheme(t||'dark');
   applyAmb();
+  applyDiag();if(DIAG._fps)fpsStart();
   renderHome();
   wkArm();                                 // a walk left running keeps counting across a cold start
   drawNotifTog();
