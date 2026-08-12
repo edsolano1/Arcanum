@@ -934,10 +934,6 @@ body.moon .bg-ripple{display:block;}
 /* Nothing that moves here carries a blur filter. A blurred element cannot be composited:
    Chrome re-rasterizes it every frame, and on a large screen that raster falls behind and
    the dropped frames read as the week's cards flickering. The softness is baked into the
-   gradients instead, so these animate as pure transform and opacity. */
-/* Nothing that moves here carries a blur filter. A blurred element cannot be composited:
-   Chrome re-rasterizes it every frame, and on a large screen that raster falls behind and
-   the dropped frames read as the week's cards flickering. The softness is baked into the
    gradients instead, so these animate as pure transform and opacity.
 
    And the ring is drawn at the size it ends at, then scaled DOWN to start. A promoted layer
@@ -1106,6 +1102,14 @@ body.diagfps #fpsBadge{display:block;}
   /* motes are dozens of separate animated elements; the hint gives each one its own layer,
      and the layer count itself is part of what starves the raster here */
   .bg-motes i{will-change:auto;}
+  /* The rings animate inside a masked box. A mask forces the whole box to be drawn into its
+     own buffer and re-composited every frame that anything inside it moves - full viewport,
+     on the main thread, which is the flicker while the week scrolls, and why Moonwell alone
+     showed it: no other ground has this element. The mask fades the rings above 46% of the
+     container, but the rings are 370px tall and pinned to the bottom, so on a panel this
+     tall that line falls a thousand pixels clear of them and the mask hides nothing. Off
+     here, kept on phones where it still does its job. */
+  .bg-ripple{-webkit-mask-image:none;mask-image:none;}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
   /* A backdrop filter has to read back everything painted under it. Over a folded-open
      panel that is four times the pixels, sampled behind a scrim that already sits over
@@ -2421,7 +2425,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
