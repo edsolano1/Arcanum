@@ -903,9 +903,10 @@ body.moon .bg-rules{-webkit-mask-image:none;mask-image:none;background-image:non
   background:
     radial-gradient(circle at 13% 11%,rgba(236,242,255,.17) 0%,rgba(214,226,255,.09) 22%,rgba(190,208,255,.05) 44%,rgba(174,196,255,.032) 70%,rgba(164,188,255,.02) 100%),
     linear-gradient(146deg,rgba(198,214,255,.10) 0%,rgba(190,208,255,.062) 36%,rgba(180,200,255,.042) 64%,rgba(184,204,255,.055) 88%,rgba(192,210,255,.07) 100%);}
-/* the disc itself - small, bright, and breathing behind the haze */
+/* the disc itself - small, bright, and breathing behind the haze. Drawn at the top of its
+   breath and scaled down into it, for the same reason the rings are. */
 body.moon .bg-rules::before{content:'';position:absolute;left:var(--moonx,13%);top:var(--moony,11%);
-  width:min(15vw,104px);height:min(15vw,104px);transform:translate(-50%,-50%);border-radius:50%;
+  width:calc(min(15vw,104px) * 1.06);height:calc(min(15vw,104px) * 1.06);transform:translate(-50%,-50%);border-radius:50%;
   background:radial-gradient(circle,rgba(248,251,255,.34) 0%,rgba(240,246,255,.24) 26%,rgba(226,236,255,.13) 50%,rgba(198,216,255,.05) 74%,transparent 100%);
   will-change:transform,opacity;animation:moonbreath 13s ease-in-out infinite;}
 /* the far corner it lands in, low and wide */
@@ -916,11 +917,11 @@ body.moon .bg-rules::after{content:'';position:absolute;right:-10%;bottom:-16%;
   background:
     radial-gradient(circle at 11% 19%,rgba(236,242,255,.12) 0%,rgba(214,226,255,.065) 24%,rgba(186,204,255,.036) 48%,rgba(170,192,255,.024) 74%,rgba(164,188,255,.018) 100%),
     linear-gradient(146deg,rgba(198,214,255,.075) 0%,rgba(190,208,255,.05) 36%,rgba(180,200,255,.038) 64%,rgba(184,204,255,.05) 88%,rgba(192,210,255,.066) 100%);}
-  body.moon .bg-rules::before{width:min(19vw,84px);height:min(19vw,84px);
+  body.moon .bg-rules::before{width:calc(min(19vw,84px) * 1.06);height:calc(min(19vw,84px) * 1.06);
     background:radial-gradient(circle,rgba(248,251,255,.26) 0%,rgba(226,236,255,.13) 44%,rgba(198,216,255,.04) 70%,transparent 100%);}}
 @keyframes moonbreath{
-  0%,100%{opacity:.82;transform:translate(-50%,-50%) scale(1);}
-  50%{opacity:1;transform:translate(-50%,-50%) scale(1.06);}}
+  0%,100%{opacity:.82;transform:translate(-50%,-50%) scale(.943);}
+  50%{opacity:1;transform:translate(-50%,-50%) scale(1);}}
 
 /* the rings themselves: flattened, so they sit on a surface seen at a low angle, spreading
    from where the light lands and dying out before they reach the walls */
@@ -931,17 +932,30 @@ body.moon .bg-ripple{display:block;}
    Chrome re-rasterizes it every frame, and on a large screen that raster falls behind and
    the dropped frames read as the week's cards flickering. The softness is baked into the
    gradients instead, so these animate as pure transform and opacity. */
-.bg-ripple i{position:absolute;right:-14%;bottom:-9%;display:block;
-  width:min(104vw,760px);height:min(40vw,280px);transform-origin:50% 50%;
+/* Nothing that moves here carries a blur filter. A blurred element cannot be composited:
+   Chrome re-rasterizes it every frame, and on a large screen that raster falls behind and
+   the dropped frames read as the week's cards flickering. The softness is baked into the
+   gradients instead, so these animate as pure transform and opacity.
+
+   And the ring is drawn at the size it ends at, then scaled DOWN to start. A promoted layer
+   scaled past 1 has to be rasterized again at the bigger size or it turns soft, so a ring
+   growing .12 -> 1.32 was redrawn over and over on the way out - several at once, which is
+   why this ground and no other flickered. Scaling only downward, the texture is rastered
+   once at full size and every frame after that is free. The offsets carry the extra width
+   back out so the rings still spread from the same point. */
+.bg-ripple i{position:absolute;display:block;
+  --rw:min(104vw,760px);--rh:min(40vw,280px);
+  right:calc(-14% - var(--rw) * .16);bottom:calc(-9% - var(--rh) * .16);
+  width:calc(var(--rw) * 1.32);height:calc(var(--rh) * 1.32);transform-origin:50% 50%;
   border-radius:50%;
   background:radial-gradient(closest-side,transparent 74%,rgba(206,222,255,.22) 86%,rgba(224,236,255,.36) 94%,rgba(214,230,255,.12) 98%,transparent 100%);
   will-change:transform,opacity;
-  opacity:0;transform:scale(.14);animation:ripple var(--d) cubic-bezier(.22,.62,.3,1) infinite;
+  opacity:0;transform:scale(.106);animation:ripple var(--d) cubic-bezier(.22,.62,.3,1) infinite;
   animation-delay:var(--dl);}
 @keyframes ripple{
-  0%{transform:scale(.12);opacity:0;}
+  0%{transform:scale(.091);opacity:0;}
   12%{opacity:.62;}
-  100%{transform:scale(1.32);opacity:0;}}
+  100%{transform:scale(1);opacity:0;}}
 @media(prefers-reduced-motion:reduce){
   .bg-ripple i{animation-duration:calc(var(--d) * 2.2);}
   body.moon .bg-rules{animation:none;}}
@@ -2403,7 +2417,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.1';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
