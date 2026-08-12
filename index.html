@@ -2500,7 +2500,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v21.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6548,7 +6548,7 @@ function bindExHold(){
 // The whole app renders from one global DB, so the tour swaps in a seeded one and
 // blocks every write (see persistNow). Nothing tapped in here can reach storage, which
 // is what lets the tour run over the real screens instead of a mock-up of them.
-var TUTON=false,TUTI=0,TUTMAX=0,TUTDB=null,TUTPOLL=null,TUTRAF=0;
+var TUTON=false,TUTI=0,TUTMAX=0,TUTDB=null,TUTPOLL=null,TUTRAF=0,TUTARM=true;
 // A step already walked is a step already done, so going back cannot re-trigger it: below
 // the furthest point reached the tour is a read-only replay - no gates, no reopening
 // sheets, NEXT always available - and normal gating resumes at the frontier.
@@ -6597,6 +6597,7 @@ var TUT_STEPS=[
    when:function(){var e=document.getElementById('sr-bench-0');return !!(e&&e.classList.contains('done'));}},
   {sel:'#timerPill',pad:10,sample:true,nudge:'Tap NEXT when you have had a look.'},
   {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench',
+   block:'input,button,textarea,.chk,.hold,.ex-swap,.lvl,.exdrag',
    w:'Waiting for a long press',nudge:'Press and hold the exercise until the sheet opens.',
    when:function(){return tutOn('exEditOvl');}},
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
@@ -6687,11 +6688,18 @@ function tutGuard(e){
   var t=e.target;
   if(!t||!t.closest)return;
   if(t.closest('#tutCard'))return;
-  if(tutEls(TUT_STEPS[TUTI].hit).some(function(el){return el===t||el.contains(t);}))return;
+  var st=TUT_STEPS[TUTI];
+  // A step whose target is a whole card hands over everything inside it, including controls it
+  // never meant to offer: the weights opened the number sheet, the sigils logged sets that were
+  // not asked for, and a press held on an input raised the phone's own selection handles.
+  // block names what stays fenced off inside that opening, so the card can still be held while
+  // its contents stay dead. It is the same set bindExHold already refuses to start a hold on.
+  if(tutEls(st.hit).some(function(el){return el===t||el.contains(t);})
+     &&!(st.block&&t.closest(st.block)))return;
   e.preventDefault();e.stopPropagation();
   // A quiet step is not waiting on anything, so a tap is not a mistake. Still swallowed -
   // the day is opened by the next step - but without the shake and the correction.
-  if((e.type==='pointerdown'||e.type==='mousedown')&&!TUT_STEPS[TUTI].quiet)tutNudge();
+  if((e.type==='pointerdown'||e.type==='mousedown')&&!st.quiet)tutNudge();
 }
 ['pointerdown','mousedown','touchstart','click','dblclick','contextmenu'].forEach(function(ev){
   document.addEventListener(ev,tutGuard,true);
@@ -6743,6 +6751,13 @@ function tutGo(i){
   TUTI=i;if(i>TUTMAX)TUTMAX=i;
   if(i>8)stopTimer();   // the demo rest is a prop for one step, not a clock to sit through
   var st=TUT_STEPS[i],c=TUTC().steps[i];
+  // A step must not fire on a condition that was ALREADY true when it arrived, or stepping
+  // BACK would bounce straight forward again. Arriving satisfied disarms the step until the
+  // condition goes false; then doing the thing advances it, exactly as on the first pass.
+  // In practice only the marked-set step lands disarmed - a set once marked stays marked, so
+  // its scene cannot un-satisfy it. Every other scene rebuilds to a screen where the thing
+  // has yet to be done, which is why they replay properly instead of being frozen out.
+  TUTARM=!(st.when&&st.when());
   document.getElementById('tutStep').textContent='SAMPLE DATA \u00b7 '+(i+1)+' / '+TUT_STEPS.length;
   document.getElementById('tutT').textContent=c.t;
   document.getElementById('tutB').innerHTML=c.b;
@@ -6778,7 +6793,7 @@ var TUT_SCENE=[
   function(){tutDay();},
   function(){tutDay();openEdit('bench',0,'w');},
   function(){tutDay();},
-  function(){tutDay();},
+  function(){tutDay();tutRest();},
   function(){tutDay();},
   function(){tutDay();openExEdit('bench');},
   function(){tutDay();},
@@ -6794,6 +6809,16 @@ function tutHome(){
 function tutDay(){
   tutUnseal();
   if(CUR!=='d1'||!document.getElementById('session').classList.contains('on'))openWNow('d1');
+}
+// The rest the tour describes is started by the sigil on step five and stopped for good once
+// the week comes back, so stepping back onto the step whose whole subject is the pill found it
+// gone and the card explaining a timer that was not on screen. Restarted at the length the
+// bench actually carries, so it is the same clock the tap itself would have started - and left
+// alone if one is already running, or BACK would keep resetting a rest already counting down.
+function tutRest(){
+  var p=document.getElementById('timerPill');
+  if(p&&p.classList.contains('on'))return;
+  startTimer(parseRest(EX.bench.rest));
 }
 // past the finish the week is what you look at, and the day stays sealed
 function tutWeek(){
@@ -6828,21 +6853,33 @@ function tutStray(i){
     if(id!==keep&&document.getElementById(id)&&tutOn(id))closeOvl(id);
   });
 }
+// A replayed step whose subject IS a sheet has to keep that sheet on screen. Closing it - DONE
+// on the number pad, or the exercise sheet's own dismiss - used to leave the card describing
+// steppers that were no longer there, with the advance suppressed so nothing put it back.
+// The step already states its scene; this just rebuilds it when it has been torn down.
+function tutRebuild(){
+  var st=TUT_STEPS[TUTI];
+  if(!st.ovl||tutOn(st.ovl))return;
+  var sc=TUT_SCENE[TUTI];
+  if(sc){try{sc();}catch(e){}}
+}
 function tutTick(){
   if(!TUTON)return;
-  // Replaying an earlier step: nothing that ADVANCES may fire again, or BACK would be undone
-  // the moment it landed. The stray sweep is not one of those - it only shuts what the step
-  // never asked for. Skipping it too is what let a sheet opened on a replayed step stay open
-  // and strand the tour, where the same sheet on the first pass had been swept away.
-  if(tutRev()){tutStray();return;}
   var st=TUT_STEPS[TUTI];
   // Leaving the number sheet under 150 would strand the step, so it comes straight back.
   if(st.reopen&&!tutOn('editOvl')&&tutW()<150){
     tutNudge();openEdit('bench',0,'w');
     return;
   }
-  if(st.when&&st.when()){tutGo(TUTI+1);return;}
+  // The condition is only allowed to fire once it has been seen false - see TUTARM in tutGo.
+  // Checked BEFORE the stray sweep, because for four of the six steps the thing the step is
+  // waiting for IS a sheet, and the sweep would shut it in the same tick that should advance.
+  if(st.when){
+    if(TUTARM&&st.when()){tutGo(TUTI+1);return;}
+    if(!TUTARM&&!st.when())TUTARM=true;
+  }
   tutStray();
+  tutRebuild();
 }
 // Placement runs every frame: the target may be inside a scroller the user is dragging,
 // and a hole that lags behind its element reads as broken.
