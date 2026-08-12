@@ -222,11 +222,25 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .tut-step{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--go);margin-bottom:8px;}
 .tut-t{font-size:18px;margin-bottom:7px;color:var(--txt);}
 .tut-b{font-size:13.5px;line-height:1.62;color:var(--txt);opacity:.88;text-wrap:pretty;}
+.tut-b ul{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+.tut-b li{display:flex;gap:9px;align-items:flex-start;}
+.tut-b li::before{content:'';flex:0 0 4px;width:4px;height:4px;border-radius:50%;background:var(--go);margin-top:8px;}
+.tut-b p{margin:9px 0 0;}
+/* the three grades named by their own colours rather than described in a paragraph */
+.tut-g{display:flex;flex-direction:column;gap:7px;margin:3px 0 10px;}
+.tut-g div{display:flex;gap:10px;align-items:center;}
+.tut-g i{flex:0 0 13px;width:13px;height:13px;border-radius:4px;}
+.tut-g b{font-weight:500;color:var(--txt);}
+.tut-back{background:transparent!important;color:var(--txt2)!important;padding-left:9px!important;padding-right:9px!important;}
+/* The week is the one screen the tour has to show whole. At full size a phone shows three
+   cards; scaled down the seven fit above the card. */
+body.tut #weekCards{transform:scale(.76);transform-origin:50% 0;}
+body.tut #home{padding-top:14px;padding-bottom:30px;}
 .tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
   border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
 .tut-nudge.on{display:block;}
 .tut-btns{display:flex;gap:9px;margin-top:15px;align-items:center;}
-.tut-btns .btn{padding:10px 15px;background:var(--surface);}
+.tut-btns .btn{padding:10px 13px;background:var(--surface);white-space:nowrap;}
 .tut-skip{margin-right:auto;font-size:11.5px;color:var(--txt2);cursor:pointer;letter-spacing:.03em;white-space:nowrap;
   text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--txt2) 45%,transparent);}
 .tut-skip:hover{color:var(--txt);}
@@ -711,7 +725,11 @@ body.moon .card.sealed::after{background:repeating-linear-gradient(135deg,rgba(2
 body.moon .card.sealed:hover{border-color:#463763;}
 body.moon .s-head{background:rgba(12,9,20,.95);
   box-shadow:0 1px 0 color-mix(in srgb,var(--go) 24%,transparent),0 10px 30px -18px rgba(180,160,255,.4);}
-/* Moon is the only ground whose art moves at full-viewport scale, and a blended overlay\n   above moving art makes Android re-blend the entire viewport every frame - on a large\n   panel that drops frames, and the drops show through as the week's cards flickering. The\n   grain stays, as a plain overlay with nothing to read back. Same trade the launch makes. */\nbody.moon::after{opacity:.05;mix-blend-mode:normal;}\nbody.moon .bg-grain{opacity:.03;mix-blend-mode:normal;}
+/* Moon is the only ground whose art moves at full-viewport scale, and a blended overlay
+   above moving art makes Android re-blend the entire viewport every frame. The grain stays,
+   as a plain overlay with nothing to read back. */
+body.moon::after{opacity:.05;mix-blend-mode:normal;}
+body.moon .bg-grain{opacity:.03;mix-blend-mode:normal;}
 body.moon .timer-pill.ring2{background:var(--go);border-color:var(--go);color:#140f22;}
 body.moon .timer-pill.ring2 .tbtn{color:#140f22;}
 body.moon #wcover{background:linear-gradient(180deg,#05040a 0%,#0d0918 58%,#171029 100%);}
@@ -1025,9 +1043,10 @@ body.amb-flat .card-day{text-shadow:none!important;}
    desktop window - the same layers cover four times the area, and because two full-viewport
    blend overlays sit above them, every frame of that motion re-blends the whole screen.
    The compositor falls steadily further behind, which reads as the cards flickering and
-   the app going soft. Past 820px the ground keeps its light and stops moving, and the
-   overlays stop reading back what is under them. */
-@media(min-width:820px){
+   the app going soft. An unfolded Fold reports about 700 CSS px, so the relief starts well
+   below tablet width: the ground keeps its light and stops moving, and the overlays stop
+   reading back what is under them. */
+@media(min-width:600px){
   body::after{mix-blend-mode:normal;opacity:.05;}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
   .bg-wm svg,.bg-motes i,.bg-rules,.bg-rules > i,.bg-rules::before,.bg-light{animation:none;}
@@ -1607,6 +1626,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   <div class="tut-btns">
     <span class="tut-skip" id="tutSkip" onclick="tutEnd()">End tour</span>
     <span class="tut-wait" id="tutWait" style="display:none"></span>
+    <div class="btn tut-back" id="tutBack" onclick="tutBack()" style="display:none">BACK</div>
     <div class="btn" id="tutSfx" onclick="tutSample()" style="display:none">HEAR IT</div>
     <div class="btn btn-go" id="tutNext" onclick="tutAdvance()">NEXT</div>
   </div>
@@ -2328,7 +2348,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.3';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.4';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6365,7 +6385,11 @@ function bindExHold(){
 // The whole app renders from one global DB, so the tour swaps in a seeded one and
 // blocks every write (see persistNow). Nothing tapped in here can reach storage, which
 // is what lets the tour run over the real screens instead of a mock-up of them.
-var TUTON=false,TUTI=0,TUTDB=null,TUTPOLL=null,TUTRAF=0;
+var TUTON=false,TUTI=0,TUTMAX=0,TUTDB=null,TUTPOLL=null,TUTRAF=0;
+// A step already walked is a step already done, so going back cannot re-trigger it: below
+// the furthest point reached the tour is a read-only replay - no gates, no reopening
+// sheets, NEXT always available - and normal gating resumes at the frontier.
+function tutRev(){return TUTI<TUTMAX;}
 
 function tutSeed(){
   function d(n){var x=new Date();x.setDate(x.getDate()-n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
@@ -6425,57 +6449,57 @@ function TUTC(){
     dark:{btn:'Walk me through it',ttl:'First time here?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven slots, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample data, so your own history stays untouched.'},
+      {t:'Your week',b:'Seven slots, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
       {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
-      {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
-      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is sealed; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one landed gold: it beats every bench in your history. Cyan means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is sealed. Keep it and every Tuesday carries the change.</p>'},
+      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Cyan</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
     forge:{btn:'Walk me through it',ttl:'First time at the forge?',
       msg:'A short guided pass over the real screens, on sample stock. A few minutes at most, and your own work stays untouched.',
       yes:'SHOW ME',steps:[
-      {t:'The week\u2019s work',b:'Seven slots, Sunday through Saturday. Hold any one of them to rework it or make it optional. Everything from here on is sample stock, so your own work stays untouched.'},
+      {t:'The week\u2019s work',b:'Seven slots, Sunday to Saturday. Hold any one to rework it or make it optional.'},
       {t:'Take a piece off the rack',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the iron can actually make. Raise it to 150 or more, then tap DONE.'},
       {t:'Strike it',b:'Tap the sigil at the end of the row. The set lands the instant you tap it, and the cooling timer starts on its own.'},
-      {t:'The cooling timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'The cooling timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
-      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the piece is quenched; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one came out gold: it beats every bench on record. Violet means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole piece. Tap Finish when the work is done.'},
+      {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the piece is quenched. Keep it and every Tuesday carries the change.</p>'},
+      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
     moon:{btn:'Walk me through it',ttl:'First time at the well?',
       msg:'A short guided pass over the real screens, on sample water. A few minutes at most, and your own record stays untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven nights, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample water, so your own record stays untouched.'},
+      {t:'Your week',b:'Seven nights, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
       {t:'Open a night',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
       {t:'Mark it',b:'Tap the sigil at the end of the row. The set is kept the instant you touch it, and the rest begins on its own.'},
-      {t:'The rest',b:'It began the moment the set was kept, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen dark and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'The rest',b:'It begins when a set is kept.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen dark</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
-      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the night at all. Save it for tonight only and it clears when the night is kept; keep it and the night carries the change every week. You can also add an exercise from the library, which lands at the foot of the night.'},
-      {t:'How a set is graded',b:'That one came up white: it passes every bench in your record. Moon-gold means you matched your best, grey is a first attempt or a fall. The ring in the header counts the whole night. Tap Finish when it is done.'},
+      {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the night at all</li></ul><p>Save it for tonight only and it clears when the night is kept. Keep it and every Tuesday carries the change.</p>'},
+      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>White</b> &mdash; passes your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Moon-gold</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole night. Tap Finish when it is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
       {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
     light:{btn:'Walk me through it',ttl:'First time out?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
-      {t:'Your week',b:'Seven days, Sunday through Saturday. Hold any one of them to reshape it or make it optional. Everything from here on is sample data, so your own logs stay untouched.'},
+      {t:'Your week',b:'Seven days, Sunday to Saturday. Hold any one to reshape it or make it optional.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
       {t:'Mark it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
-      {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
+      {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
-      {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is marked; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one landed gold: it beats every bench in your logs. Blue means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is marked. Keep it and every Tuesday carries the change.</p>'},
+      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Blue</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same day written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]}
   };
@@ -6516,7 +6540,8 @@ function tutStart(){
   if(TUTON)return;
   closeOvl('settingsOvl');closeOvl('askOvl');
   tutSeen();
-  TUTDB=DB;DB=tutSeed();TUTON=true;
+  TUTDB=DB;DB=tutSeed();TUTON=true;TUTMAX=0;
+  document.body.classList.add('tut');
   if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
   stopTimer();stopHold();resetHoldState();
   renderHome();window.scrollTo(0,0);
@@ -6528,6 +6553,7 @@ function tutStart(){
 function tutEnd(){
   if(!TUTON)return;
   TUTON=false;
+  document.body.classList.remove('tut');
   clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
@@ -6542,7 +6568,7 @@ function tutEnd(){
   mergeCustom();renderHome();window.scrollTo(0,0);
 }
 function tutGo(i){
-  TUTI=i;
+  TUTI=i;if(i>TUTMAX)TUTMAX=i;
   if(i>8)stopTimer();   // the demo rest is a prop for one step, not a clock to sit through
   var st=TUT_STEPS[i],c=TUTC().steps[i];
   document.getElementById('tutStep').textContent='SAMPLE DATA \u00b7 '+(i+1)+' / '+TUT_STEPS.length;
@@ -6550,11 +6576,17 @@ function tutGo(i){
   document.getElementById('tutB').innerHTML=c.b;
   document.getElementById('tutNudge').classList.remove('on');
   var nx=document.getElementById('tutNext'),wt=document.getElementById('tutWait');
-  if(st.when){nx.style.display='none';wt.style.display='';wt.textContent=st.w||'Waiting for you';}
+  if(st.when&&!tutRev()){nx.style.display='none';wt.style.display='';wt.textContent=st.w||'Waiting for you';}
   else{nx.style.display='';wt.style.display='none';nx.textContent=st.last?'DONE':'NEXT';}
+  document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
   document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
   tutScroll();
+}
+function tutBack(){
+  if(!TUTON||TUTI<=0)return;
+  tutStray();
+  tutGo(TUTI-1);
 }
 function tutSample(){
   try{initAudio();sfxRest();}catch(e){}
@@ -6577,6 +6609,7 @@ function tutStray(){
 }
 function tutTick(){
   if(!TUTON)return;
+  if(tutRev())return;   // replaying an earlier step: nothing here may fire again
   var st=TUT_STEPS[TUTI];
   // Leaving the number sheet under 150 would strand the step, so it comes straight back.
   if(st.reopen&&!tutOn('editOvl')&&tutW()<150){
@@ -6595,9 +6628,19 @@ function tutFrame(){
 }
 function tutBox(el,box,p){
   var r=el.getBoundingClientRect();
-  box.style.top=(r.top-p)+'px';box.style.left=(r.left-p)+'px';
-  box.style.width=Math.max(0,r.width+p*2)+'px';box.style.height=Math.max(0,r.height+p*2)+'px';
+  // Placement runs every frame; writing identical values still costs a style recalc and a
+  // paint, which is most of what made the tour stutter. Only a real move is written.
+  var k=(r.top|0)+','+(r.left|0)+','+(r.width|0)+','+(r.height|0)+','+p;
+  if(box._k!==k){
+    box._k=k;
+    box.style.top=(r.top-p)+'px';box.style.left=(r.left-p)+'px';
+    box.style.width=Math.max(0,r.width+p*2)+'px';box.style.height=Math.max(0,r.height+p*2)+'px';
+  }
   box.classList.add('on');
+}
+function tutTop(card,v){
+  if(card._t===v)return;
+  card._t=v;card.style.top=v;
 }
 function tutPlace(){
   var st=TUT_STEPS[TUTI],hole=document.getElementById('tutHole'),card=document.getElementById('tutCard');
@@ -6609,14 +6652,14 @@ function tutPlace(){
   if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
   if(!el||!el.offsetHeight){
     hole.classList.remove('on');
-    card.style.top=Math.max(14,(vh-ch)/2)+'px';
+    tutTop(card,Math.max(14,(vh-ch)/2)+'px');
     return;
   }
   tutBox(el,hole,st.pad==null?8:st.pad);
   var r=el.getBoundingClientRect(),p=st.pad==null?8:st.pad;
-  if(st.top){card.style.top='14px';return;}   // instructions first, then the thing itself
+  if(st.top){tutTop(card,'14px');return;}   // instructions first, then the thing itself
   var below=r.bottom+p+14,above=r.top-p-14-ch;
-  card.style.top=(below+ch<vh-12?below:(above>12?above:Math.max(12,vh-ch-14)))+'px';
+  tutTop(card,(below+ch<vh-12?below:(above>12?above:Math.max(12,vh-ch-14)))+'px');
 }
 // scrollIntoView drags whatever ancestor it likes; walk to the real scroller instead.
 function tutScroll(){
