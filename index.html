@@ -2500,7 +2500,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v21.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v21.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6595,7 +6595,11 @@ var TUT_STEPS=[
   {sel:'#sr-bench-0',hit:'#sr-bench-0 .chk',ping:'#sr-bench-0 .chk',
    w:'Waiting for the sigil',nudge:'Tap the sigil at the end of the highlighted row.',
    when:function(){var e=document.getElementById('sr-bench-0');return !!(e&&e.classList.contains('done'));}},
-  {sel:'#timerPill',pad:10,sample:true,nudge:'Tap NEXT when you have had a look.'},
+  // The only step whose subject can leave on its own: the rest runs out, the pill hides itself
+  // four seconds later, and the card is left describing a timer that is no longer on screen.
+  // Nothing rebuilds it, because a pill is not an overlay - hence keep rather than ovl.
+  {sel:'#timerPill',pad:10,sample:true,keep:function(){tutRest();},
+   nudge:'Tap NEXT when you have had a look.'},
   {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench',
    block:'input,button,textarea,.chk,.hold,.ex-swap,.lvl,.exdrag',
    w:'Waiting for a long press',nudge:'Press and hold the exercise until the sheet opens.',
@@ -6791,11 +6795,11 @@ var TUT_SCENE=[
   function(){tutHome();},
   function(){tutHome();},
   function(){tutDay();},
-  function(){tutDay();openEdit('bench',0,'w');},
+  function(){tutDay();if(!tutOn('editOvl'))openEdit('bench',0,'w');},
   function(){tutDay();},
   function(){tutDay();tutRest();},
   function(){tutDay();},
-  function(){tutDay();openExEdit('bench');},
+  function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},
   function(){tutDay();},
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
   function(){tutWeek();}
@@ -6841,7 +6845,18 @@ function tutAdvance(){
   var st=TUT_STEPS[TUTI];
   if(st.act)st.act();
   if(st.last){tutEnd();return;}
-  tutGo(TUTI+1);
+  var n=TUTI+1;
+  // BACK rebuilds the scene it lands on; NEXT never did, because on a first pass it does not
+  // have to - you got here by doing the thing, so the screen the next step wants is already
+  // up. Once you have walked backwards, that stops being true: NEXT skips the action, and the
+  // scene it would have built with it. Walking back to the week and forward again reached the
+  // set grid with the day still shut. Every step states its scene, so it is built here on the
+  // same terms BACK builds it - only when arriving without having done the thing.
+  if(tutRev()||(st.when&&!st.when())){
+    var sc=TUT_SCENE[n];
+    if(sc){try{sc();}catch(e){}}
+  }
+  tutGo(n);
 }
 // A tap where a hold was meant used to open a sheet the step knew nothing about, and the
 // fence then locked every button on it. Anything the step did not ask for is closed.
@@ -6859,6 +6874,9 @@ function tutStray(i){
 // The step already states its scene; this just rebuilds it when it has been torn down.
 function tutRebuild(){
   var st=TUT_STEPS[TUTI];
+  // Not every subject is an overlay. keep is for the ones that can leave on their own, and it
+  // does its own checking - it is called on every tick and must cost nothing when all is well.
+  if(st.keep)st.keep();
   if(!st.ovl||tutOn(st.ovl))return;
   var sc=TUT_SCENE[TUTI];
   if(sc){try{sc();}catch(e){}}
