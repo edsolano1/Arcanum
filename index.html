@@ -513,6 +513,10 @@ body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
 body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
 body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today::before{animation-play-state:paused;}
+/* The tour is a scrim over the whole screen, so it gets the same treatment as an open
+   sheet: the ground behind it is not visible and does not need to keep moving. */
+body.tut .bg-light,body.tut .bg-motes i,body.tut .bg-ripple i,
+body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-state:paused;}
 /* A confirm has to clear any sheet that is already open. Every .ovl shares z-index 200,
    so #askOvl lost on DOM order - which is what hid the blocked-notifications message
    behind the timer sheet, leaving only a dimmed window. */
@@ -1152,10 +1156,14 @@ body.diagfps #fpsBadge{display:block;}
 /* forge runes sit closer to ember than moonlight; moonwell breathes at half speed */
 body.forge .card-day::after{animation-duration:3.6s;}
 body.moon .card-day::after{animation-duration:7.8s;}
-/* sealed days are spent, frost is printed on paper, and the launch turn stays cheap */
-.card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after{display:none;}
+/* sealed days are spent, frost is printed on paper, the launch turn stays cheap - and the
+   tour scales the whole deck to .76, which makes every card's glow a re-raster of the
+   scaled subtree rather than a cheap composite. Seven of those at once is what flickered
+   the lower part of an unfolded screen. */
+.card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after,
+body.tut .card-day::after,body.tut .card.today::before{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
-body.booting .card-day{animation:none;}
+body.booting .card-day,body.tut .card-day{animation:none;}
 /* the mark keeps the same breath as the runes */
 .mark{animation:markbreath 6.4s ease-in-out infinite;}
 @keyframes markbreath{
@@ -2433,7 +2441,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.5';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
