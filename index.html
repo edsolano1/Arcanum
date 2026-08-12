@@ -870,8 +870,8 @@ body.moon .bg-rules{-webkit-mask-image:none;mask-image:none;background-image:non
 /* the disc itself - small, bright, and breathing behind the haze */
 body.moon .bg-rules::before{content:'';position:absolute;left:var(--moonx,13%);top:var(--moony,11%);
   width:min(15vw,104px);height:min(15vw,104px);transform:translate(-50%,-50%);border-radius:50%;
-  background:radial-gradient(circle,rgba(248,251,255,.40) 0%,rgba(226,236,255,.20) 44%,rgba(198,216,255,.06) 70%,transparent 100%);
-  filter:blur(9px);animation:moonbreath 13s ease-in-out infinite;}
+  background:radial-gradient(circle,rgba(248,251,255,.34) 0%,rgba(240,246,255,.24) 26%,rgba(226,236,255,.13) 50%,rgba(198,216,255,.05) 74%,transparent 100%);
+  will-change:transform,opacity;animation:moonbreath 13s ease-in-out infinite;}
 /* the far corner it lands in, low and wide */
 body.moon .bg-rules::after{content:'';position:absolute;right:-10%;bottom:-16%;
   width:min(104vw,760px);height:min(40vw,280px);border-radius:50%;
@@ -891,11 +891,15 @@ body.moon .bg-rules::after{content:'';position:absolute;right:-10%;bottom:-16%;
 .bg-ripple{display:none;-webkit-mask-image:linear-gradient(0deg,#000 46%,transparent 92%);
   mask-image:linear-gradient(0deg,#000 46%,transparent 92%);}
 body.moon .bg-ripple{display:block;}
+/* Nothing that moves here carries a blur filter. A blurred element cannot be composited:
+   Chrome re-rasterizes it every frame, and on a large screen that raster falls behind and
+   the dropped frames read as the week's cards flickering. The softness is baked into the
+   gradients instead, so these animate as pure transform and opacity. */
 .bg-ripple i{position:absolute;right:-14%;bottom:-9%;display:block;
   width:min(104vw,760px);height:min(40vw,280px);transform-origin:50% 50%;
   border-radius:50%;
-  background:radial-gradient(closest-side,transparent 78%,rgba(206,222,255,.30) 90%,rgba(224,236,255,.42) 96%,transparent 100%);
-  filter:blur(1.4px);
+  background:radial-gradient(closest-side,transparent 74%,rgba(206,222,255,.22) 86%,rgba(224,236,255,.36) 94%,rgba(214,230,255,.12) 98%,transparent 100%);
+  will-change:transform,opacity;
   opacity:0;transform:scale(.14);animation:ripple var(--d) cubic-bezier(.22,.62,.3,1) infinite;
   animation-delay:var(--dl);}
 @keyframes ripple{
@@ -980,7 +984,7 @@ body.forge .bg-motes i{background:radial-gradient(circle,#fff6dc 0%,#ffb43c 40%,
 @keyframes emberflick{
   0%,100%{filter:blur(.35px) brightness(.85);}
   50%{filter:blur(.5px) brightness(1.75);}}
-body.moon .bg-motes i{filter:blur(.8px);}
+body.moon .bg-motes i{background:radial-gradient(circle,rgba(255,255,255,.9) 0%,rgba(226,220,255,.55) 55%,rgba(200,196,255,0) 100%);box-shadow:none;}
 @keyframes moterise{
   0%{transform:translateY(108vh) translateX(0);opacity:0;}
   14%{opacity:.5;}
@@ -2298,7 +2302,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v18.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
