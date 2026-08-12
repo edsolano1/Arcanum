@@ -711,7 +711,7 @@ body.moon .card.sealed::after{background:repeating-linear-gradient(135deg,rgba(2
 body.moon .card.sealed:hover{border-color:#463763;}
 body.moon .s-head{background:rgba(12,9,20,.95);
   box-shadow:0 1px 0 color-mix(in srgb,var(--go) 24%,transparent),0 10px 30px -18px rgba(180,160,255,.4);}
-body.moon::after{opacity:.10;}
+/* Moon is the only ground whose art moves at full-viewport scale, and a blended overlay\n   above moving art makes Android re-blend the entire viewport every frame - on a large\n   panel that drops frames, and the drops show through as the week's cards flickering. The\n   grain stays, as a plain overlay with nothing to read back. Same trade the launch makes. */\nbody.moon::after{opacity:.05;mix-blend-mode:normal;}\nbody.moon .bg-grain{opacity:.03;mix-blend-mode:normal;}
 body.moon .timer-pill.ring2{background:var(--go);border-color:var(--go);color:#140f22;}
 body.moon .timer-pill.ring2 .tbtn{color:#140f22;}
 body.moon #wcover{background:linear-gradient(180deg,#05040a 0%,#0d0918 58%,#171029 100%);}
@@ -1010,6 +1010,19 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
   .bg-wm svg,.bg-motes i,.bg-rules > i{animation:none;}
   .bg-motes i{opacity:.22;}
   .bg-light{animation:bgbreath 12s ease-in-out infinite;}
+}
+/* The ground was drawn for a phone. On a tablet-sized panel - an unfolded foldable, a
+   desktop window - the same layers cover four times the area, and because two full-viewport
+   blend overlays sit above them, every frame of that motion re-blends the whole screen.
+   The compositor falls steadily further behind, which reads as the cards flickering and
+   the app going soft. Past 820px the ground keeps its light and stops moving, and the
+   overlays stop reading back what is under them. */
+@media(min-width:820px){
+  body::after{mix-blend-mode:normal;opacity:.05;}
+  .bg-grain{mix-blend-mode:normal;opacity:.035;}
+  .bg-wm svg,.bg-motes i,.bg-rules,.bg-rules > i,.bg-rules::before,.bg-light{animation:none;}
+  .bg-motes i{opacity:.2;}
+  body.moon .bg-ripple,.bg-ripple{display:none;}
 }
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
@@ -2302,7 +2315,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
