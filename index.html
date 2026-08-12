@@ -193,19 +193,28 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .exed-off{opacity:.4;pointer-events:none;}
 
 /* ---------- TUTORIAL ---------- */
-/* The mask is one box with an enormous spread shadow, so the "hole" is the element
-   itself. pointer-events stay off it - every tap in the tour reaches the real UI. */
+/* The scrim was one box with a 9999px spread shadow, which asks Chrome to paint a box some
+   twenty thousand pixels across and repaint it every time the spotlight moves - the flicker
+   on opening the tour and on every step. It is four plain rectangles around the hole
+   instead: same picture, nothing oversized, and each one a flat fill. They are fixed, so
+   they sit against the viewport regardless of the hole's own size, and they inherit the
+   hole's fade. Nothing here may take a transform or a filter or they would stop doing that. */
 #tutHole{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:14px;
-  box-shadow:0 0 0 9999px rgba(4,5,7,.78);border:1.5px solid var(--go);opacity:0;transition:opacity .25s;}
+  border:1.5px solid var(--go);opacity:0;transition:opacity .25s;}
+#tutHole > i{position:fixed;display:block;background:rgba(4,5,7,.78);pointer-events:none;}
 #tutHole.on{opacity:1;}
 /* The pulsing ring sits on the one control the step wants tapped, so a lit panel still
-   points at something specific. */
+   points at something specific. The pulse is a scaling pseudo-ring rather than an animated
+   box-shadow: a shadow is a paint property, so that ring was repainting every frame it was
+   on screen for the whole length of the tour. */
 #tutPing{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:12px;
-  border:2px solid var(--go);box-shadow:0 0 0 5px color-mix(in srgb,var(--go) 20%,transparent);
-  opacity:0;animation:tutping 1.5s ease-in-out infinite;}
+  border:2px solid var(--go);opacity:0;}
+#tutPing::after{content:'';position:absolute;inset:-4px;border-radius:15px;pointer-events:none;
+  border:3px solid color-mix(in srgb,var(--go) 30%,transparent);
+  animation:tutping 1.5s ease-in-out infinite;}
 #tutPing.on{opacity:1;}
-@keyframes tutping{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--go) 26%,transparent)}
-  50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--go) 6%,transparent)}}
+@keyframes tutping{0%,100%{transform:scale(1);opacity:.95;}
+  50%{transform:scale(1.07);opacity:.2;}}
 /* The card must not read as another layer of the surface it is explaining, so it takes a
    tint of the live colour and a brighter rim than any sheet in the app. */
 #tutCard{position:fixed;z-index:401;left:50%;transform:translateX(-50%);top:40vh;
@@ -1687,7 +1696,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 
 <div id="fpsBadge"></div>
 <div id="blkMark"></div>
-<div id="tutHole"></div>
+<div id="tutHole"><i></i><i></i><i></i><i></i></div>
 <div id="tutPing"></div>
 <div id="tutCard">
   <div class="tut-step" id="tutStep"></div>
@@ -2424,7 +2433,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.4';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.5';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6763,8 +6772,19 @@ function tutBox(el,box,p){
     box._k=k;
     box.style.top=(r.top-p)+'px';box.style.left=(r.left-p)+'px';
     box.style.width=Math.max(0,r.width+p*2)+'px';box.style.height=Math.max(0,r.height+p*2)+'px';
+    if(box.id==='tutHole')tutScrim(r.top-p,r.left-p,Math.max(0,r.width+p*2),Math.max(0,r.height+p*2));
   }
   box.classList.add('on');
+}
+// the four rectangles that make up the scrim, laid around the hole
+function tutScrim(t,l,w,h){
+  var n=document.getElementById('tutHole').children;
+  if(n.length<4)return;
+  var b=t+h,rt=l+w;
+  n[0].style.cssText='left:0;right:0;top:0;height:'+Math.max(0,t)+'px';
+  n[1].style.cssText='left:0;right:0;top:'+b+'px;bottom:0';
+  n[2].style.cssText='left:0;top:'+t+'px;width:'+Math.max(0,l)+'px;height:'+h+'px';
+  n[3].style.cssText='left:'+rt+'px;right:0;top:'+t+'px;height:'+h+'px';
 }
 function tutTop(card,v){
   if(card._t===v)return;
