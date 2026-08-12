@@ -1039,30 +1039,19 @@ body.amb-flat::after{display:none!important;}
 body.amb-flat .card-day,body.amb-flat .card.today::before,body.amb-flat .mark,
 body.amb-flat .lvl,body.amb-flat .side.going{animation:none!important;}
 body.amb-flat .card-day{text-shadow:none!important;}
-/* The ground was drawn for a phone. On a tablet-sized panel - an unfolded foldable, a
-   desktop window - the same layers cover four times the area, and because two full-viewport
-   blend overlays sit above them, every frame of that motion re-blends the whole screen.
-   The compositor falls steadily further behind, which reads as the cards flickering and
-   the app going soft. An unfolded Fold reports about 700 CSS px, so the relief starts well
-   below tablet width: the ground keeps its light and stops moving, and the overlays stop
-   reading back what is under them. */
+/* The ground was drawn for a phone. On a tablet-sized panel the same layers cover four
+   times the area, so the two full-viewport blend overlays stop reading back what is under
+   them - a straight overlay at matched opacity looks the same and costs nothing. The motion
+   itself is left alone; Ambient motion in Settings is the switch for that. */
 @media(min-width:600px){
   body::after{mix-blend-mode:normal;opacity:.05;}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
-  .bg-wm svg,.bg-motes i,.bg-rules,.bg-rules > i,.bg-rules::before,.bg-light{animation:none;}
-  .bg-motes i{opacity:.2;}
-  body.moon .bg-ripple,.bg-ripple{display:none;}
 }
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
    Each card carries its own --gd phase offset so the board never pulses in unison. */
 .card-day{text-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent);
   animation:runebreath 5.4s ease-in-out infinite;animation-delay:var(--gd,0s);}
-/* A foldable changes screen size mid-session and the browser answers with a burst of
-   resizes; every one restarts these looping animations from their negative delay, which
-   reads as a flicker that quickens as the burst thickens. Hold them still until the
-   viewport has been the same size for a beat. */
-body.vpshift .card-day,body.vpshift .bg-motes i,body.vpshift .card::after{animation:none!important;}
 @keyframes runebreath{
   0%,100%{text-shadow:0 0 8px color-mix(in srgb,var(--c) 22%,transparent);}
   50%{text-shadow:0 0 14px color-mix(in srgb,var(--c) 95%,transparent),0 0 30px color-mix(in srgb,var(--c) 55%,transparent),0 0 54px color-mix(in srgb,var(--c) 22%,transparent);}}
@@ -2348,7 +2337,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.4';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v19.5';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2842,20 +2831,6 @@ function lockSplash(){
   s.style.height=Math.max(window.innerHeight,document.documentElement.clientHeight||0)+'px';
 }
 lockSplash();
-// see .vpshift in the stylesheet: the fold/unfold resize storm is ridden out with the
-// looping glows frozen, and the splash box re-pinned once the size settles.
-var vpT=null;
-function vpShift(){
-  document.body.classList.add('vpshift');
-  clearTimeout(vpT);
-  vpT=setTimeout(function(){
-    document.body.classList.remove('vpshift');
-    if(!splashGone){splashLocked=false;lockSplash();}
-  },340);
-}
-window.addEventListener('resize',vpShift);
-window.addEventListener('orientationchange',vpShift);
-try{if(window.visualViewport)window.visualViewport.addEventListener('resize',vpShift);}catch(e){}
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
