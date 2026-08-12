@@ -843,7 +843,7 @@ body.booting #home::before{display:none;}
 /* cold gilt hairline under the running head */
 .s-head{box-shadow:0 1px 0 color-mix(in srgb,var(--gold) 20%,transparent),0 10px 30px -18px rgba(111,217,255,.35);}
 /* arcane ambient - a cold bloom above the page */
-#home::before{content:'';position:fixed;left:50%;top:-190px;width:820px;height:540px;transform:translateX(-50%);pointer-events:none;z-index:0;
+#home::before{content:'';position:fixed;left:50%;top:-190px;width:820px;height:540px;transform:translateX(-50%) translateZ(0);pointer-events:none;z-index:0;
   background:radial-gradient(closest-side,rgba(96,84,214,.20),rgba(64,140,220,.07) 52%,transparent 74%);}
 /* Frost's ground is a moving texture, so a bloom that ends at 70% leaves a visible rim across
    the streaks under the header. It fades the whole way out here, over a taller box. */
@@ -855,7 +855,14 @@ body.light #home::before{height:760px;top:-300px;
    offline document. Back to front: engraved rules, the mark as a watermark, one drifting
    light, motes, grain, vignette. Every colour is mixed from the theme's own --gold and
    --bg, so a new theme inherits the whole ground for free. */
-#bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+/* The ground is fixed while the board scrolls over it. Left unpromoted, a fixed layer has to
+   be held still by repainting it - on the main thread, whole-viewport, once per scroll frame.
+   On a folded-open panel that is four times the pixels and the repaints fall behind, which is
+   the flicker on the way down and back up. Promoted, the ground is one texture the compositor
+   simply leaves where it is, and scrolling costs nothing. contain keeps its children's
+   invalidations inside it. */
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  transform:translateZ(0);backface-visibility:hidden;contain:strict;}
 #home{position:relative;z-index:1;}
 body.booting #bg{opacity:0;}
 #bg > *{position:absolute;inset:0;}
@@ -1078,7 +1085,9 @@ body.diagfps #fpsBadge{display:block;}
    them - a straight overlay at matched opacity looks the same and costs nothing. The motion
    itself is left alone; Ambient motion in Settings is the switch for that. */
 @media(min-width:600px){
-  body::after{mix-blend-mode:normal;opacity:.05;}
+  /* with the blend gone these two are ordinary overlays, so they can be handed to the
+     compositor as well - a fixed layer that is only composited never repaints on scroll */
+  body::after{mix-blend-mode:normal;opacity:.05;transform:translateZ(0);}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
   /* A backdrop filter has to read back everything painted under it. Over a folded-open
      panel that is four times the pixels, sampled behind a scrim that already sits over
@@ -2394,7 +2403,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v19.9';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.0';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
