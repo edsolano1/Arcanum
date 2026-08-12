@@ -162,6 +162,21 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .blk{position:relative;transition:transform .19s cubic-bezier(.2,0,.2,1);}
 .blk.dragging{z-index:60;opacity:.94;transition:none;}
 .blk.dragging .exc{box-shadow:0 20px 44px -14px rgba(0,0,0,.65);}
+/* While a block is being dragged the whole list collapses to name rows: a three-deep
+   superset becomes a short stack and the day fits on screen while the finger is down. */
+#sBody.rearrange .exc>*:not(.ex-h),
+#sBody.rearrange .ex-note,#sBody.rearrange .ex-stats,#sBody.rearrange .ex-links,
+#sBody.rearrange .ex-tools,
+#sBody.rearrange .notebox,#sBody.rearrange .finish-inline,#sBody.rearrange .mk-new{display:none;}
+#sBody.rearrange{padding-bottom:24vh;}
+#sBody.rearrange .ex-h{padding:10px 13px;}
+#sBody.rearrange .ex-nrow{align-items:center;}
+#sBody.rearrange .ex-n{font-size:14px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sBody.rearrange .exc{margin-bottom:5px;}
+#sBody.rearrange .blk .exc~.exc{margin-top:-2px;}
+#sBody.rearrange .sect-t{padding:11px 2px 5px;}
+#sBody.rearrange .ssgrp{padding:4px;margin-bottom:5px;}
+#sBody.rearrange .ssgrp .exc{margin-bottom:4px;}
 .exdrag{display:flex;align-items:center;justify-content:center;width:26px;height:30px;border-radius:9px;margin-left:-7px;
   cursor:grab;touch-action:none;color:var(--txt3);flex-shrink:0;transition:.15s;}
 .exdrag:hover{color:var(--txt2);background:var(--surface2);}
@@ -239,6 +254,13 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .s-body{max-width:600px;margin:0 auto;padding:16px 16px 0;}
 .sect-t{font-family:'Bricolage Grotesque',sans-serif;font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--txt3);padding:20px 2px 9px;}
 .sect-t .ss{color:var(--c);}
+/* Two supersets back to back read as one four-exercise group unless the pair is drawn as
+   a unit, so the members sit inside a tinted, accented enclosure of their own. */
+.ssgrp{border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));border-radius:calc(var(--r) + 6px);
+  background:color-mix(in srgb,var(--c) 5%,transparent);padding:7px;margin-bottom:9px;}
+.ssgrp .exc{margin-bottom:7px;}
+.ssgrp .exc:last-child{margin-bottom:0;}
+.sslink{width:13px;height:13px;stroke:var(--c);stroke-width:1.7;fill:none;vertical-align:-2px;margin-right:6px;}
 
 .exc{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);margin-bottom:9px;overflow:hidden;transition:border-color .2s;}
 .exc.alldone{border-color:color-mix(in srgb,var(--go) 32%,var(--line));}
@@ -1869,11 +1891,15 @@ function edAdded(wk){
 // A day is a list of blocks, not a flat list of exercises: a superset is one block and
 // moves as one, a straight set is a block of its own. Once the user reorders or regroups
 // anything, an explicit plan is stored and it supersedes the day's own grouping entirely.
+// The old headings carried rest times and muscle notes that the card itself now shows,
+// and they went stale the moment a block was regrouped. A heading only says what kind of
+// block it is; the rest line and Instructions carry everything else.
+function secTitle(sec){return sec.ss?'Superset':'Straight sets';}
 function edRowMap(wk){
   var m={},w=W[wk];
   if(!w)return m;
   w.sections.forEach(function(sec){edRows(wk,sec).forEach(function(r){
-    m[typeof r==='string'?r:r[0]]={row:r,title:sec.title,ss:!!sec.ss};
+    m[typeof r==='string'?r:r[0]]={row:r,title:secTitle(sec),ss:!!sec.ss};
   });});
   edAdded(wk).forEach(function(id){m[id]={row:id,title:'Added to this day',ss:false};});
   return m;
@@ -1885,8 +1911,8 @@ function edBlocksDefault(wk){
     var rows=edRows(wk,sec);
     if(!rows.length)return;
     var ids=rows.map(function(r){return typeof r==='string'?r:r[0];});
-    if(sec.ss)out.push({k:ids[0],title:sec.title,ss:true,ids:ids,rows:rows});
-    else ids.forEach(function(id,n){out.push({k:id,title:sec.title,ss:false,ids:[id],rows:[rows[n]]});});
+    if(sec.ss)out.push({k:ids[0],title:'Superset',ss:true,ids:ids,rows:rows});
+    else ids.forEach(function(id,n){out.push({k:id,title:'Straight sets',ss:false,ids:[id],rows:[rows[n]]});});
   });
   edAdded(wk).forEach(function(id){out.push({k:id,title:'Added to this day',ss:false,ids:[id],rows:[id]});});
   return out;
@@ -1903,7 +1929,10 @@ function edBlocks(wk){
     // A group can fall to one member any number of ways - the partner removed, swapped off
     // the day, hidden for today. Whatever the route, it stops being a superset here, and
     // the heading has to stop saying so.
-    if(ss&&ids.length<2){ss=false;title=exSoloTitle(wk,ids[0]);}
+    // A stored title only ever describes a group. Anything standing alone takes the
+    // heading its own origin gives it, whatever the plan happens to have saved.
+    if(ids.length<2)ss=false;
+    title=ss?'Superset':exSoloTitle(wk,ids[0]);
     out.push({k:ids[0],title:title||map[ids[0]].title,ss:!!ss,ids:ids,
               rows:ids.map(function(id){return map[id].row;})});
   }
@@ -2264,7 +2293,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v17.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v18.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3117,17 +3146,28 @@ function rowFor(swaps,row,wk){
   return {id:base,baseId:base,exId:base,swapId:null,data:R(row,wk)};
 }
 var DRAGSVG='<div class="exdrag" title="Drag to reorder"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/></svg></div>';
+// two links of chain: the mark of a pair that runs back to back on one rest
+var CHAIN='<svg class="sslink" viewBox="0 0 20 20"><path d="M8.4 11.6a3.4 3.4 0 0 0 5 .3l2.2-2.2a3.4 3.4 0 0 0-4.8-4.8l-1.2 1.2"/>'+
+  '<path d="M11.6 8.4a3.4 3.4 0 0 0-5-.3L4.4 10.3a3.4 3.4 0 0 0 4.8 4.8l1.2-1.2"/></svg>';
 function renderSession(){
   stopHold();resetHoldState();
   var wk=CUR,w=W[wk],A=DB.active[wk],html='';
   var canRaise={};levelPlan(wk).forEach(function(p){canRaise[p.id]=1;});
 
   var lastT=null;
-  edBlocks(wk).forEach(function(sec){
+  var blks=edBlocks(wk),ssTot=0,ssI=0;
+  blks.forEach(function(s){if(s.ss)ssTot++;});
+  blks.forEach(function(sec){
     html+='<div class="blk" data-k="'+sec.k+'">';
     // the heading travels with the first block that carries it, so a moved block does not
-    // strand its title behind
-    if(sec.title!==lastT){html+='<div class="sect-t">'+(sec.ss?'<span class="ss">&#8942; </span>':'')+sec.title+'</div>';lastT=sec.title;}
+    // strand its title behind. A superset always prints its own, lettered when the day
+    // holds more than one - otherwise two pairs in a row look like one group of four.
+    var t=sec.title;
+    if(sec.ss&&ssTot>1)t+=' '+String.fromCharCode(65+(ssI++));
+    if(sec.ss||t!==lastT){
+      html+='<div class="sect-t">'+(sec.ss?CHAIN:'')+t+'</div>';lastT=t;
+    }
+    if(sec.ss)html+='<div class="ssgrp">';
     sec.rows.forEach(function(row){
       var rf=rowFor(A.swaps,row,wk),r=rf.data,id=rf.id;
       var tg=rf.swapId?r.sets.split('\n').map(parseTarget):targetsOf(row,wk);
@@ -3168,6 +3208,7 @@ function renderSession(){
       if(r.rest)html+='<div class="ex-rest">Rest '+r.rest+'</div>';
       html+='</div>';
     });
+    if(sec.ss)html+='</div>';
     html+='</div>';
   });
   html+='<div class="mk-new" onclick="exEdAdd()" style="margin-top:22px">'+PLUS+'ADD AN EXERCISE</div>';
@@ -3176,6 +3217,7 @@ function renderSession(){
         '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--txt3);line-height:1.55;text-wrap:pretty">Every set saves the moment you tap it. Hold an exercise to change its rest or its sets. Leave whenever you like \u2014 this day stays open until you finish it.</div>'+
         '<div style="text-align:center;margin-top:14px"><span class="btn" onclick="clearSession()">Reset this session</span></div></div>';
   document.getElementById('sBody').innerHTML=html;
+  document.getElementById('sBody').style.setProperty('--c',dayC(wk));
   bindExHold();blkBind();
   var nb=document.getElementById('noteBox');
   nb.oninput=function(){DB.active[CUR].note=nb.value;saveSoon();};
@@ -6033,7 +6075,7 @@ function exEdLeave(){
   var bl=b.blocks;
   bl.splice(b.at,1,
     {k:e.id,title:exSoloTitle(e.wk,e.id),ss:false,ids:[e.id]},
-    {k:rest[0],title:b.blk.title,ss:true,ids:rest});
+    {k:rest[0],title:'Superset',ss:true,ids:rest});
   edWritePlan(e.wk,bl);
   closeOvl('exEditOvl');renderSession();renderHome();
   try{sfxLog();}catch(err){}
@@ -6120,14 +6162,28 @@ function blkBind(){
     hd.addEventListener('pointerdown',function(ev){
       var el=hd.closest('.blk');if(!el)return;
       ev.preventDefault();ev.stopPropagation();
+      var sb=document.getElementById('sBody'),sc0=document.getElementById('session');
+      // Collapse first, then measure: the rects have to describe the compact list the
+      // drag actually happens in. Scroll is corrected by however far the held block
+      // moved when everything above it shrank, so it stays under the finger.
+      var was=el.getBoundingClientRect().top;
+      sb.classList.add('rearrange');
+      if(sc0)sc0.scrollTop+=el.getBoundingClientRect().top-was;
+      // The scroller is much shorter once collapsed, so the correction can clamp and
+      // leave the block short of where it was. Whatever is left over rides along in the
+      // transform instead, which is the only way to keep it under the finger.
+      var off=was-el.getBoundingClientRect().top;
       var blks=[].slice.call(document.querySelectorAll('#sBody .blk'));
       // rects are cached: the others are about to move, and measuring them mid-shift
       // makes the target index oscillate
       var rects=blks.map(function(b){return b.getBoundingClientRect();});
       var i=blks.indexOf(el),gap=14;
       if(blks.length>1)gap=Math.max(4,Math.round(rects[1].top-rects[0].bottom));
-      DRAG={el:el,i:i,to:i,y0:ev.clientY,blks:blks,rects:rects,
-            h:rects[i].height+gap,top:rects[i].top};
+      var sc=document.getElementById('session');
+      DRAG={el:el,i:i,to:i,y0:ev.clientY,cy:ev.clientY,blks:blks,rects:rects,
+            h:rects[i].height+gap,top:rects[i].top,off:off,off0:off,t0:(window.performance?performance.now():Date.now()),sc:sc,sc0:sc?sc.scrollTop:0,raf:0};
+      blkApply();
+      DRAG.raf=requestAnimationFrame(blkAuto);
       el.classList.add('dragging');
       try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
       document.addEventListener('pointermove',blkMove);
@@ -6136,26 +6192,58 @@ function blkBind(){
     });
   });
 }
+// One place computes the layout, so the auto-scroll loop and the pointer agree. Cached
+// rects are in the coordinates of drag-start, so every read is corrected by how far the
+// scroller has travelled since.
+function blkApply(){
+  var d=DRAG;if(!d)return;
+  var sd=d.sc?d.sc.scrollTop-d.sc0:0;
+  var dy=(d.cy-d.y0)+sd;
+  d.el.style.transform='translateY('+(dy+d.off)+'px)';
+  var mid=d.top+d.rects[d.i].height/2+dy+d.off-sd,j=d.i;
+  d.rects.forEach(function(br,n){
+    if(n===d.i)return;
+    var bm=br.top+br.height/2-sd;
+    if(n<d.i&&mid<bm)j=Math.min(j,n);
+    if(n>d.i&&mid>bm)j=Math.max(j,n);
+  });
+  d.to=j;
+  d.blks.forEach(function(el,n){
+    if(n===d.i)return;
+    var s=0;
+    if(j>d.i&&n>d.i&&n<=j)s=-d.h;
+    else if(j<d.i&&n>=j&&n<d.i)s=d.h;
+    el.style.transform=s?'translateY('+s+'px)':'';
+  });
+}
+// A three-deep superset can be taller than the screen, so reaching past it means the list
+// has to come to you. Speed ramps with how far into the edge band the finger is.
+function blkAuto(){
+  var d=DRAG;if(!d)return;
+  d.raf=requestAnimationFrame(blkAuto);
+  // The leftover offset is continuity, not a position: it eases away so the card settles
+  // into its own slot in the compact list and card, gap and drop index agree again.
+  if(d.off){
+    var p=Math.min(1,((window.performance?performance.now():Date.now())-d.t0)/140);
+    d.off=p>=1?0:d.off0*Math.pow(1-p,3);
+    blkApply();
+  }
+  if(!d.sc||!d.mv)return;
+  var band=96,vh=window.innerHeight,v=0;
+  if(d.cy<band)v=-Math.ceil((band-d.cy)/band*20);
+  else if(d.cy>vh-band)v=Math.ceil((d.cy-(vh-band))/band*20);
+  if(!v)return;
+  var before=d.sc.scrollTop;
+  d.sc.scrollTop=Math.max(0,Math.min(d.sc.scrollHeight-d.sc.clientHeight,before+v));
+  if(d.sc.scrollTop!==before)blkApply();
+}
 function blkMove(ev){
   if(!DRAG)return;
-  var dy=ev.clientY-DRAG.y0;
-  DRAG.el.style.transform='translateY('+dy+'px)';
-  var mid=DRAG.top+DRAG.rects[DRAG.i].height/2+dy,j=DRAG.i;
-  DRAG.rects.forEach(function(br,n){
-    if(n===DRAG.i)return;
-    var bm=br.top+br.height/2;
-    if(n<DRAG.i&&mid<bm)j=Math.min(j,n);
-    if(n>DRAG.i&&mid>bm)j=Math.max(j,n);
-  });
-  DRAG.to=j;
-  // everything the block passes slides the other way, so the space it will take opens up
-  DRAG.blks.forEach(function(b,n){
-    if(n===DRAG.i)return;
-    var s=0;
-    if(j>DRAG.i&&n>DRAG.i&&n<=j)s=-DRAG.h;
-    else if(j<DRAG.i&&n>=j&&n<DRAG.i)s=DRAG.h;
-    b.style.transform=s?'translateY('+s+'px)':'';
-  });
+  DRAG.cy=ev.clientY;
+  // Edge auto-scroll only starts once the finger has actually travelled: a stationary
+  // grab inside the bottom band would otherwise scroll the list and reorder the day.
+  if(Math.abs(ev.clientY-DRAG.y0)>6)DRAG.mv=true;
+  blkApply();
 }
 function blkEnd(){
   document.removeEventListener('pointermove',blkMove);
@@ -6163,14 +6251,22 @@ function blkEnd(){
   document.removeEventListener('pointercancel',blkEnd);
   if(!DRAG)return;
   var d=DRAG;DRAG=null;
-  d.blks.forEach(function(b){b.style.transform='';});
+  if(d.raf)cancelAnimationFrame(d.raf);
+  // where the block sits right now, mid-drag - the expanded list is re-anchored to it
+  var k=d.el.getAttribute('data-k'),drop=d.el.getBoundingClientRect().top;
+  d.blks.forEach(function(el){el.style.transform='';});
   d.el.classList.remove('dragging');
-  if(d.to==null||d.to===d.i)return;
-  var bl=edBlocks(CUR);
-  bl.splice(d.to,0,bl.splice(d.i,1)[0]);
-  edWritePlan(CUR,bl);
-  renderSession();
-  try{sfxLog();}catch(e){}
+  document.getElementById('sBody').classList.remove('rearrange');
+  var moved=d.mv&&d.to!=null&&d.to!==d.i;
+  if(moved){
+    var bl=edBlocks(CUR);
+    bl.splice(d.to,0,bl.splice(d.i,1)[0]);
+    edWritePlan(CUR,bl);
+    renderSession();
+  }
+  var back=document.querySelector('#sBody .blk[data-k="'+k+'"]');
+  if(back&&d.sc)d.sc.scrollTop+=back.getBoundingClientRect().top-drop;
+  if(moved)try{sfxLog();}catch(e){}
 }
 
 // Same gesture the week cards use, so there is one way to reshape anything in the app.
@@ -6273,7 +6369,7 @@ function TUTC(){
       {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is sealed; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one landed gold: 150 beats every bench in your history. Cyan means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'How a set is graded',b:'That one landed gold: it beats every bench in your history. Cyan means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
     forge:{btn:'Walk me through it',ttl:'First time at the forge?',
@@ -6287,7 +6383,7 @@ function TUTC(){
       {t:'The cooling timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
       {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the piece is quenched; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one came out gold: 150 beats every bench on record. Violet means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole piece. Tap Finish when the work is done.'},
+      {t:'How a set is graded',b:'That one came out gold: it beats every bench on record. Violet means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole piece. Tap Finish when the work is done.'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
     moon:{btn:'Walk me through it',ttl:'First time at the well?',
@@ -6301,7 +6397,7 @@ function TUTC(){
       {t:'The rest',b:'It began the moment the set was kept, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen dark and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the night at all. Save it for tonight only and it clears when the night is kept; keep it and the night carries the change every week. You can also add an exercise from the library, which lands at the foot of the night.'},
-      {t:'How a set is graded',b:'That one came up white: 150 passes every bench in your record. Moon-gold means you matched your best, grey is a first attempt or a fall. The ring in the header counts the whole night. Tap Finish when it is done.'},
+      {t:'How a set is graded',b:'That one came up white: it passes every bench in your record. Moon-gold means you matched your best, grey is a first attempt or a fall. The ring in the header counts the whole night. Tap Finish when it is done.'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
       {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
     light:{btn:'Walk me through it',ttl:'First time out?',
@@ -6315,7 +6411,7 @@ function TUTC(){
       {t:'The rest timer',b:'It started itself the moment the set landed, reading the rest off the exercise. \u221215 and +15 nudge it, SKIP cancels it outright, and left alone it keeps counting with the screen off and sounds when it runs out. During this tour it stays silent; how loud it gets is set in Settings.'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'Rest, how many sets it runs, and whether it is on the day at all. Save it for today only and it clears when the day is marked; keep it and the day carries the change every week. You can also add an exercise from the library, which lands at the foot of the day.'},
-      {t:'How a set is graded',b:'That one landed gold: 150 beats every bench in your logs. Blue means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
+      {t:'How a set is graded',b:'That one landed gold: it beats every bench in your logs. Blue means you matched your best, grey is a first attempt or a drop. The ring in the header counts the whole day. Tap Finish when you are done.'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same day written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]}
   };
