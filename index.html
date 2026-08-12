@@ -513,6 +513,20 @@ body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
 body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
 body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today::before{animation-play-state:paused;}
+/* A day and the builder are full-screen and painted on an opaque var(--bg), exactly like a
+   sheet - but they are not .ovl, so none of the above ever applied to them and the entire
+   ground went on painting and animating at full size behind a screen that completely covers
+   it. On a phone that is only waste. On a folded-open panel it is waste competing for the
+   raster at the one moment the day is trying to arrive, which is why a day came in two
+   pieces: the top band first, the rest a moment behind it. Same treatment as a sheet. */
+body:has(#session.on) #bg,body:has(#make.on) #bg,
+body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
+body:has(#session.on) .bg-light,body:has(#session.on) .bg-motes i,body:has(#session.on) .bg-ripple i,
+body:has(#session.on) .bg-rules,body:has(#session.on) .bg-rules > i,body:has(#session.on) .bg-wm svg,
+body:has(#session.on) .card-day::after,body:has(#session.on) .card.today::before,
+body:has(#make.on) .bg-light,body:has(#make.on) .bg-motes i,body:has(#make.on) .bg-ripple i,
+body:has(#make.on) .bg-rules,body:has(#make.on) .bg-rules > i,body:has(#make.on) .bg-wm svg,
+body:has(#make.on) .card-day::after,body:has(#make.on) .card.today::before{animation-play-state:paused;}
 /* The tour is a scrim over the whole screen, so it gets the same treatment as an open
    sheet: the ground behind it is not visible and does not need to keep moving. */
 body.tut .bg-light,body.tut .bg-motes i,body.tut .bg-ripple i,
@@ -1187,11 +1201,17 @@ body.moon .card-day::after{animation-duration:7.8s;}
 /* sealed days are spent, frost is printed on paper, the launch turn stays cheap - and the
    tour scales the whole deck to .76, which makes every card's glow a re-raster of the
    scaled subtree rather than a cheap composite. Seven of those at once is what flickered
-   the lower part of an unfolded screen. */
+   the lower part of an unfolded screen.
+   The PR row's breath is the same trouble one screen further in, and it was only ever shut
+   off for Frost. text-shadow is a paint property and prbreath never stops, so a record set
+   sitting in an open day repaints its row - and whatever is composited with it - for as long
+   as the day is open. Ordinarily there is budget for that; with the tour's scrim, spotlight
+   and scaled deck already on the bill there is not, which is why the cards flickered from
+   the step that opens a day onward and not before it. Off for the tour too. */
 .card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after,
 body.tut .card-day::after,body.tut .card.today::before{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
-body.booting .card-day,body.tut .card-day{animation:none;}
+body.booting .card-day,body.tut .card-day,body.tut .srow.ispr .inp{animation:none;}
 /* the mark keeps the same breath as the runes */
 .mark{animation:markbreath 6.4s ease-in-out infinite;}
 @keyframes markbreath{
@@ -2469,7 +2489,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.8';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6681,6 +6701,7 @@ function tutEnd(){
   if(!TUTON)return;
   TUTON=false;
   document.body.classList.remove('tut');
+  tutShift(null);   // put back any sheet the tour pushed down
   clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
@@ -6826,12 +6847,25 @@ function tutTop(card,v){
   if(card._t===v)return;
   card._t=v;card.style.top=v;
 }
+// Steps that pin their card to the top are explaining a sheet that also starts at the top, so
+// the card came down on the very thing it was pointing at. The sheet is given a top padding
+// the height of the card instead, which moves it clear without moving it off screen. Only one
+// overlay is ever shifted, so the last one is put back before the next is touched.
+var TUTSHIFT=null;
+function tutShift(ov,px){
+  if(TUTSHIFT&&TUTSHIFT!==ov){TUTSHIFT.style.paddingTop='';}
+  TUTSHIFT=ov;
+  if(ov&&ov.style.paddingTop!==px)ov.style.paddingTop=px;
+}
 function tutPlace(){
   var st=TUT_STEPS[TUTI],hole=document.getElementById('tutHole'),card=document.getElementById('tutCard');
   var ping=document.getElementById('tutPing');
-  if(st.hide&&st.hide()){hole.classList.remove('on');ping.classList.remove('on');card.style.opacity='0';return;}
+  if(st.hide&&st.hide()){hole.classList.remove('on');ping.classList.remove('on');card.style.opacity='0';tutShift(null);return;}
   card.style.opacity='';
   var el=tutEls(st.sel)[0],ch=card.offsetHeight,vh=window.innerHeight;
+  // Before anything is measured: a sheet that has to move must move first, or the spotlight
+  // is cut around where it used to be and the hole sits above the sheet by the same gap.
+  tutShift(st.top&&st.ovl?document.getElementById(st.ovl):null,(ch+26)+'px');
   var pel=tutEls(st.ping)[0];
   if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
   if(!el||!el.offsetHeight){
