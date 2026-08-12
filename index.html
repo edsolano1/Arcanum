@@ -1123,6 +1123,20 @@ body.diagfps #fpsBadge{display:block;}
      tall that line falls a thousand pixels clear of them and the mask hides nothing. Off
      here, kept on phones where it still does its job. */
   .bg-ripple{-webkit-mask-image:none;mask-image:none;}
+  /* Same fault as the rings, on the ground Obsidian alone draws: the orrery's mask sits on
+     .bg-rules while the spoked disc turns inside it, so the masked buffer is re-rastered
+     every frame at full viewport. Unlike the rings this mask is doing real work - it fades
+     the rules out before they reach the edges - so it cannot simply come off.
+     It doesn't have to. The layer is the first child of #bg and body is a flat var(--bg),
+     so there is nothing between the rules and that colour: masking them to transparent and
+     painting var(--bg) over them at the inverse alpha land on the same pixel. The fade moves
+     from a mask on the parent to a still gradient drawn above the disc - identical output,
+     no render surface, nothing to re-raster when the disc moves.
+     Obsidian only: the other three grounds already drop this mask and hide the disc. */
+  body:not(.light):not(.forge):not(.moon) .bg-rules{-webkit-mask-image:none;mask-image:none;}
+  body:not(.light):not(.forge):not(.moon) .bg-rules::after{content:'';position:absolute;inset:0;
+    pointer-events:none;
+    background:radial-gradient(125% 88% at 50% 10%,transparent 26%,var(--bg) 76%);}
   .bg-grain{mix-blend-mode:normal;opacity:.035;}
   /* A backdrop filter has to read back everything painted under it. Over a folded-open
      panel that is four times the pixels, sampled behind a scrim that already sits over
@@ -1132,6 +1146,20 @@ body.diagfps #fpsBadge{display:block;}
   .ovl{backdrop-filter:none;background:rgba(6,7,9,.86);}
   body.light .ovl{backdrop-filter:none;background:rgba(20,24,30,.62);}
   .s-head{backdrop-filter:none;}
+}
+/* The watermark is the third box built this way and the only one on every theme: a mask on
+   .bg-wm, the mark turning inside it. Slow travel is not cheap travel - the buffer is redrawn
+   every frame whether the mark moved a degree or a hundredth of one, so this costs a full
+   viewport re-raster per frame on all four grounds, which is the shape to suspect when the
+   flicker follows no single theme.
+   Here the mask really does hide nothing, and the arithmetic says exactly when. It is opaque
+   out to 62% of half the shorter side of the viewport; the mark stops at about 96% of half
+   its own width, and its width is capped at 430px. Past a shorter side of 664px the opaque
+   radius has cleared the mark entirely and the gradient is falling on empty space. Both axes
+   are tested because closest-side measures the shorter one - a wide, short window still wants
+   the mask. Unfolded, either orientation clears the bar; every phone keeps it. */
+@media(min-width:664px) and (min-height:664px){
+  .bg-wm{-webkit-mask-image:none;mask-image:none;}
 }
 /* sigil glow: day labels and inscribed values are lit, not just tinted.
    The light is never held still - a rune that doesn't breathe reads as printed ink.
@@ -2441,7 +2469,7 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v20.6';   // bump on every deploy - shown on the home screen so you can confirm what is live
+var APPV='v20.7';   // bump on every deploy - shown on the home screen so you can confirm what is live
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
