@@ -2500,7 +2500,12 @@ function drawThemePick(){
     '<span style="width:18px;height:18px;flex-shrink:0;display:block">'+themeIcon(c)+'</span>'+n+
     '<span style="margin-left:auto;font-size:10px;letter-spacing:.12em">CHANGE</span></div>';
 }
-var APPV='v21.2';   // bump on every deploy - shown on the home screen so you can confirm what is live
+// A label, nothing more - the footer is the only thing that reads it, so it may say whatever
+// the release should be called and may go backwards. CACHE in sw.js is the separate thing and
+// the one that matters: it is what makes a device drop the build it is holding, so it only
+// ever moves forward and is never renumbered to match this. They are not the same count and
+// are not meant to be - v3.0 ships on arcanum-v131.
+var APPV='v3.0';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
