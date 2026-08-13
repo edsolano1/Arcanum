@@ -52,6 +52,15 @@ input,button,textarea{font-family:inherit;}
    whatever button arrived there - CANCEL - and paints it highlighted. Nothing in the app is
    prose worth selecting except what you type, so selection is off everywhere but the fields. */
 html{-webkit-tap-highlight-color:transparent;}
+/* Chrome reloads a page dragged down from the top, and a reload here is not a refresh - it is
+   the splash, the boot, and the day you were halfway through re-read from storage. Scrolling
+   up a list of what is coming next is exactly the gesture that triggers it, which is no way to
+   lose your place mid-workout. The pull is off at the root; the inner scrollers are contained
+   so reaching the top of a day or a sheet cannot hand the gesture back up to the page either.
+   Nothing is lost by it - the worker serves documents network-first, so relaunching the app
+   still picks up a new build. */
+html,body{overscroll-behavior-y:none;}
+#session,#make,.ovl,.lvl-list,.swaplist,.prog-wrap,.hscroll{overscroll-behavior-y:contain;}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
@@ -601,7 +610,6 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .ed-big{display:block;width:100%;box-sizing:border-box;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:54px;font-weight:500;color:var(--txt);line-height:1.1;margin-top:14px;letter-spacing:-.04em;text-align:center;background:transparent;border:none;border-bottom:2px dotted var(--line);padding:0 0 4px;border-radius:0;-webkit-appearance:none;}
 .ed-big:focus{outline:none;border-bottom-color:var(--go);}
 .ed-unit{font-size:12px;color:var(--txt3);margin-bottom:18px;}
-.ed-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .prog-key{display:flex;gap:14px;justify-content:center;font-size:10.5px;color:var(--txt3);margin:10px 0 4px;}
 .prog-key b{font-size:9px;}
 .prog-wrap{max-height:58vh;overflow-y:auto;text-align:left;margin-top:6px;}
@@ -612,9 +620,6 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .pg-d{font-family:var(--mono);font-size:11px;font-weight:600;white-space:nowrap;min-width:52px;text-align:right;}
 .up{color:var(--go);} .dn{color:#ff5d6c;} .fl{color:var(--txt3);}
 .pg-empty{font-size:12px;color:var(--txt3);padding:18px 4px;text-align:center;}
-.edbtn{padding:15px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
-.edbtn.minus:hover{border-color:#ff5d6c;color:#ff5d6c;}
-.edbtn.plus:hover{border-color:var(--go);color:var(--go);}
 .ed-input{width:100%;margin-top:10px;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:15px;text-align:center;}
 .ed-input:focus{outline:none;border-color:#3d434a;}
 .ed-hint{font-size:12px;color:var(--txt3);margin-top:11px;}
@@ -1697,7 +1702,6 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="ed-set" id="edSet"></div>
     <input class="ed-big" id="edBig" inputmode="decimal" enterkeyhint="done">
     <div class="ed-unit" id="edUnit"></div>
-    <div class="ed-steps" id="edSteps"></div>
     <div class="ed-hint" id="edHint"></div>
     <div class="sheet-btns">
       <div class="btn" onclick="closeOvl('editOvl')">CANCEL</div>
@@ -1826,8 +1830,9 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="presets">
       <button class="preset sm" onclick="sfxLog()">Set logged</button>
       <button class="preset sm" onclick="sfxPR()">Record</button>
-      <button class="preset sm" onclick="sfxRest()">Rest over</button>
+      <button class="preset sm" onclick="sfxRestTest()">Rest over</button>
     </div>
+    <div class="footnote" style="margin:6px 2px 0" id="audioDiag"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="presets" id="alertLvl" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="sfx-lbl"><span>Ambient motion</span></div>
@@ -2505,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.0';
+var APPV='v3.2';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3436,16 +3441,13 @@ function renderSession(){
   updateProg();
 }
 var edCtx=null;
-/* ===== EQUIPMENT =====
-   Same clean picker everywhere. Only the step sizes change, so cable
-   exercises offer jumps the stack can actually make. */
-var CABLE_EX={rope:1,vbar:1,ohext:1,cbcurl:1,facepull:1,clat:1,p_rope:1,p_curl:1};
-var XOVER_EX={xover:1,p_xover:1};
-function stepsFor(id){
-  /* Only the jumps the machine can actually make in one notch. */
-  if(CABLE_EX[id])return [5,7.5];
-  if(XOVER_EX[id])return [3,4];
-  return [2.5,5,10];
+/* The +/- steppers are gone. They were six taps to cross a plate change and never matched
+   the number you had in your head, so the field is typed directly instead. It is the only
+   control on the sheet now, which is why the pad matters: decimal for weight, where half a
+   plate is 2.5, and plain digits for reps and seconds, which are never fractional. */
+function edPad(){
+  var e=document.getElementById('edBig');
+  if(e)e.setAttribute('inputmode',(edCtx&&edCtx.which==='w')?'decimal':'numeric');
 }
 function openEdit(id,i,which){
   initAudio();
@@ -3459,12 +3461,7 @@ function openEdit(id,i,which){
   document.getElementById('edEx').textContent=r.name;
   document.getElementById('edSet').textContent='Set '+(i+1)+' \u00b7 '+(which==='w'?'Weight':(isSec?'Seconds':'Reps'));
   document.getElementById('edUnit').textContent=which==='w'?'lbs':(isSec?'seconds':'reps');
-  var steps=which==='w'?stepsFor(id):(isSec?[5,10,15]:[1,2,5]);
-  var st=document.getElementById('edSteps');
-  st.style.gridTemplateColumns='repeat('+steps.length+',1fr)';
-  st.innerHTML=
-    steps.map(function(v){return '<button class="edbtn plus" onclick="edStep('+v+')">+'+v+'</button>';}).join('')+
-    steps.map(function(v){return '<button class="edbtn minus" onclick="edStep(-'+v+')">&minus;'+v+'</button>';}).join('');
+  edPad();
   var tgt=(r.sets.split('\n')[i]||'').trim();
   document.getElementById('edHint').textContent='Target for this set: '+tgt;
   edShow();
@@ -3472,10 +3469,6 @@ function openEdit(id,i,which){
 }
 function edShow(){document.getElementById('edBig').value=(Math.round(edCtx.val*100)/100);}
 function edRead(){var v=parseFloat(document.getElementById('edBig').value);return isNaN(v)?edCtx.val:Math.max(0,v);}
-function edStep(d){
-  edCtx.val=Math.max(0,edRead()+d);
-  edShow();sfxTick(d>0);
-}
 document.addEventListener('keydown',function(e){
   if(e.key!=='Enter')return;
   if(!document.getElementById('editOvl').classList.contains('on'))return;
@@ -4769,6 +4762,19 @@ function loadBell(){
   }catch(e){}
 }
 var actx=null,mbus=null,nbuf=null,rsend=null,abus=null,BUS=null,fbuf=null,fsend=null;
+// What happens to Spotify is decided by the page's audio SESSION, not by what the page plays.
+// Left alone Android gives a page a playback session the moment it makes a sound, and a
+// playback session interrupts whatever else is going - which is why a set logging or a rest
+// ending paused the music instead of dipping it, and why the silent keep-alive, playing for
+// the whole two minutes of a rest, held it down the entire time.
+//   ambient   - mixes, interrupts nothing. Everything the app plays wants this.
+//   transient - dips the other audio for as long as this sounds. Only the rest alert wants it,
+//               and only for the couple of seconds it is actually sounding.
+// The API is young, so every call is guarded: where it is missing this does nothing at all and
+// the behaviour is exactly what it is today.
+function audioMode(m){
+  try{if(navigator.audioSession)navigator.audioSession.type=m;}catch(e){}
+}
 function FG(){return curTheme()==='forge';}
 function MW(){return curTheme()==='moon';}
 function LT(){return curTheme()==='light';}
@@ -4843,6 +4849,28 @@ function fpsStart(){
     fpsRAF=requestAnimationFrame(loop);
   });
 }
+// Whether the app can mix with your music instead of stopping it rests entirely on one API
+// that may or may not be on this phone, and none of it can be told apart from a desk. So the
+// device reports it: if this says the session is missing, every audio-session change in the
+// build is a no-op and the music behaviour is whatever Chrome does on its own - which is worth
+// knowing before reading anything into a test. Diagnostic, and goes when the flicker panel does.
+// The sound check played the alert straight, which left it on the ambient session the rest of
+// the app mixes on - so it could never dip the music and the check would have read as broken
+// when it was not. It takes the transient session the real alert takes, holds it for as long
+// as the phrase runs, and hands it back, so what you hear against music is what a real rest
+// ending sounds like. The readout is redrawn either side so the session can be watched moving.
+function sfxRestTest(){
+  audioMode('transient');drawAudioDiag();
+  try{sfxRest();}catch(e){}
+  setTimeout(function(){audioMode('ambient');drawAudioDiag();},2600);
+}
+function drawAudioDiag(){
+  var e=document.getElementById('audioDiag');if(!e)return;
+  var has=false,type='-';
+  try{if(navigator.audioSession){has=true;type=navigator.audioSession.type||'(unset)';}}catch(x){}
+  e.textContent='Audio session: '+(has?'supported, now "'+type+'"':'NOT SUPPORTED - mixing cannot be asked for')+
+    ' - context '+(actx?actx.state:'not started');
+}
 function drawAlertLvl(){
   var e=document.getElementById('alertLvl');if(!e)return;
   e.innerHTML=['Low','Normal','High','Mute'].map(function(l,i){
@@ -4853,6 +4881,9 @@ function initAudio(){
   try{
     if(!actx){
       var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+      // Claimed before the context exists, so the first sound the app makes already mixes
+      // rather than taking the music over. Only the alert ever moves off this.
+      audioMode('ambient');
       actx=new AC();
       var comp=actx.createDynamicsCompressor();
       comp.threshold.value=-9;comp.knee.value=6;comp.ratio.value=6;comp.attack.value=0.003;comp.release.value=0.14;
@@ -5210,6 +5241,10 @@ function keepAwake(on){
         kaEl.loop=true;kaEl.volume=0.02;
         kaEl.setAttribute('playsinline','');
       }
+      // The keep-alive is what held the music down for the whole rest. It still plays for the
+      // whole rest - that is the only thing keeping the tab off Android's freezer - but on an
+      // ambient session, where playing costs the music nothing.
+      audioMode('ambient');
       var p=kaEl.play();
       if(p&&p['catch'])p['catch'](function(){});
     }else if(kaEl){
@@ -5314,6 +5349,9 @@ var restRep=null;
 function restAlert(){
   stopRestAlert();
   if(TUTON)return;   // the tour starts a real rest so you can watch it; it must not fire
+  // The one moment the app is allowed to reach into the music, and only for as long as it
+  // sounds. Handed back the moment the phrase is done, or the moment the alert is dismissed.
+  audioMode('transient');
   // Hidden, or the context went to sleep anyway: the element is the only path that fires.
   var bg=(document.visibilityState!=='visible')||(actx&&actx.state!=='running');
   var used=false;
@@ -5329,9 +5367,11 @@ function restAlert(){
     if(FG()&&!used)try{sfxRest();}catch(e){}
     else if(FG()&&used)playAlertElement();
     restRep=null;
+    setTimeout(function(){if(!restRep)audioMode('ambient');},2600);   // the music comes back up
   },gap);
 }
 function stopRestAlert(){
+  audioMode('ambient');
   if(restRep){clearTimeout(restRep);restRep=null;}
   stopRestSrcs();
   if(elAlertT){clearTimeout(elAlertT);elAlertT=null;}
@@ -6186,7 +6226,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();
+  drawSfxTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();drawAudioDiag();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
@@ -6411,9 +6451,36 @@ function exAddWrite(id,keep){
 var DRAG=null;
 function blkBind(){
   [].forEach.call(document.querySelectorAll('#sBody .exdrag'),function(hd){
+    // A drag used to begin on touch-down, so brushing the handle on the way past moved the
+    // exercise. It waits for a held press now - the same 520ms and 8px the rest of the app
+    // uses to tell a press from a tap. The handle keeps touch-action:none, so it still does
+    // not scroll; what changes is that a brush no longer counts as a grab.
     hd.addEventListener('pointerdown',function(ev){
       var el=hd.closest('.blk');if(!el)return;
       ev.preventDefault();ev.stopPropagation();
+      var sx=ev.clientX,sy=ev.clientY;
+      clearTimeout(hd._dt);
+      var cancel=function(){clearTimeout(hd._dt);hd._dt=null;off();};
+      var moved=function(m){if(Math.abs(m.clientX-sx)>8||Math.abs(m.clientY-sy)>8)cancel();};
+      var off=function(){
+        document.removeEventListener('pointermove',moved);
+        document.removeEventListener('pointerup',cancel);
+        document.removeEventListener('pointercancel',cancel);
+      };
+      document.addEventListener('pointermove',moved);
+      document.addEventListener('pointerup',cancel);
+      document.addEventListener('pointercancel',cancel);
+      hd._dt=setTimeout(function(){
+        hd._dt=null;off();
+        blkStart(el,sy);
+      },520);
+    });
+  });
+}
+// Everything below here ran inline on pointerdown before the press was required. It is
+// unchanged except that it is handed the position the finger has been holding, since the
+// event that started it is long gone by the time this runs.
+function blkStart(el,sy){
       var sb=document.getElementById('sBody'),sc0=document.getElementById('session');
       // Collapse first, then measure: the rects have to describe the compact list the
       // drag actually happens in. Scroll is corrected by however far the held block
@@ -6432,7 +6499,7 @@ function blkBind(){
       var i=blks.indexOf(el),gap=14;
       if(blks.length>1)gap=Math.max(4,Math.round(rects[1].top-rects[0].bottom));
       var sc=document.getElementById('session');
-      DRAG={el:el,i:i,to:i,y0:ev.clientY,cy:ev.clientY,blks:blks,rects:rects,
+      DRAG={el:el,i:i,to:i,y0:sy,cy:sy,blks:blks,rects:rects,
             h:rects[i].height+gap,top:rects[i].top,off:off,off0:off,t0:(window.performance?performance.now():Date.now()),sc:sc,sc0:sc?sc.scrollTop:0,raf:0};
       blkApply();
       DRAG.raf=requestAnimationFrame(blkAuto);
@@ -6441,8 +6508,6 @@ function blkBind(){
       document.addEventListener('pointermove',blkMove);
       document.addEventListener('pointerup',blkEnd);
       document.addEventListener('pointercancel',blkEnd);
-    });
-  });
 }
 // One place computes the layout, so the auto-scroll loop and the pointer agree. Cached
 // rects are in the coordinates of drag-start, so every read is corrected by how far the
@@ -6630,7 +6695,7 @@ function TUTC(){
       {t:'Your week',b:'Seven slots, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
       {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
       {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
@@ -6644,7 +6709,7 @@ function TUTC(){
       {t:'The week\u2019s work',b:'Seven slots, Sunday to Saturday, set out in the order they come to the fire. Look them over \u2014 then tap NEXT and we will open one together.'},
       {t:'Take a piece off the rack',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-      {t:'Set the number',b:'The steppers move in the jumps the iron can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Set the number',b:'Tap the number and strike it straight in. Raise it to 150 or more, then tap DONE.'},
       {t:'Strike it',b:'Tap the sigil at the end of the row. The set lands the instant you tap it, and the cooling timer starts on its own.'},
       {t:'The cooling timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
@@ -6658,7 +6723,7 @@ function TUTC(){
       {t:'Your week',b:'Seven nights, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a night',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
       {t:'Mark it',b:'Tap the sigil at the end of the row. The set is kept the instant you touch it, and the rest begins on its own.'},
       {t:'The rest',b:'It begins when a set is kept.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen dark</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
@@ -6672,7 +6737,7 @@ function TUTC(){
       {t:'Your week',b:'Seven days, Sunday to Saturday, laid out as they come round. Have a look at all of them \u2014 then tap NEXT and we will open one together.'},
       {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-      {t:'Set the number',b:'The steppers move in the jumps the equipment can actually make. Raise it to 150 or more, then tap DONE.'},
+      {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
       {t:'Mark it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
       {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
