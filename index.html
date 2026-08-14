@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.7';
+var APPV='v3.8';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5682,15 +5682,18 @@ var NOTIF_ON=(function(){try{return localStorage.getItem('arc_notif')==='0'?0:1;
 // Default on, but pushNotif also demands granted permission, so it stays inert until asked for.
 function notifBlocked(){return notifOk()&&Notification.permission==='denied';}
 function toggleNotif(){
-  // Turning it on without permission has to ask for it, and the ask only works from a tap.
-  if(!NOTIF_ON&&notifOk()&&Notification.permission==='default'){
+  // Ask whenever Android has never been asked, whatever the stored preference says. This used
+  // to be gated behind the switch being OFF - and since it defaults to ON, the ask never
+  // happened: the switch read ON, permission stayed ungranted, and every notice was dropped
+  // without a sound or a sign. The prompt only works inside a tap, so here is the only place.
+  if(notifOk()&&Notification.permission==='default'){
     try{
       var r=Notification.requestPermission(function(p){notifSet(p==='granted');});
       if(r&&r.then)r.then(function(p){notifSet(p==='granted');});
     }catch(e){notifSet(false);}
     return;
   }
-  notifSet(!NOTIF_ON);
+  notifSet(!notifLive());
 }
 function notifSet(on){
   NOTIF_ON=on?1:0;
@@ -5698,11 +5701,13 @@ function notifSet(on){
   if(!NOTIF_ON)clearRestNotif();
   drawNotifTog();
 }
+// Shows the state that actually decides whether a notice fires, not the stored wish. A switch
+// reading ON while Android has granted nothing is exactly what wasted a test.
 function drawNotifTog(){
   var e=document.getElementById('notifTog');if(!e)return;
-  var b=notifBlocked();
-  e.textContent=b?'BLOCKED':(NOTIF_ON?'ON':'OFF');
-  e.className='sfx-tog'+(NOTIF_ON&&!b?' on':'');
+  var b=notifBlocked(),live=notifLive();
+  e.textContent=b?'BLOCKED':(live?'ON':'OFF');
+  e.className='sfx-tog'+(live?' on':'');
 }
 var notifT=null;
 function notifOk(){return typeof Notification!=='undefined';}
