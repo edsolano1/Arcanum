@@ -1832,8 +1832,8 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     </div>
     <div class="sfx-lbl"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
     <div class="footnote" style="margin:0 2px 8px">The reliable way to be told a rest is over when you are in another app. Android sounds it, not Arcanum, so it plays whether or not this tab is allowed to make a noise - and it dips your music for a second or two rather than the whole rest. Shows the countdown in the shade while it runs.</div>
-    <div class="sfx-lbl"><span>Keep the app awake</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
-    <div class="footnote" style="margin:0 2px 8px">Holds a silent sound so Android does not suspend the app mid-rest and lose the moment the notice is due. It is also what dims your music for the length of the rest. Off leaves the music alone; the notice may then arrive late, or only when you next open the app.</div>
+    <div class="sfx-lbl"><span>Alert sound in other apps</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
+    <div class="footnote" style="margin:0 2px 8px">On, the alert sounds even while you are in Spotify or a game - but Arcanum has to hold the speaker for the whole rest to do it, so your music plays quieter until the set is over. Off leaves your music completely alone, and the rest notification buzzes instead of sounding. Android gives no way to have both.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.5';
+var APPV='v4.6';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5348,7 +5348,14 @@ function alertPreRoll(){
   if(!a)return;
   preRolling=true;
   try{
-    a.loop=true;a.muted=true;a.volume=alertLoudness();a.currentTime=0;
+    // KEEP_ON is the whole trade, and it cannot be split. Audible - even at a volume nobody can
+    // hear - is real playback: Chrome keeps it running behind a game and it can be turned up at
+    // the end, but Android gives it the speaker and dips your music the entire time. Muted is
+    // not real playback: nothing is dipped, and nothing survives to be turned up either.
+    // The switch picks one. It cannot deliver both on a phone with no audio session.
+    a.loop=true;a.currentTime=0;
+    a.muted=!KEEP_ON;
+    a.volume=KEEP_ON?0.0001:alertLoudness();
     var p=a.play();
     if(p&&p['catch'])p['catch'](function(){preRolling=false;});
   }catch(e){preRolling=false;}
@@ -5356,10 +5363,14 @@ function alertPreRoll(){
 // loop lives on the element, not on the flag, so it is cleared unconditionally. Leaving a stale
 // loop:true behind is what made an ordinary alert ring over and over: the next play inherited it
 // and there was nothing left to turn it off.
+// Pause BEFORE unmuting, always. Clearing muted on an element that is still playing makes it
+// audible output for that instant, and Android answers by handing it the speaker and stopping
+// whatever else was using it - which is why marking a set, unmarking it and marking it again
+// killed the music outright rather than dipping it.
 function stopPreRoll(){
   preRolling=false;
   if(leadT){clearTimeout(leadT);leadT=null;}
-  try{var a=elAlert;if(a){a.loop=false;a.muted=false;a.pause();a.currentTime=0;}}catch(e){}
+  try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;a.muted=false;}}catch(e){}
 }
 var alertArmed=false;
 function armAlert(){
@@ -5393,7 +5404,7 @@ function alertElement(){
     // only comes back up once the element has actually stopped. It is paused the moment it ends.
     elAlert.addEventListener('ended',function(){
       preRolling=false;
-      try{elAlert.loop=false;elAlert.muted=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
+      try{elAlert.loop=false;elAlert.pause();elAlert.currentTime=0;elAlert.muted=false;}catch(e){}
     });
   }
   if(elAlertSrc!==want){elAlert.src=want;elAlertSrc=want;}
