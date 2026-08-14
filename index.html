@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.8';
+var APPV='v3.9';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5738,15 +5738,20 @@ function pushNotif(title,body,extra){
     }catch(e){}
   });
 }
-function clearRestNotif(){
-  if(notifT){clearInterval(notifT);notifT=null;}
+function clearNotifTag(tag){
   notifReg().then(function(reg){
     try{
-      if(reg&&reg.getNotifications)reg.getNotifications({tag:'arcanum-rest'}).then(function(ns){
+      if(reg&&reg.getNotifications)reg.getNotifications({tag:tag}).then(function(ns){
         ns.forEach(function(n){n.close();});
       }).catch(function(){});
     }catch(e){}
   });
+}
+// Takes down the countdown only. The finish notice lives under its own tag and is left alone,
+// or stopping the timer would pull the very thing that just told you it had stopped.
+function clearRestNotif(){
+  if(notifT){clearInterval(notifT);notifT=null;}
+  clearNotifTag('arcanum-rest');
 }
 // A notification cannot hold a real progress bar, so the bar is drawn in text. Block
 // characters render at the same width in every Android notification font, which is the
@@ -5792,9 +5797,18 @@ try{
 // phrase, sounding when it is not and this is the only thing that can be heard.
 function restDoneNotif(loud){
   if(notifT){clearInterval(notifT);notifT=null;}
-  // an ordinary notification chime, not a system alarm: nothing to dismiss, clears itself
-  pushNotif(TXT('restTtl'),TXT('restBody'),{silent:!loud,renotify:true,vibrate:loud?[180,90,180]:[]});
-  setTimeout(clearRestNotif,14000);
+  // The countdown has been replacing itself under one tag once a second for the whole rest.
+  // Posting the finish under that SAME tag makes it the next of those replacements, and Android
+  // does not re-alert for an update to a notification already showing - which is why the notice
+  // arrived on time and in silence. It goes up as its own notification under its own tag, and
+  // the countdown is taken down first so the two are never in the shade together.
+  clearRestNotif();
+  pushNotif(TXT('restTtl'),TXT('restBody'),{
+    tag:'arcanum-done',silent:!loud,renotify:true,
+    requireInteraction:!!loud,          // stays put until dismissed, rather than vanishing unseen
+    vibrate:loud?[180,90,180]:[]
+  });
+  setTimeout(function(){clearNotifTag('arcanum-done');},14000);
 }
 function toggleSfx(){
   SFX_ON=SFX_ON?0:1;
