@@ -1832,8 +1832,6 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     </div>
     <div class="sfx-lbl"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
     <div class="footnote" style="margin:0 2px 8px">The reliable way to be told a rest is over when you are in another app. Android sounds it, not Arcanum, so it plays whether or not this tab is allowed to make a noise - and it dips your music for a second or two rather than the whole rest. Shows the countdown in the shade while it runs.</div>
-    <div class="sfx-lbl"><span>Alert sound in other apps</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
-    <div class="footnote" style="margin:0 2px 8px">On, the alert sounds even while you are in Spotify or a game - but Arcanum has to hold the speaker for the whole rest to do it, so your music plays quieter until the set is over. Off leaves your music completely alone, and the rest notification buzzes instead of sounding. Android gives no way to have both.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2514,7 +2512,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.7';
+var APPV='v4.8';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4846,22 +4844,6 @@ function setAlertLvl(n,quiet){
 // the page is hidden. Testing the wrong one of the two is how "it didn't dip at all" got read
 // as a pass. This plays the element directly so the fault can be heard without backgrounding
 // the app and waiting out a rest.
-// The keep-alive is the whole of the two-minute dip, and also the only reason the alert fires
-// with the app closed. Nothing can separate them on a phone without an audio session, so the
-// trade is handed over rather than guessed at.
-var KEEP_ON=(function(){try{return localStorage.getItem('arc_keep')==='0'?0:1;}catch(e){return 1;}})();
-function toggleKeep(){
-  KEEP_ON=KEEP_ON?0:1;
-  try{localStorage.setItem('arc_keep',KEEP_ON);}catch(e){}
-  if(!KEEP_ON)keepAwake(false);          // let go of the music straight away, not at the bell
-  drawKeepTog();
-}
-function drawKeepTog(){
-  var e=document.getElementById('keepTog');
-  if(!e)return;
-  e.textContent=KEEP_ON?'ON':'OFF';
-  e.className='sfx-tog'+(KEEP_ON?' on':'');
-}
 function sfxRestTest(){
   audioMode('transient');
   try{sfxRest();}catch(e){}
@@ -5217,58 +5199,10 @@ function sfxRest(){
   }
   sfx(function(t){var prev=BUS;BUS=abus||mbus;try{bell(t,252,0.34);}finally{BUS=prev;}});
 }
-// ---------- keeping the page awake through a rest ----------
-// A backgrounded tab gets its timers throttled and, on Android, frozen outright; the
-// AudioContext is suspended with it. That is why the alert arrived only when the app
-// came back into focus - the cue had been sitting in a suspended context the whole time.
-// A page that is PLAYING AUDIO is exempt from both. So a silent loop runs for exactly as
-// long as a rest timer is running: it costs nothing audible, and it keeps the clock and
-// the alert alive behind a game or Spotify.
-var kaEl=null;
-function silentWavURL(){
-  var sr=8000,n=sr/2,b=new Uint8Array(44+n),v=new DataView(b.buffer);
-  function s(o,t){for(var i=0;i<t.length;i++)b[o+i]=t.charCodeAt(i);}
-  s(0,'RIFF');v.setUint32(4,36+n,true);s(8,'WAVEfmt ');
-  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
-  v.setUint32(24,sr,true);v.setUint32(28,sr,true);v.setUint16(32,1,true);v.setUint16(34,8,true);
-  s(36,'data');v.setUint32(40,n,true);
-  for(var i=0;i<n;i++)b[44+i]=128;                 // 8-bit silence sits at mid-scale
-  return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
-}
-function keepAwake(on){
-  try{
-    if(on){
-      if(!KEEP_ON)return;               // the music is being left alone; the alert takes its chances
-      if(!kaEl){
-        kaEl=new Audio(silentWavURL());
-        kaEl.loop=true;kaEl.volume=0.02;
-        kaEl.setAttribute('playsinline','');
-      }
-      // This is what holds the music down for the whole rest, and asking for an ambient session
-      // does not help: the Fold has no navigator.audioSession, so that request is a no-op there.
-      // It plays for the whole rest because that is the only thing keeping the tab off Android's
-      // freezer, and on that phone there is no way to have both. Hence the switch above it.
-      audioMode('ambient');
-      // Playing anything puts a media notice in the shade, and with nothing declared Android
-      // fills it in with Chrome's own name and icon - which is why a rest looked like the
-      // browser had started playing something. Naming it makes the notice read as the app.
-      try{
-        if(navigator.mediaSession&&window.MediaMetadata){
-          navigator.mediaSession.metadata=new MediaMetadata({
-            title:'Rest timer',artist:APPNAME(),
-            artwork:[{src:'icons/arcanum-192.png',sizes:'192x192',type:'image/png'},
-                     {src:'icons/arcanum-512.png',sizes:'512x512',type:'image/png'}]
-          });
-        }
-      }catch(e){}
-      var p=kaEl.play();
-      if(p&&p['catch'])p['catch'](function(){});
-    }else if(kaEl){
-      kaEl.pause();
-      try{kaEl.currentTime=0;}catch(e){}
-    }
-  }catch(e){}
-}
+// The page used to hold a silent <audio> loop open for the whole rest to stay unfrozen, and
+// that loop was what dimmed your music from the first set to the last. It is gone: the alert
+// element is itself continuously playing media for the length of the rest, which is the same
+// signal to Chrome, and because it is MUTED it never enters the contest for the speaker.
 
 // ---------- the alert, for when the app is not on screen ----------
 // WebAudio is the better instrument but it is the first thing suspended. An <audio>
@@ -5365,23 +5299,7 @@ function drawRestLog(){
   var e=document.getElementById('restLog');if(!e)return;
   e.textContent=RLOG.length?RLOG.join('\n'):'Nothing recorded yet. Run one rest, then reopen this.';
 }
-var preRolling=false,LEAD_MS=15000,leadT=null;
-function alertLead(){
-  if(!preRolling){rlog('lead-in SKIPPED, not rolling');return;}
-  var a=elAlert;if(!a)return;
-  try{
-    rlog('lead-in before '+elState(a)+' vis='+document.visibilityState);
-    a.muted=false;a.volume=0.0001;
-    // If Chrome dropped it while it was muted, this is the last chance to get it running again
-    // while there is still time in hand.
-    if(a.paused){
-      var p=a.play();
-      rlog('lead-in was PAUSED, retrying play');
-      if(p&&p.then)p.then(function(){rlog('lead-in replay OK '+elState(a));})
-        ['catch'](function(err){rlog('lead-in replay REFUSED '+(err&&err.name||err));});
-    }else rlog('lead-in still live '+elState(a));
-  }catch(e){rlog('lead-in THREW '+(e&&e.name));}
-}
+var preRolling=false;
 // Started by the tap that begins the rest, which is the only moment Chrome is certain to allow
 // it. Nine seconds out was still a play() from a hidden page, which is the exact thing that gets
 // refused - the window had moved but not out of the way.
@@ -5397,16 +5315,19 @@ function alertPreRoll(){
   if(!a){rlog('preroll NO ELEMENT for theme '+curTheme());return;}
   preRolling=true;
   try{
-    // KEEP_ON is the whole trade, and it cannot be split. Audible - even at a volume nobody can
-    // hear - is real playback: Chrome keeps it running behind a game and it can be turned up at
-    // the end, but Android gives it the speaker and dips your music the entire time. Muted is
-    // not real playback: nothing is dipped, and nothing survives to be turned up either.
-    // The switch picks one. It cannot deliver both on a phone with no audio session.
+    // Muted for the whole rest, and the log is what settled it. An AUDIBLE element - even at a
+    // volume nobody can hear - is in the fight for the speaker, so the moment Spotify or a game
+    // asks for it Android takes it away and Chrome pauses us: paused=true fifteen seconds in.
+    // A muted element is not in that fight. It was still running at fifteen and at thirty, and
+    // it never touched the music, because there is nothing to duck.
+    // So it stays muted right up to the end, and the alert is a change of one property on
+    // something that has been playing all along - which needs no permission and takes the
+    // speaker only for the seconds the bell is actually ringing.
     a.loop=true;a.currentTime=0;
-    a.muted=!KEEP_ON;
-    a.volume=KEEP_ON?0.0001:alertLoudness();
+    a.muted=true;
+    a.volume=alertLoudness();
     var p=a.play();
-    rlog('preroll start keepOn='+KEEP_ON+' '+elState(a));
+    rlog('preroll start '+elState(a));
     if(p&&p.then)p.then(function(){rlog('preroll PLAYING '+elState(a));})
       ['catch'](function(err){preRolling=false;rlog('preroll REFUSED '+(err&&err.name||err));});
   }catch(e){preRolling=false;rlog('preroll THREW '+(e&&e.name));}
@@ -5420,7 +5341,6 @@ function alertPreRoll(){
 // killed the music outright rather than dipping it.
 function stopPreRoll(){
   preRolling=false;
-  if(leadT){clearTimeout(leadT);leadT=null;}
   try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;a.muted=false;}}catch(e){}
 }
 var alertArmed=false;
@@ -5483,7 +5403,6 @@ function playAlertElement(){
     // refuse - which is the whole point of having started it back when the page was in front.
     if(preRolling){
       preRolling=false;
-      if(leadT){clearTimeout(leadT);leadT=null;}
       rlog('ZERO via preroll, before: '+elState(a));
       a.loop=false;a.muted=false;a.volume=alertLoudness();a.currentTime=0;
       // It has been running audibly since the lead-in, so this is normally just a volume change.
@@ -6314,15 +6233,12 @@ function startTimer(secs){
   restStartedAt=Date.now();
   skipQuiet=false;
   var span=secs*1000;
-  keepAwake(true);
   // Right here, inside the tap that logged the set. Any later and the page may already be behind
   // a game, where starting audio is refused - and it is the same call whether the rest is fifteen
   // seconds or three minutes, so a short one now tests exactly what a long one does.
   rlogReset();
-  rlog('rest started '+secs+'s, keepOn='+KEEP_ON+' notif='+(notifLive()?'live':'off'));
+  rlog('rest started '+secs+'s, notif='+(notifLive()?'live':'off'));
   alertPreRoll();
-  if(leadT)clearTimeout(leadT);
-  leadT=setTimeout(alertLead,Math.max(0,span-LEAD_MS));
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
@@ -6336,7 +6252,6 @@ function startTimer(secs){
       if(skipQuiet)clearRestNotif();
       else restAlert();   // posts the notice itself, so it can decide which of the two sounds
       skipQuiet=false;
-      keepAwake(false);
       setTimeout(function(){pill.classList.remove('on');pill.classList.remove('ring2');stopFlame();},4000);
     }
   }
@@ -6355,7 +6270,6 @@ function adjustTimer(d){
 function stopTimer(){
   if(timerInt){clearInterval(timerInt);timerInt=null;}
   stopPreRoll();
-  keepAwake(false);
   stopRestAlert();
   clearRestNotif();
   stopFlame();
@@ -6485,7 +6399,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawThemePick();drawKeepTog();drawNotifTog();drawRestLog();
+  drawSfxTog();drawAlertLvl();drawThemePick();drawNotifTog();drawRestLog();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
