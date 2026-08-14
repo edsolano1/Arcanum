@@ -626,6 +626,9 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .preset{padding:17px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
 .preset:hover{border-color:var(--go);color:var(--go);}
+/* A preset that is currently in force. The bench needed one and there was no such state - it was
+   setting a class that painted nothing, which is why the room row looked dead. */
+.preset.on{border-color:var(--go);color:var(--go);background:var(--surface3,var(--surface2));}
 .preset.sm{padding:12px 6px;font-size:12px;font-family:inherit;letter-spacing:.02em;}
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
 .sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
@@ -1856,6 +1859,9 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   <div class="sheet" style="max-width:440px">
     <h3>Sound bench</h3>
     <p id="benchSub"></p>
+    <div class="sfx-lbl"><span>Room</span></div>
+    <div class="presets" id="benchRooms" style="grid-template-columns:1fr 1fr 1fr"></div>
+    <div class="footnote" style="margin:8px 2px 12px">Tundra ships in Obsidian's 2.8s stone chamber. Each of these plays the logged-set sound so you can hear the change rather than guess at it.</div>
     <div id="benchBody"></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('benchOvl')">CLOSE</div></div>
   </div>
@@ -2524,7 +2530,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.11';
+var APPV='v4.12';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4952,8 +4958,11 @@ function applyRoom(){
   if(!rsend||!fsend)return;
   // A well is a deep stone shaft: the same chamber as Arcanum, sent much harder, so every
   // cue arrives with the room already around it.
-  var f=FG(),m=MW();
-  rsend.gain.value=f?0.06:(m?0.68:0.42);
+  var f=FG(),m=MW(),o=bRoomOverride();
+  // The bench borrows the room, and every sound it plays runs initAudio on its way out, which
+  // lands back here - so the override has to be honoured at the source. Setting the send in the
+  // bench instead was undone by the first cue it played, which looked exactly like a dead button.
+  rsend.gain.value=o!==null?o:(f?0.06:(m?0.68:0.42));
   fsend.gain.value=f?0.34:0;
 }
 // A struck anvil. Broadband impact, then an inharmonic ring - the partials are nothing
@@ -6067,6 +6076,113 @@ function bDrift(t,dur,vol){
   s.connect(f);f.connect(b);b.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
 }
 
+// TUNDRA, rugged. The first pass was too soft: gear handled gently. This is the same depot with
+// the work put back into it - iron into ice, a shovel, leather under load, and weather with a
+// body to it. Everything here hits harder and decays faster than the pass it replaces.
+// An iron tool into ice: steel at the top, the ice giving underneath, and chips going everywhere.
+// The chips are what make it read as struck ice rather than a struck bar.
+function bPick(t,f,vol,dec){
+  nz(t,5200,2.5,0.012,vol*0.62);
+  nz(t,2400,1.8,0.030,vol*0.50);
+  [[1,0.85],[2.14,0.55],[3.62,0.38],[5.31,0.18]].forEach(function(p){
+    [-7,7].forEach(function(c){
+      var o=actx.createOscillator(),g=actx.createGain(),pk=vol*p[1]*0.5;
+      o.type='sine';o.frequency.value=f*p[0];o.detune.value=c;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(pk,t+0.0015);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+      o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dec+0.04);
+    });
+  });
+  var o=actx.createOscillator(),g=actx.createGain();      // the ice taking the blow
+  o.type='sine';o.frequency.setValueAtTime(132,t);o.frequency.exponentialRampToValueAtTime(58,t+0.16);
+  g.gain.setValueAtTime(vol*0.55,t);g.gain.exponentialRampToValueAtTime(0.0001,t+0.20);
+  o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+0.22);
+  for(var i=0;i<6;i++)nz(t+0.02+Math.random()*0.13,2600+Math.random()*3200,6,0.009,vol*0.16);
+}
+// A blade dragged through packed snow and the load coming off the end of it.
+function bShovel(t,dur,vol){
+  var s=actx.createBufferSource();s.buffer=fbuf;s.loop=true;
+  var f=actx.createBiquadFilter();f.type='bandpass';f.Q.value=1.0;
+  f.frequency.setValueAtTime(900,t);
+  f.frequency.exponentialRampToValueAtTime(2600,t+dur*0.55);
+  f.frequency.exponentialRampToValueAtTime(700,t+dur);
+  var g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  var lfo=actx.createOscillator(),lg=actx.createGain();    // the grain of it
+  lfo.type='sawtooth';lfo.frequency.value=34;lg.gain.value=vol*0.6;
+  lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
+  nz(t+dur*0.86,420,0.7,0.11,vol*0.5);                     // the load going off the blade
+}
+// A strap taking weight. Leather is irregular - it creaks in steps, never smoothly.
+function bLeather(t,dur,vol){
+  var s=actx.createBufferSource();s.buffer=nbuf;s.loop=true;
+  var f=actx.createBiquadFilter();f.type='bandpass';f.frequency.value=420;f.Q.value=2.6;
+  var g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+dur*0.3);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  var lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.type='triangle';lfo.frequency.value=7.5;lg.gain.value=vol*0.85;
+  lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
+  pt(t,116,dur*0.7,vol*0.5,'sine',0.85);
+}
+// A slope letting go. Spindrift was thin because it was all hiss - this has a body under it,
+// which is the difference between snow blowing past you and snow coming down.
+function bRush(t,dur,vol){
+  var lo=actx.createBufferSource();lo.buffer=fbuf;lo.loop=true;
+  var lf=actx.createBiquadFilter();lf.type='lowpass';lf.Q.value=1.2;
+  lf.frequency.setValueAtTime(320,t);
+  lf.frequency.exponentialRampToValueAtTime(1900,t+dur*0.45);
+  lf.frequency.exponentialRampToValueAtTime(560,t+dur);
+  var lg2=actx.createGain();
+  lg2.gain.setValueAtTime(0.0001,t);
+  lg2.gain.exponentialRampToValueAtTime(vol,t+dur*0.30);
+  lg2.gain.setValueAtTime(vol,t+dur*0.55);
+  lg2.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  lo.connect(lf);lf.connect(lg2);lg2.connect(BUS||mbus);lo.start(t);lo.stop(t+dur+0.05);
+  var hi=actx.createBufferSource();hi.buffer=fbuf;hi.loop=true;
+  var hf=actx.createBiquadFilter();hf.type='highpass';hf.frequency.value=2400;
+  var hg=actx.createGain();
+  hg.gain.setValueAtTime(0.0001,t);
+  hg.gain.exponentialRampToValueAtTime(vol*0.42,t+dur*0.42);
+  hg.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.95);
+  hi.connect(hf);hf.connect(hg);hg.connect(BUS||mbus);hi.start(t);hi.stop(t+dur+0.05);
+  var o=actx.createOscillator(),og=actx.createGain();      // the weight of it
+  o.type='sine';o.frequency.setValueAtTime(62,t);o.frequency.exponentialRampToValueAtTime(38,t+dur);
+  og.gain.setValueAtTime(0.0001,t);
+  og.gain.exponentialRampToValueAtTime(vol*0.7,t+dur*0.35);
+  og.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(og);og.connect(BUS||mbus);o.start(t);o.stop(t+dur+0.05);
+  for(var i=0;i<10;i++)nz(t+0.1+Math.random()*dur*0.7,600+Math.random()*1800,3,0.02,vol*0.18);
+}
+// Something a long way off. A howl is one voice bent slowly through two formants, and distance
+// is what makes it a wolf and not a dog: quiet, dark, and no consonants left on it.
+function bWolf(t,dur,vol){
+  var o=actx.createOscillator(),g=actx.createGain();
+  o.type='sawtooth';
+  o.frequency.setValueAtTime(300,t);
+  o.frequency.exponentialRampToValueAtTime(452,t+dur*0.22);
+  o.frequency.setValueAtTime(452,t+dur*0.55);
+  o.frequency.exponentialRampToValueAtTime(268,t+dur);
+  var vib=actx.createOscillator(),vg=actx.createGain();
+  vib.type='sine';vib.frequency.value=5.4;vg.gain.value=9;
+  vib.connect(vg);vg.connect(o.detune);vib.start(t);vib.stop(t+dur);
+  var f1=actx.createBiquadFilter();f1.type='bandpass';f1.frequency.value=720;f1.Q.value=3.2;
+  var f2=actx.createBiquadFilter();f2.type='bandpass';f2.frequency.value=1900;f2.Q.value=2.4;
+  var dk=actx.createBiquadFilter();dk.type='lowpass';dk.frequency.value=2200;   // the distance
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+dur*0.28);
+  g.gain.setValueAtTime(vol,t+dur*0.58);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(f1);f1.connect(f2);f2.connect(dk);dk.connect(g);g.connect(BUS||mbus);
+  o.start(t);o.stop(t+dur+0.05);
+}
+
 var BCUES=[
   ['rest',  'Rest over',       'The alert at the end of a rest.'],
   ['log',   'Set logged',      'The most-heard sound in the app. Kept in Obsidian - the Tundra ones are new, because inheriting it is what makes the two themes sound alike.'],
@@ -6074,88 +6190,112 @@ var BCUES=[
   ['page',  'Turning a day',   'Moving between days inside the week.'],
   ['unseal','Unseal and wipe', 'Opening a sealed week, with the wipe crossing behind it.']
 ];
-var BENCH={
-  dark:{
-    a:{label:'A — the orrery',note:'Brass, and a mechanism that turns whether or not you are watching. Cues differ by register and by how many teeth go past, never by material.',
-      rest:function(t){bTine(t,659,0.30,2.2);bTine(t+0.62,659,0.26,2.0);bTine(t+1.24,988,0.30,2.6);bDrone(t,2.4,0.05,82);},
-      hold:function(t){bDetent(t,0.16,2600);bTine(t+0.03,880,0.20,1.1);},
-      page:function(t){bDetent(t,0.12,2200);bDetent(t+0.085,0.09,2000);bTine(t+0.10,494,0.09,0.5);bDrone(t,0.42,0.045,110);},
-      unseal:function(t){
-        bDrone(t,2.2,0.13,55);
-        for(var i=0;i<11;i++){var d=Math.pow(i/11,0.7);bDetent(t+0.06+d*1.5,0.13*(1-d*0.5),1900+i*130);}
-        bTine(t+1.72,330,0.30,2.6);
-      }},
-    b:{label:'B — the study',note:'Paper, a nib and a struck inkwell. Close and quiet; the loudest thing in the room is glass.',
-      rest:function(t){bInk(t,784,0.34,1.5);bInk(t+0.55,784,0.30,1.4);bInk(t+1.10,1046,0.36,2.0);bPaper(t,0.5,0.03,900,2400);},
-      hold:function(t){bNib(t,0.20);bInk(t+0.06,988,0.18,0.9);},
-      page:function(t){bPaper(t,0.46,0.10,500,2200);nz(t+0.40,1100,1.4,0.035,0.07);},
-      unseal:function(t){bPaper(t,1.5,0.13,340,3000);bPaper(t+0.18,1.2,0.09,2600,700);bInk(t+1.25,392,0.22,1.9);}}
+// The bench tracks the decision rather than showing every candidate forever. Obsidian came back
+// settled apart from which bell, so that is all it offers now. Tundra came back "too soft", so
+// what it offers is the set that was picked against the same set worked harder.
+var BFN={
+  // OBSIDIAN. The study took the alert; the material is settled and the phrase is not, so these
+  // differ only in spacing and register.
+  'dark/rest/ink':function(t){
+    bInk(t,784,0.34,1.5);bInk(t+0.55,784,0.30,1.4);bInk(t+1.10,1046,0.36,2.0);
+    bPaper(t,0.5,0.03,900,2400);
   },
-  light:{
-    a:{label:'A — the depot',note:'Gear, not weather. Aluminium, canvas and boots in a small dry space.',
-      rest:function(t){bClink(t,1480,0.34,0.9);bClink(t+0.52,1760,0.32,0.8);bClink(t+1.04,2217,0.38,1.2);bFlap(t,0.7,0.05);},
-      log:function(t){bSnow(t,0.16);pt(t,104,0.28,0.16,'sine',0.55);nz(t,320,0.8,0.10,0.10);},   // a crate set down on boards
-      hold:function(t){bClink(t,2093,0.26,0.7);bFlap(t+0.02,0.28,0.05);},
-      page:function(t){bFlap(t,0.34,0.09);bSnow(t+0.10,0.09);},
-      unseal:function(t){bFlap(t,1.30,0.16);bSnow(t+0.15,0.16);bSnow(t+0.55,0.13);bClink(t+1.05,988,0.24,1.4);}},
-    b:{label:'B — open ice',note:'The environment. Struck ice, spindrift, and the low note a sheet makes when it moves against itself.',
-      rest:function(t){bDrift(t,2.0,0.06);bIce(t,980,0.60,1.00);bIce(t+0.60,1176,0.56,0.90);bIce(t+1.20,1470,0.68,1.30);},
-      log:function(t){pt(t,88,0.34,0.18,'sine',0.6);nz(t,240,0.7,0.12,0.13);bIce(t,392,0.10,0.28);},   // a knock on thick ice
-      hold:function(t){bIce(t,1568,0.34,0.7);bDrift(t,0.42,0.05);},
-      page:function(t){bDrift(t,0.44,0.07);bIce(t+0.06,784,0.10,0.34);},
-      unseal:function(t){bBoom(t,0.26);bDrift(t+0.10,1.9,0.09);bIce(t+1.35,659,0.26,1.9);}}
-  }
+  'dark/rest/ink2':function(t){          // wider, lower, and it climbs
+    bInk(t,659,0.34,1.8);bInk(t+0.72,988,0.32,1.7);bInk(t+1.44,1318,0.38,2.2);
+    bPaper(t,0.6,0.035,700,2200);
+  },
+  // TUNDRA, as picked last round.
+  'light/rest/pick':function(t){bClink(t,1480,0.34,0.9);bClink(t+0.52,1760,0.32,0.8);bClink(t+1.04,2217,0.38,1.2);bFlap(t,0.7,0.05);},
+  'light/log/pick':function(t){bSnow(t,0.16);pt(t,104,0.28,0.16,'sine',0.55);nz(t,320,0.8,0.10,0.10);},
+  'light/page/pick':function(t){bFlap(t,0.34,0.09);bSnow(t+0.10,0.09);},
+  // TUNDRA, rugged. Iron into ice, a shovel, leather under load.
+  'light/rest/rug':function(t){
+    bPick(t,1100,0.30,0.34);bPick(t+0.55,1320,0.28,0.32);bPick(t+1.10,1650,0.34,0.42);
+    bSnow(t+1.16,0.10);
+  },
+  'light/log/rug':function(t){bLeather(t,0.20,0.10);bSnow(t,0.14);pt(t,98,0.26,0.14,'sine',0.55);},
+  'light/hold/rug':function(t){bPick(t,1760,0.30,0.30);bLeather(t+0.02,0.26,0.07);},
+  'light/page/rug':function(t){bShovel(t,0.32,0.14);},
+  // The unseal, as asked: the rushing without the strike on the end of it. The second one puts
+  // something out on the ice behind it.
+  'light/unseal/snow':function(t){bRush(t,1.9,0.30);},
+  'light/unseal/wolf':function(t){bRush(t,1.9,0.26);bWolf(t+0.55,1.6,0.10);}
 };
 // The loudest option wins a comparison whatever it sounds like, so each candidate is trimmed to
-// the peak of the sound it is competing with. Measured by rendering every cue offline; NOW is
-// always 1 because it is the reference. The one exception is Tundra's page turn: its shipped
-// gust peaks at 0.01 against 0.09 for Obsidian's, about 19dB under everything else in the app,
-// so the candidates are matched to Obsidian's level instead of to a sound that is itself broken.
+// the peak of the sound it stands in for. Measured by rendering every one offline; NOW is always
+// 1 because it is the reference. The one exception is Tundra's page turn: its shipped gust peaks
+// at 0.01 against 0.09 for Obsidian's, about 19dB under everything else in the app, so these are
+// matched to Obsidian's level rather than to a sound that is itself broken.
+// One caveat on the rugged hold. It is peak-matched to a cue that was called dainty, and a hard
+// strike matched by peak to a soft swell reads as punchier rather than louder - which is the
+// intent. If it still sounds held back, that is this one number and nothing else.
 var BTRIM={
-  'dark/a/rest':2.20,'dark/b/rest':2.15,
-  'dark/a/hold':0.94,'dark/b/hold':1.19,
-  'dark/a/page':0.53,'dark/b/page':2.25,
-  'dark/a/unseal':0.72,'dark/b/unseal':1.13,
-  'light/a/rest':1.72,'light/b/rest':1.00,
-  'light/a/log':1.26,'light/b/log':0.85,
-  'light/a/hold':0.82,'light/b/hold':0.60,
-  'light/a/page':1.50,'light/b/page':0.50,
-  'light/a/unseal':0.84,'light/b/unseal':0.72
+  'dark/rest/ink':2.13,'dark/rest/ink2':1.97,
+  'light/rest/pick':1.70,'light/rest/rug':1.44,
+  'light/log/pick':1.19,'light/log/rug':1.14,
+  'light/hold/rug':0.51,
+  'light/page/pick':1.51,'light/page/rug':0.82,
+  'light/unseal/snow':0.95,'light/unseal/wolf':1.16
+};
+// Which cues still have a choice in them, and what the columns are. Anything not listed is
+// settled and simply plays as it ships.
+var BROWS={
+  dark:{
+    note:'Settled bar the bell: logged, hold, page and unseal all stay as they are. Play a whole set to hear a candidate sitting among the cues you kept — that is the only test left.',
+    sets:[['now','PLAY AS IS'],['ink','SET + INK'],['ink2','SET + INK 2']],
+    rows:{rest:[['now','NOW'],['ink','INK'],['ink2','INK 2']]}
+  },
+  light:{
+    note:'Too soft last round, so RUGGED is the same gear worked harder — iron into ice, a shovel, leather under load. PICKED is what you chose, kept for comparison.',
+    sets:[['now','PLAY AS IS'],['pick','PLAY PICKED'],['rug','PLAY RUGGED']],
+    rows:{
+      rest:[['now','NOW'],['pick','PICKED'],['rug','RUGGED']],
+      log:[['now','NOW'],['pick','PICKED'],['rug','RUGGED']],
+      hold:[['now','NOW'],['rug','RUGGED']],
+      page:[['now','NOW'],['pick','PICKED'],['rug','RUGGED']],
+      unseal:[['now','NOW'],['snow','SNOW'],['wolf','WOLF']]
+    }
+  }
 };
 var BNOW={rest:function(){sfxRest();},log:function(){sfxLog();},hold:function(){sfxHold();},
           page:function(){sfxPage();},unseal:function(){sfxUnseal();}};
 var bRoomMode='ship',bTimers=[];
 function bTheme(){return LT()?'light':'dark';}
 function bStop(){for(var i=0;i<bTimers.length;i++)clearTimeout(bTimers[i]);bTimers.length=0;}
-function bPlay(dir,cue){
+function bPlay(key,cue){
   initAudio();
   if(!actx)return;
-  if(dir==='cur'){try{BNOW[cue]();}catch(e){}return;}
-  var d=BENCH[bTheme()][dir],fn=d&&d[cue];
-  if(!fn){try{BNOW[cue]();}catch(e){}return;}      // no candidate means the cue is being kept
+  var fn=BFN[bTheme()+'/'+cue+'/'+key];
+  if(!fn){try{BNOW[cue]();}catch(e){}return;}      // no candidate under this key means it ships as is
   var g=actx.createGain();
-  g.gain.value=BTRIM[bTheme()+'/'+dir+'/'+cue]||1;
-  // The alert has its own bus and limiter; everything else is a room sound. Candidates take the
-  // same route as the cue they are standing in for, or the comparison is against the wrong chain.
+  g.gain.value=BTRIM[bTheme()+'/'+cue+'/'+key]||1;
+  // The alert has its own bus and limiter; everything else is a room sound. A candidate takes the
+  // same route as the cue it stands in for, or the comparison is against the wrong chain.
   g.connect(cue==='rest'?(abus||mbus):mbus);
   var prev=BUS;BUS=g;
   try{fn(actx.currentTime+0.02);}catch(e){}finally{BUS=prev;}
 }
-function bSet(dir){
+// A set plays all five cues, not just the ones still open - the question is whether a candidate
+// belongs among the sounds you kept, which cannot be heard by playing it on its own.
+function bSet(key){
   bStop();
   var gaps={rest:4400,log:1300,hold:1400,page:1200,unseal:3200},d=0;
   BCUES.forEach(function(c){
     var id=c[0];
-    bTimers.push(setTimeout(function(){bPlay(dir,id);},d));
+    bTimers.push(setTimeout(function(){bPlay(key,id);},d));
     d+=gaps[id];
   });
 }
-// Only the send moves, which is the same lever applyRoom already pulls per theme - the tail
-// itself is built once. Closing the panel hands it straight back.
+// Only the send moves, which is the same lever applyRoom already pulls per theme - the tail is
+// built once. It plays the logged-set sound on every change, because a room you cannot hear is
+// indistinguishable from a button that does nothing. Closing the panel hands it straight back.
+function bRoomOverride(){return bRoomMode==='hut'?0.16:(bRoomMode==='open'?0.05:null);}
 function bSetRoom(m){
   bRoomMode=m;
-  if(rsend)rsend.gain.value=m==='hut'?0.16:(m==='open'?0.05:(FG()?0.06:(MW()?0.68:0.42)));
-  bDraw();
+  applyRoom();
+  var bs=document.querySelectorAll('#benchRooms .preset');
+  for(var i=0;i<bs.length;i++)bs[i].classList.toggle('on',bs[i].getAttribute('data-room')===m);
+  try{sfxLog();}catch(e){}
 }
 function benchRestore(){bStop();bRoomMode='ship';applyRoom();}
 function openBench(){
@@ -6166,33 +6306,31 @@ function openBench(){
 }
 function bDraw(){
   var e=document.getElementById('benchBody');if(!e)return;
-  var th=bTheme(),other=th==='dark'?'light':'dark';
+  var th=bTheme(),other=th==='dark'?'light':'dark',D=BROWS[th];
   var sub=document.getElementById('benchSub');
   if(sub)sub.textContent=(FG()||MW())
-    ? 'The bench covers Obsidian and Tundra. You are in '+(FG()?'Forge':'Moonwell')+', so what plays below is Obsidian’s set.'
-    : 'Auditioning '+(th==='light'?'Tundra':'Obsidian')+'. Judge a direction by playing its whole set, not cue by cue — a palette is the decision, individual sounds are not.';
-  var D=BENCH[th],h='';
-  h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
-     '<button class="preset sm" onclick="bSet(\'cur\')">PLAY NOW</button>'+
-     '<button class="preset sm" onclick="bSet(\'a\')">PLAY A</button>'+
-     '<button class="preset sm" onclick="bSet(\'b\')">PLAY B</button></div>';
-  h+='<div class="footnote" style="margin:8px 2px 0">'+D.a.label+' — '+D.a.note+'</div>';
-  h+='<div class="footnote" style="margin:6px 2px 10px">'+D.b.label+' — '+D.b.note+'</div>';
-  h+='<div class="sfx-lbl"><span>Room</span></div>';
-  h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
-     ['ship','hut','open'].map(function(m){
-       var n=m==='ship'?'AS SHIPPED':(m==='hut'?'SMALL HUT':'OPEN AIR');
-       return '<button class="preset sm'+(bRoomMode===m?' on':'')+'" onclick="bSetRoom(\''+m+'\')">'+n+'</button>';
+    ? 'The bench covers Obsidian and Tundra. You are in '+(FG()?'Forge':'Moonwell')+', so what plays below is Obsidian’s.'
+    : 'Auditioning '+(th==='light'?'Tundra':'Obsidian')+'. '+D.note;
+  var rooms=document.getElementById('benchRooms');
+  if(rooms)rooms.innerHTML=[['ship','AS SHIPPED'],['hut','SMALL HUT'],['open','OPEN AIR']].map(function(r){
+    return '<button class="preset sm'+(bRoomMode===r[0]?' on':'')+'" data-room="'+r[0]+
+           '" onclick="bSetRoom(\''+r[0]+'\')">'+r[1]+'</button>';
+  }).join('');
+  var h='<div class="sfx-lbl"><span>Whole sets</span></div>';
+  h+='<div class="presets" style="grid-template-columns:repeat('+D.sets.length+',1fr)">'+
+     D.sets.map(function(s){
+       return '<button class="preset sm" onclick="bSet(\''+s[0]+'\')">'+s[1]+'</button>';
      }).join('')+'</div>';
-  h+='<div class="footnote" style="margin:8px 2px 12px">Tundra ships in Obsidian’s 2.8s stone chamber. That one number changes every cue at once, so it is worth settling before judging any single sound.</div>';
+  h+='<div class="footnote" style="margin:8px 2px 12px">Five cues in a row, spaced as they would arrive.</div>';
   BCUES.forEach(function(c){
-    var kept=!D.a[c[0]]&&!D.b[c[0]];
-    h+='<div class="sfx-lbl"><span>'+c[1]+(kept?' — kept':'')+'</span></div>';
+    var opts=D.rows[c[0]];
+    if(!opts)return;                                 // settled: nothing to choose
+    h+='<div class="sfx-lbl"><span>'+c[1]+'</span></div>';
     h+='<div class="footnote" style="margin:0 2px 6px">'+c[2]+'</div>';
-    h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
-       '<button class="preset sm" onclick="bPlay(\'cur\',\''+c[0]+'\')">NOW</button>'+
-       '<button class="preset sm" onclick="bPlay(\'a\',\''+c[0]+'\')">A</button>'+
-       '<button class="preset sm" onclick="bPlay(\'b\',\''+c[0]+'\')">B</button></div>';
+    h+='<div class="presets" style="grid-template-columns:repeat('+opts.length+',1fr)">'+
+       opts.map(function(o){
+         return '<button class="preset sm" onclick="bPlay(\''+o[0]+'\',\''+c[0]+'\')">'+o[1]+'</button>';
+       }).join('')+'</div>';
   });
   h+='<div class="footnote" style="margin:12px 2px 0">Judging the other theme means being in it: '+
      '<b onclick="setTheme(\''+other+'\')" style="text-decoration:underline">switch to '+
