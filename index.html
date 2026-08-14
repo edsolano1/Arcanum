@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.4';
+var APPV='v4.5';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5317,7 +5317,25 @@ function buildMoonAlert(){
 // element that never stopped playing cannot be refused by anybody.
 // It costs a short dip in the music - the element takes the speaker while it loops - but seconds
 // of it at the end of a rest rather than the whole two minutes the keep-alive was holding.
-var preRolling=false;
+// Muted playback is not real playback. It never claims the speaker - which is why the music was
+// finally left alone - but it is also not something Chrome keeps alive or lets you turn up from
+// behind a game, so there was nothing there to unmute at the end. Audible playback is the
+// opposite: it fires reliably, and it holds the speaker for as long as it runs.
+// There is no third option on a phone without an audio session, so the element is muted for most
+// of the rest and made genuinely audible - at a volume nobody can hear - for the last stretch of
+// it. The speaker is held for fifteen seconds rather than two minutes, and by the time the alert
+// is due the element is live enough to simply be turned up.
+var preRolling=false,LEAD_MS=15000,leadT=null;
+function alertLead(){
+  if(!preRolling)return;
+  var a=elAlert;if(!a)return;
+  try{
+    a.muted=false;a.volume=0.0001;
+    // If Chrome dropped it while it was muted, this is the last chance to get it running again
+    // while there is still time in hand.
+    if(a.paused){var p=a.play();if(p&&p['catch'])p['catch'](function(){});}
+  }catch(e){}
+}
 // Started by the tap that begins the rest, which is the only moment Chrome is certain to allow
 // it. Nine seconds out was still a play() from a hidden page, which is the exact thing that gets
 // refused - the window had moved but not out of the way.
@@ -5340,6 +5358,7 @@ function alertPreRoll(){
 // and there was nothing left to turn it off.
 function stopPreRoll(){
   preRolling=false;
+  if(leadT){clearTimeout(leadT);leadT=null;}
   try{var a=elAlert;if(a){a.loop=false;a.muted=false;a.pause();a.currentTime=0;}}catch(e){}
 }
 var alertArmed=false;
@@ -5402,7 +5421,11 @@ function playAlertElement(){
     // refuse - which is the whole point of having started it back when the page was in front.
     if(preRolling){
       preRolling=false;
-      a.loop=false;a.currentTime=0;a.volume=alertLoudness();a.muted=false;
+      if(leadT){clearTimeout(leadT);leadT=null;}
+      a.loop=false;a.muted=false;a.volume=alertLoudness();a.currentTime=0;
+      // It has been running audibly since the lead-in, so this is normally just a volume change.
+      // The play is only for the case where something stopped it in the meantime.
+      if(a.paused){var q=a.play();if(q&&q['catch'])q['catch'](function(){try{sfxRest();}catch(e){}});}
       return true;
     }
     a.loop=false;                 // never inherit a loop left behind by a pre-roll
@@ -6226,6 +6249,8 @@ function startTimer(secs){
   // a game, where starting audio is refused - and it is the same call whether the rest is fifteen
   // seconds or three minutes, so a short one now tests exactly what a long one does.
   alertPreRoll();
+  if(leadT)clearTimeout(leadT);
+  leadT=setTimeout(alertLead,Math.max(0,span-LEAD_MS));
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
