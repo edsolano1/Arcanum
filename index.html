@@ -730,6 +730,12 @@ html.forge .sp-leaf,body.forge .sp-leaf{transform-origin:center;box-shadow:none;
   background:radial-gradient(120% 90% at 50% 118%,rgba(255,138,31,.30),rgba(196,62,10,.10) 46%,transparent 74%);
   transition:transform .58s cubic-bezier(.36,0,.18,1),opacity .5s ease;}
 html.forge .sp-leaf::after,body.forge .sp-leaf::after{background:none;}
+/* The inner mark takes --go, and Forge's --go is the violet that answers its orange - right on
+   a checked set or a button, wrong on an anvil standing in a fire, where it read as the one
+   cold thing on the screen. Here it is the colour heated steel actually goes, and the glow
+   under it is warmed to match instead of staying the shared parchment gold. */
+html.forge .sp-mark .i,body.forge .sp-mark .i{color:#ffd7a0;
+  filter:drop-shadow(0 0 12px rgba(255,138,31,.55)) drop-shadow(0 0 26px rgba(255,96,10,.35));}
 html.forge .sp-leaf.l1,body.forge .sp-leaf.l1{transition-delay:.04s;}
 html.forge .sp-leaf.l2,body.forge .sp-leaf.l2{transition-delay:.10s;}
 html.forge .sp-leaf.l3,body.forge .sp-leaf.l3{transition-delay:.16s;}
@@ -1824,8 +1830,10 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
       <button class="preset sm" onclick="sfxPR()">Record</button>
       <button class="preset sm" onclick="sfxRestTest()">Rest over</button>
     </div>
-    <div class="sfx-lbl"><span>Alert with app closed</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
-    <div class="footnote" style="margin:0 2px 8px">On holds a silent sound for the whole rest so the alert still fires with the app in the background - and that silent sound is what dims your music for the entire rest, not just the alert. Off leaves the music alone, but the alert may only arrive once you open the app.</div>
+    <div class="sfx-lbl"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
+    <div class="footnote" style="margin:0 2px 8px">The reliable way to be told a rest is over when you are in another app. Android sounds it, not Arcanum, so it plays whether or not this tab is allowed to make a noise - and it dips your music for a second or two rather than the whole rest. Shows the countdown in the shade while it runs.</div>
+    <div class="sfx-lbl"><span>Keep the app awake</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
+    <div class="footnote" style="margin:0 2px 8px">Holds a silent sound so Android does not suspend the app mid-rest and lose the moment the notice is due. It is also what dims your music for the length of the rest. Off leaves the music alone; the notice may then arrive late, or only when you next open the app.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2353,7 +2361,9 @@ var THEMES=[
 // every logged set, drawn as an outline so the icon CSS can stroke it.
 var THEME_IC={
   dark:'<svg viewBox="0 0 20 20"><path d="M10 2.5l7.5 7.5-7.5 7.5L2.5 10z"/><path d="M10 7.2l2.8 2.8-2.8 2.8L7.2 10z"/></svg>',
-  light:'<svg viewBox="0 0 20 20"><path d="M10 2.6v14.8M3.6 6.3l12.8 7.4M16.4 6.3L3.6 13.7"/></svg>',
+  // The same barbed flake as FLAKE further down, redrawn for this table's 20-unit box rather
+  // than the 100-unit one the glyphs use - same arms, same proportions, half the scale.
+  light:'<svg viewBox="0 0 20 20"><path d="M10 2.6v14.8M3.6 6.3l12.8 7.4M16.4 6.3L3.6 13.7M10 5.24L11.68 3.56M10 5.24L8.32 3.56M10 14.76L11.68 16.44M10 14.76L8.32 16.44M5.89 7.6L5.28 5.3M5.89 7.6L3.59 8.21M14.11 12.4L14.72 14.7M14.11 12.4L16.41 11.79M14.11 7.6L16.41 8.21M14.11 7.6L14.72 5.3M5.89 12.4L3.59 11.79M5.89 12.4L5.28 14.7"/></svg>',
   forge:'<svg viewBox="0 0 20 20"><g transform="translate(0.9 0.6) scale(0.94)"><path d="M0.6 9.4L6.5 5.9H19v2.3l-5.2 1.2-.9 4.8 4.2 2v2H3.4v-2l4.2-2-.9-4.8L3.2 10z"/></g></svg>',
   moon:'<svg viewBox="0 0 20 20"><path d="M10 2.4l2.1 5.5 5.5 2.1-5.5 2.1-2.1 5.5-2.1-5.5L2.4 10l5.5-2.1z"/></svg>'
 };
@@ -2500,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.5';
+var APPV='v3.7';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4905,6 +4915,9 @@ function initAudio(){
     loadBell();
     loadForgeClips();
     if(MW())buildMoonAlert();
+    // Everything that calls initAudio is a tap, which makes this the right place to spend the
+    // gesture the background alert will need later and cannot get for itself.
+    armAlert();
   }catch(e){}
 }
 function applyRoom(){
@@ -5292,6 +5305,26 @@ function buildMoonAlert(){
     else oc.oncomplete=function(e){ok(e.renderedBuffer);};
   }catch(e){moonAlertBusy=false;}
 }
+// An <audio> element gets one chance to earn the right to play, and it is the first time it is
+// played inside a real tap. The alert was only ever built at zero - backgrounded, no gesture in
+// scope - so it was asking for that right at the one moment it cannot be given. Arming it means
+// playing it silently the first time you touch anything, after which it may play whenever it
+// likes. Costs nothing audible and happens once.
+var alertArmed=false;
+function armAlert(){
+  if(alertArmed)return;
+  var a=alertElement();
+  if(!a)return;
+  alertArmed=true;
+  try{
+    var v=a.volume;
+    a.volume=0;
+    var p=a.play();
+    var done=function(){try{a.pause();a.currentTime=0;a.volume=v;}catch(e){}};
+    if(p&&p.then)p.then(done)['catch'](function(){alertArmed=false;done();});
+    else done();
+  }catch(e){alertArmed=false;}
+}
 function alertElement(){
   var want;
   if(MW()){
@@ -5313,6 +5346,11 @@ function alertLoudness(){
   if(alertMuted())return 0;
   return Math.max(0,Math.min(1,0.55+0.45*(ALERT_LVL/ALERT_MAX)));
 }
+// Play is a promise, and it is refused far more often than it is granted here - a background
+// tab with no gesture behind it is exactly the case Chrome blocks. This used to return true the
+// moment play was CALLED, so a refusal was recorded as a delivered alert and the WebAudio line
+// underneath it was skipped. One silent failure, no second attempt. The refusal now falls
+// through to the same fallback the caller would have used.
 function playAlertElement(){
   if(alertMuted())return false;
   var a=alertElement();
@@ -5321,7 +5359,10 @@ function playAlertElement(){
     a.volume=alertLoudness();
     a.currentTime=0;
     var p=a.play();
-    if(p&&p['catch'])p['catch'](function(){});
+    if(p&&p['catch'])p['catch'](function(){
+      if(elAlertT){clearTimeout(elAlertT);elAlertT=null;}
+      try{sfxRest();}catch(e){}
+    });
     // the second blow has to be cancellable, or it lands after the alert is dismissed
     if(elAlertT){clearTimeout(elAlertT);elAlertT=null;}
     if(FG())elAlertT=setTimeout(function(){
@@ -5333,14 +5374,23 @@ function playAlertElement(){
 }
 // the alert repeats until you pick the phone up or the next set is logged
 var restRep=null;
+function notifLive(){return !!(NOTIF_ON&&notifOk()&&Notification.permission==='granted');}
 function restAlert(){
   stopRestAlert();
   if(TUTON)return;   // the tour starts a real rest so you can watch it; it must not fire
+  // Hidden, or the context went to sleep anyway.
+  var bg=(document.visibilityState!=='visible')||(actx&&actx.state!=='running');
+  // Exactly one of the two makes the noise. In front of you the app's own phrase is worth more
+  // than a system ping, so the notice goes up silent beside it. In the background the notice IS
+  // the alert - Android will sound it when this tab cannot - and the page does not also try,
+  // because two alerts landing together is worse than either alone. The notice carries its own
+  // vibration, so the buzz below is skipped in that case too.
+  var loud=bg&&notifLive();
+  restDoneNotif(loud);
+  if(loud)return;
   // The one moment the app is allowed to reach into the music, and only for as long as it
   // sounds. Handed back the moment the phrase is done, or the moment the alert is dismissed.
   audioMode('transient');
-  // Hidden, or the context went to sleep anyway: the element is the only path that fires.
-  var bg=(document.visibilityState!=='visible')||(actx&&actx.state!=='running');
   var used=false;
   if(bg&&SFX_ON)used=playAlertElement();
   if(!used)try{sfxRest();}catch(e){}
@@ -5617,10 +5667,43 @@ function sfxTick(up){
   pt(t,up?1400:1050,0.05,0.13,'square');
 });}
 // ---------- rest notice ----------
-// Withdrawn. The control and its permission prompt are gone from Settings, so the notice
-// never arms; the posting code below stays because the service worker still references it,
-// and it is inert while NOTIF_ON is 0.
-var NOTIF_ON=0;
+// Back, and now the primary way the alert reaches you rather than a garnish on it.
+// Everything the page can play has to survive Chrome: the AudioContext is suspended the moment
+// the tab goes to the background, an <audio> element built at that same moment is refused for
+// want of a gesture, and holding either of them open is what was dimming the music for the
+// whole two minutes. A notification has none of those problems, because the page does not play
+// it - Android does, off its own sound channel, whether or not this tab is allowed to make a
+// noise. It also ducks the music for the couple of seconds it sounds and no longer, which is
+// the behaviour that was wanted in the first place, and it carries the app's own icon.
+// What it does NOT solve is scheduling: the page still has to be alive at zero to post it.
+// Nothing local can schedule a notification - Notification Triggers never shipped - so if the
+// tab is being frozen outright, the answer is a push server and no amount of this helps.
+var NOTIF_ON=(function(){try{return localStorage.getItem('arc_notif')==='0'?0:1;}catch(e){return 1;}})();
+// Default on, but pushNotif also demands granted permission, so it stays inert until asked for.
+function notifBlocked(){return notifOk()&&Notification.permission==='denied';}
+function toggleNotif(){
+  // Turning it on without permission has to ask for it, and the ask only works from a tap.
+  if(!NOTIF_ON&&notifOk()&&Notification.permission==='default'){
+    try{
+      var r=Notification.requestPermission(function(p){notifSet(p==='granted');});
+      if(r&&r.then)r.then(function(p){notifSet(p==='granted');});
+    }catch(e){notifSet(false);}
+    return;
+  }
+  notifSet(!NOTIF_ON);
+}
+function notifSet(on){
+  NOTIF_ON=on?1:0;
+  try{localStorage.setItem('arc_notif',NOTIF_ON);}catch(e){}
+  if(!NOTIF_ON)clearRestNotif();
+  drawNotifTog();
+}
+function drawNotifTog(){
+  var e=document.getElementById('notifTog');if(!e)return;
+  var b=notifBlocked();
+  e.textContent=b?'BLOCKED':(NOTIF_ON?'ON':'OFF');
+  e.className='sfx-tog'+(NOTIF_ON&&!b?' on':'');
+}
 var notifT=null;
 function notifOk(){return typeof Notification!=='undefined';}
 // installed apps post through the service worker; a plain tab falls back to a page notification
@@ -5700,10 +5783,12 @@ try{
     else if(d.action==='skip'){skipQuiet=true;timerEnd=Date.now();clearRestNotif();}
   });
 }catch(e){}
-function restDoneNotif(){
+// loud is decided by restAlert: silent when the app is in front of you and playing its own
+// phrase, sounding when it is not and this is the only thing that can be heard.
+function restDoneNotif(loud){
   if(notifT){clearInterval(notifT);notifT=null;}
   // an ordinary notification chime, not a system alarm: nothing to dismiss, clears itself
-  pushNotif(TXT('restTtl'),TXT('restBody'),{silent:false,renotify:true,vibrate:[180,90,180]});
+  pushNotif(TXT('restTtl'),TXT('restBody'),{silent:!loud,renotify:true,vibrate:loud?[180,90,180]:[]});
   setTimeout(clearRestNotif,14000);
 }
 function toggleSfx(){
@@ -6063,7 +6148,7 @@ function startTimer(secs){
       pill.classList.add('ring2');
       flFrac=1;flFlare=1;
       if(skipQuiet)clearRestNotif();
-      else{restAlert();restDoneNotif();}
+      else restAlert();   // posts the notice itself, so it can decide which of the two sounds
       skipQuiet=false;
       keepAwake(false);
       setTimeout(function(){pill.classList.remove('on');pill.classList.remove('ring2');stopFlame();},4000);
@@ -6213,7 +6298,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawThemePick();drawKeepTog();
+  drawSfxTog();drawAlertLvl();drawThemePick();drawKeepTog();drawNotifTog();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
