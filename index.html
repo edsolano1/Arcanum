@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.0';
+var APPV='v4.1';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5771,7 +5771,12 @@ function startRestNotif(){
   var end=timerEnd,span=Math.max(1,end-restStartedAt);
   function upd(){
     var left=end-Date.now();
-    if(left<=0)return;
+    // The countdown stops four seconds out. It had been replacing itself once a second right up
+    // to the finish, so the finish notice arrived as the hundred-and-somethingth post in an
+    // unbroken stream - and Android is markedly less willing to alert for one of those than for
+    // a notification arriving into a quiet shade. Four seconds of stillness costs nothing on a
+    // countdown nobody reads at the end, and gives the finish a clear run at being heard.
+    if(left<=4000)return;
     var back=new Date(end).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
     pushNotif(
       TXT('restingTtl')+' \u00b7 '+fmtT(left),
