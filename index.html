@@ -1842,10 +1842,22 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="footnote" style="margin:0 2px 8px">Temporary. Run one rest your usual way, come back here, and send me what this says.</div>
     <pre id="restLog" style="font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto"></pre>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" onclick="copyText('restLog','rlCopy')" id="rlCopy">COPY LOG</button></div>
+    <div class="sfx-lbl"><span>Sound bench</span></div>
+    <div class="footnote" style="margin:0 2px 8px">Temporary. Two directions for this theme's sounds, level-matched against what ships, so they can be judged on the way to the gym rather than at a desk.</div>
+    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" onclick="openBench()">Open the bench</button></div>
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
+  </div>
+</div>
+
+<div class="ovl" id="benchOvl">
+  <div class="sheet" style="max-width:440px">
+    <h3>Sound bench</h3>
+    <p id="benchSub"></p>
+    <div id="benchBody"></div>
+    <div class="sheet-btns"><div class="btn" onclick="closeOvl('benchOvl')">CLOSE</div></div>
   </div>
 </div>
 
@@ -2512,7 +2524,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.9';
+var APPV='v4.11';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4664,6 +4676,9 @@ function ask(msg,onYes,title,yesLabel,onNo,alt){
 }
 function closeOvl(id){
   if(id==='lvlOvl')lvlAbort();
+  // The bench borrows the room and cancels nothing on its own, so it has to be handed back here
+  // rather than in a close button - the hardware back button lands on this line too.
+  if(id==='benchOvl')benchRestore();
   document.getElementById(id).classList.remove('on');
 }
 
@@ -4844,9 +4859,20 @@ function setAlertLvl(n,quiet){
 // the page is hidden. Testing the wrong one of the two is how "it didn't dip at all" got read
 // as a pass. This plays the element directly so the fault can be heard without backgrounding
 // the app and waiting out a rest.
+// It now plays what the comment above has always claimed it played: the ELEMENT. It used to
+// call sfxRest(), which is WebAudio - the path that mixes with music quite happily and has
+// never been the one in the fight. Every "it didn't dip at all" reading came from testing the
+// wrong one of the two. Both carry the same phrase now, so the only difference you will hear
+// between this and a real backgrounded alert is the ceiling: an element tops out at 1x.
+// Start Spotify, press this, and you know inside three seconds whether the music survives -
+// no backgrounding, no waiting out a rest.
 function sfxRestTest(){
   audioMode('transient');
-  try{sfxRest();}catch(e){}
+  // Not in the middle of a real rest: playAlertElement would spend the pre-roll and ring the
+  // actual alert early.
+  var used=false;
+  if(!preRolling){try{used=playAlertElement();}catch(e){}}
+  if(!used)try{sfxRest();}catch(e){}
   setTimeout(function(){audioMode('ambient');},2600);
 }
 function drawAlertLvl(){
@@ -4916,6 +4942,7 @@ function initAudio(){
     loadBell();
     loadForgeClips();
     if(MW())buildMoonAlert();
+    else if(!FG())buildRestWAV();
     // Everything that calls initAudio is a tap, which makes this the right place to spend the
     // gesture the background alert will need later and cannot get for itself.
     armAlert();
@@ -4990,28 +5017,35 @@ function dread(t,f,dur,vol){
   });
 }
 // air moving through a dead room
-function breath(t,dur,vol,f0,f1){
-  var s=actx.createBufferSource();s.buffer=nbuf;s.loop=true;
-  var f=actx.createBiquadFilter();f.type='bandpass';f.Q.value=0.6;
+// The rest alert has to exist twice: live on the context when the app is in front of you,
+// and rendered offline into a WAV when it is not. So the three voices it is built from take
+// their context, their destination and their noise buffer rather than reaching for the
+// globals, and the everyday callers get a wrapper that hands them the live ones. Nothing
+// about the sound changes - only where it is allowed to be built.
+function breathOn(ctx,dest,nb,t,dur,vol,f0,f1){
+  var s=ctx.createBufferSource();s.buffer=nb;s.loop=true;
+  var f=ctx.createBiquadFilter();f.type='bandpass';f.Q.value=0.6;
   f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
-  var g=actx.createGain();
+  var g=ctx.createGain();
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(vol,t+dur*0.3);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  s.connect(f);f.connect(g);g.connect(BUS||mbus);
+  s.connect(f);f.connect(g);g.connect(dest);
   s.start(t);s.stop(t+dur+0.05);
 }
+function breath(t,dur,vol,f0,f1){breathOn(actx,BUS||mbus,nbuf,t,dur,vol,f0,f1);}
 // broadband transient - this is what survives a gym playlist
-function nz(t,freq,q,dur,vol){
-  var s=actx.createBufferSource();s.buffer=nbuf;
-  var f=actx.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q;
-  var g=actx.createGain();
+function nzOn(ctx,dest,nb,t,freq,q,dur,vol){
+  var s=ctx.createBufferSource();s.buffer=nb;
+  var f=ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q;
+  var g=ctx.createGain();
   g.gain.setValueAtTime(0.0001,t);
   g.gain.exponentialRampToValueAtTime(vol,t+0.002);
   g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-  s.connect(f);f.connect(g);g.connect(BUS||mbus);
+  s.connect(f);f.connect(g);g.connect(dest);
   s.start(t);s.stop(t+dur+0.02);
 }
+function nz(t,freq,q,dur,vol){nzOn(actx,BUS||mbus,nbuf,t,freq,q,dur,vol);}
 function pt(t,f,dur,vol,type,bend){
   var o=actx.createOscillator(),g=actx.createGain();
   o.type=type||'triangle';
@@ -5106,7 +5140,7 @@ function sfxPR(){
 // detuned pair that beats against itself. The tierce is what makes it read as a church
 // bell and not a chime. Upper partials reach past 3kHz, which is also what carries it
 // over a gym.
-function bell(t,f0,vol){
+function bellOn(ctx,dest,nb,t,f0,vol){
   // ratio, level, decay
   [[0.984,0.17,2.60],[1.210,0.65,2.30],[2.000,0.98,1.95],
    [2.540,0.13,1.20],[2.976,0.55,1.60],[3.254,0.37,1.15],
@@ -5117,7 +5151,7 @@ function bell(t,f0,vol){
   ].forEach(function(p){
     var f=f0*p[0],lvl=vol*p[1],dec=p[2];
     [-3.5,3.5].forEach(function(cents){          // the doublet, for the shimmer
-      var o=actx.createOscillator(),g=actx.createGain();
+      var o=ctx.createOscillator(),g=ctx.createGain();
       o.type='sine';o.frequency.value=f;o.detune.value=cents;
       var atk=f>1200?0.003:0.022,pk=lvl*0.5;
       g.gain.setValueAtTime(0.0001,t);
@@ -5127,13 +5161,74 @@ function bell(t,f0,vol){
       // then hangs on the hum for a long, slow tail.
       if(dec>0.6)g.gain.exponentialRampToValueAtTime(pk*0.30,t+atk+0.20);
       g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
-      o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dec+0.05);
+      o.connect(g);g.connect(dest);o.start(t);o.stop(t+dec+0.05);
     });
   });
   // the clapper: heavier and woodier under a bigger bell
-  nz(t,1800,1.0,0.05,vol*0.40);
-  nz(t,700,0.9,0.085,vol*0.34);
-  nz(t,300,0.8,0.14,vol*0.26);
+  nzOn(ctx,dest,nb,t,1800,1.0,0.05,vol*0.40);
+  nzOn(ctx,dest,nb,t,700,0.9,0.085,vol*0.34);
+  nzOn(ctx,dest,nb,t,300,0.8,0.14,vol*0.26);
+}
+function bell(t,f0,vol){bellOn(actx,BUS||mbus,nbuf,t,f0,vol);}
+// Struck lake ice, for Tundra. Thick ice rings like a plate rather than a bell: the partials
+// are wide of any series, there is no hum underneath them, and the whole thing is over
+// inside a second. One of these is a noise; three of them is a signal.
+// Pitched so the loud partials land between 2.6 and 4kHz, which is where this alert was
+// rebuilt to sit - the band that survives a gym and a playlist at the same time.
+function iceOn(ctx,dest,nb,t,f0,vol,ring){
+  nzOn(ctx,dest,nb,t,3400,1.2,0.022,vol*0.50);
+  nzOn(ctx,dest,nb,t,1250,0.9,0.045,vol*0.30);
+  [[1,0.55,1.00],[1.71,0.48,0.80],[2.63,0.62,0.62],[3.87,0.40,0.42],[5.12,0.18,0.26]].forEach(function(p){
+    [-5,5].forEach(function(cents){
+      var o=ctx.createOscillator(),g=ctx.createGain(),pk=vol*p[1]*0.5,dec=p[2]*ring;
+      o.type='sine';o.frequency.value=f0*p[0];o.detune.value=cents;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(pk,t+0.004);
+      g.gain.exponentialRampToValueAtTime(pk*0.22,t+0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+      o.connect(g);g.connect(dest);o.start(t);o.stop(t+dec+0.05);
+    });
+  });
+}
+// ---- the two rest phrases ----
+// Each one runs live on the context when the app is in front of you and renders offline into
+// the WAV the <audio> element carries when it is not, so what you hear with the phone in your
+// pocket is the sound you tested in Settings. They were two different sounds before this.
+// Length is not a matter of taste. Chrome files media longer than five seconds as persistent
+// playback and asks Android for permanent audio focus, which stops Spotify dead rather than
+// dipping it; under five seconds it asks for the transient focus that ducks and hands back.
+// The recording these replace was 5.85s, and that is the whole reason the music was dying.
+// Everything here fits inside 3.6s and has to keep fitting - see buildRestWAV.
+// Three tolls, not one. A single strike is easy to lose under a squat rack; three at a steady
+// spacing reads as something being announced, and the last still has room to ring out.
+function phraseDark(ctx,dest,nb,t){
+  bellOn(ctx,dest,nb,t,340,0.34);
+  bellOn(ctx,dest,nb,t+0.78,340,0.30);
+  bellOn(ctx,dest,nb,t+1.56,340,0.34);
+}
+// Wind, then three strikes rising - a depot signal across open ground. The air bed is what
+// makes the strikes read as ice outdoors rather than a triangle in a room.
+// Struck ice is a sparser sound than three bells ringing over each other, so it is written
+// louder to land in the same place. Measured, not guessed: rendered and band-passed to the
+// 2.6-4kHz window these are aimed at, this sits within about 3dB of the Obsidian phrase.
+function phraseLight(ctx,dest,nb,t){
+  breathOn(ctx,dest,nb,t,2.30,0.10,500,2600);
+  iceOn(ctx,dest,nb,t,980,0.60,1.00);
+  iceOn(ctx,dest,nb,t+0.60,1176,0.56,0.90);
+  iceOn(ctx,dest,nb,t+1.20,1470,0.68,1.30);
+}
+// An oscillator cannot be stopped the way a buffer source can, so the live phrase plays into
+// a gain of its own and that gain is what gets closed. Without it, logging the next set
+// silences a ringing alert in every theme except the ones that ring with oscillators.
+function restKill(g){
+  restSrcs.push({stop:function(){
+    try{
+      var n=actx.currentTime;
+      g.gain.cancelScheduledValues(n);
+      g.gain.setValueAtTime(g.gain.value,n);
+      g.gain.setTargetAtTime(0.0001,n,0.02);
+    }catch(e){}
+  }});
 }
 // Every source the alert starts, so stopping it silences the whole sequence and not
 // just the first blow.
@@ -5184,20 +5279,15 @@ function sfxRest(){
       nz(t+0.56,5200,1.4,0.05,0.30);
     }finally{BUS=prev;}
   });
-  if(bellBuf){
-    stopRestSrcs();
-    var s=actx.createBufferSource(),fg=actx.createGain();
-    s.buffer=bellBuf;
-    var t0=actx.currentTime+0.02,dur=bellBuf.duration;
-    fg.gain.setValueAtTime(1,t0);
-    fg.gain.setValueAtTime(1,t0+dur-0.7);
-    fg.gain.linearRampToValueAtTime(0.0001,t0+dur);
-    s.connect(fg);fg.connect(abus||mbus);
-    s.start(t0);
-    restSrcs.push(s);
-    return;
-  }
-  sfx(function(t){var prev=BUS;BUS=abus||mbus;try{bell(t,252,0.34);}finally{BUS=prev;}});
+  // Obsidian and Tundra shared one recording, and it is the recording that was killing the
+  // music: 5.85s of it, which is long enough for Chrome to ask Android for permanent audio
+  // focus. They are synthesised now, they are under four seconds, and Tundra has its own
+  // voice rather than borrowing Obsidian's bell.
+  stopRestSrcs();
+  sfx(function(t){
+    var g=actx.createGain();g.connect(abus||mbus);restKill(g);
+    (LT()?phraseLight:phraseDark)(actx,g,nbuf,t);
+  });
 }
 // The page used to hold a silent <audio> loop open for the whole rest to stay unfrozen, and
 // that loop was what dimmed your music from the first set to the last. It is gone: the alert
@@ -5258,6 +5348,67 @@ function buildMoonAlert(){
     else oc.oncomplete=function(e){ok(e.renderedBuffer);};
   }catch(e){moonAlertBusy=false;}
 }
+// Obsidian and Tundra now get what Moonwell already had: the phrase rendered offline at the
+// first tap and handed to the element as a WAV, rather than the element carrying a recording.
+// Two things come of it. The alert in your pocket is the same sound as the alert in your hand.
+// And - the point of the exercise - the file is 3.6s rather than 5.85s, which is the right
+// side of Chrome's five-second line: shorter than that and a media element asks Android for
+// transient focus and only dips your music, longer and it asks for permanent focus, which
+// stops Spotify and never gives it back.
+// KEEP THESE UNDER FIVE SECONDS. Nothing warns you if a phrase grows past it. The music just
+// starts dying again, some later build, with nothing in the log that says why.
+var REST_WAV_LEN={dark:3.6,light:3.0};
+var restWavURI={},restWavBusy={};
+function buildRestWAV(th){
+  th=th||curTheme();
+  if(th==='forge'||th==='moon')return null;      // both already carry their own short clip
+  if(restWavURI[th])return restWavURI[th];
+  if(restWavBusy[th])return null;
+  var OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  if(!OC)return null;
+  restWavBusy[th]=true;
+  try{
+    var SR=22050,LEN=REST_WAV_LEN[th]||3.6;
+    var oc=new OC(1,Math.ceil(SR*LEN),SR);
+    // Live, the alert passes through its own gain and a limiter before it reaches the speaker;
+    // the element has no such chain and tops out at 1. Rendering through the same pair is what
+    // makes the WAV as loud as the alert in your hand instead of a third of it.
+    // The limiter alone is not enough. A 1ms attack cannot catch the front of a bell strike,
+    // so around a hundred samples per render came out past full scale and were flattened into
+    // hard clipping by the WAV writer, which clamps. The curve after it is a soft ceiling:
+    // tanh, so the overshoot bends instead of breaking, and the trim under it lands the peak
+    // at 0.9 with nothing clipped at all. Rendered and measured, not judged by ear.
+    var lim=oc.createDynamicsCompressor();
+    lim.threshold.value=-1.5;lim.knee.value=0;lim.ratio.value=20;
+    lim.attack.value=0.001;lim.release.value=0.05;
+    var ws=oc.createWaveShaper(),CN=2048,cv=new Float32Array(CN);
+    for(var c=0;c<CN;c++){var x=c*2/(CN-1)-1;cv[c]=Math.tanh(2*x)/Math.tanh(2);}
+    ws.curve=cv;ws.oversample='none';
+    var trim=oc.createGain();trim.gain.value=0.9;
+    lim.connect(ws);ws.connect(trim);trim.connect(oc.destination);
+    var bus=oc.createGain();bus.gain.value=2.6;bus.connect(lim);
+    // The element loops this for as long as the guard holds it, so the render has to end in
+    // silence: the last half second is taken down under whatever is still ringing, or the
+    // loop comes round on a cliff and clicks.
+    var fade=oc.createGain();
+    fade.gain.setValueAtTime(1,0);
+    fade.gain.setValueAtTime(1,LEN-0.45);
+    fade.gain.linearRampToValueAtTime(0.0001,LEN);
+    fade.connect(bus);
+    // Its own noise, because a buffer belongs to the context that made it.
+    var n=Math.floor(SR*0.4),nb=oc.createBuffer(1,n,SR),d=nb.getChannelData(0);
+    for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    (th==='light'?phraseLight:phraseDark)(oc,fade,nb,0);
+    var ok=function(b){
+      try{restWavURI[th]=wavURI(b);}catch(e){}
+      restWavBusy[th]=false;
+    };
+    var p=oc.startRendering();
+    if(p&&p.then)p.then(ok,function(){restWavBusy[th]=false;});
+    else oc.oncomplete=function(e){ok(e.renderedBuffer);};
+  }catch(e){restWavBusy[th]=false;}
+  return null;
+}
 // An <audio> element gets one chance to earn the right to play, and it is the first time it is
 // played inside a real tap. The alert was only ever built at zero - backgrounded, no gesture in
 // scope - so it was asking for that right at the one moment it cannot be given. Arming it means
@@ -5290,10 +5441,15 @@ function rlog(m){
   RLOG.push(((Date.now()-RLOG_T0)/1000).toFixed(1)+'s '+m);
 }
 function rlogReset(){RLOG=[];RLOG_T0=Date.now();}
+// dur is the number that matters. Chrome files anything over five seconds as persistent
+// playback and asks for permanent audio focus, which is what stopped the music; under five
+// it asks for the transient kind that ducks. If this line ever reads 5 or more, that is the
+// bug back, and no other line in the log will tell you.
 function elState(a){
   if(!a)return 'no element';
   return 'paused='+a.paused+' muted='+a.muted+' vol='+(Math.round(a.volume*1000)/1000)+
-         ' t='+(Math.round(a.currentTime*10)/10)+' end='+a.ended;
+         ' t='+(Math.round(a.currentTime*10)/10)+' dur='+(Math.round((a.duration||0)*100)/100)+
+         ' end='+a.ended;
 }
 function drawRestLog(){
   var e=document.getElementById('restLog');if(!e)return;
@@ -5393,10 +5549,23 @@ function alertElement(){
   if(MW()){
     if(!moonAlertURI){buildMoonAlert();return null;}
     want=moonAlertURI;
+  }else if(FG()){
+    // 1.62s of recorded hammer, which is why Forge never had this bug.
+    var hb=(typeof HAMB64!=='undefined'&&HAMB64);
+    if(!hb)return null;
+    want='data:audio/mpeg;base64,'+hb;
   }else{
-    var b64=FG()?(typeof HAMB64!=='undefined'&&HAMB64):(typeof BELLB64!=='undefined'&&BELLB64);
-    if(!b64)return null;
-    want='data:audio/mpeg;base64,'+b64;
+    want=buildRestWAV(curTheme());
+    // The old recording is the fallback and only the fallback. At 5.85s it takes the music
+    // for good, so it is worth having when the render has not landed yet - an alert that
+    // stops Spotify still beats a rest you never hear - but it should never be the normal
+    // path, and the log says so out loud if it ever is.
+    if(!want){
+      var b64=(typeof BELLB64!=='undefined'&&BELLB64);
+      if(!b64)return null;
+      rlog('element FELL BACK to the 5.85s recording - this one will stop the music');
+      want='data:audio/mpeg;base64,'+b64;
+    }
   }
   if(!elAlert){
     elAlert=new Audio();elAlert.setAttribute('playsinline','');
@@ -5775,6 +5944,261 @@ function sfxTick(up){
   nz(t,up?3400:2400,2,0.02,0.18);
   pt(t,up?1400:1050,0.05,0.13,'square');
 });}
+
+// ---------- sound bench (temporary) ----------
+// Candidates for the Obsidian and Tundra rebuild, in the app rather than on a page of their own
+// so they can be heard on the way to the gym. It plays through the app's own primitives, bus and
+// room, which is the point of it being in here: the NOW column is the shipped sound rather than a
+// copy of it that can drift. Every name in this block is prefixed b, and the block plus its panel
+// comes out whole once a direction is chosen.
+
+// OBSIDIAN A - the orrery. A struck rod is not a bell: a free bar rings at 1 : 2.76 : 5.40, which
+// is why a glockenspiel reads as metal and a bell reads as a bell.
+function bTine(t,f,vol,dec){
+  [[1,1,1],[2.76,0.42,0.62],[5.40,0.22,0.34],[8.93,0.10,0.20]].forEach(function(p){
+    [-3,3].forEach(function(c){
+      var o=actx.createOscillator(),g=actx.createGain(),pk=vol*p[1]*0.5;
+      o.type='sine';o.frequency.value=f*p[0];o.detune.value=c;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(pk,t+0.002);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dec*p[2]);
+      o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dec*p[2]+0.05);
+    });
+  });
+  nz(t,f*3.4,3.5,0.012,vol*0.30);
+}
+function bDetent(t,vol,f){          // the escapement letting one tooth past
+  nz(t,f||2600,4.5,0.010,vol);
+  pt(t,(f||2600)*0.42,0.022,vol*0.5,'square');
+}
+function bDrone(t,dur,vol,f){       // the mass of the thing turning, felt more than heard
+  [[f,0],[f*1.5,2.5],[f*2,-2]].forEach(function(p,i){
+    var o=actx.createOscillator(),g=actx.createGain();
+    o.type=i?'sine':'triangle';o.frequency.value=p[0];o.detune.value=p[1];
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol*(i?0.35:1),t+dur*0.25);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dur+0.05);
+  });
+}
+// OBSIDIAN B - the study. Paper, a nib and a struck inkwell; the loudest thing in the room is glass.
+function bPaper(t,dur,vol,f0,f1){
+  var s=actx.createBufferSource();s.buffer=nbuf;s.loop=true;
+  var f=actx.createBiquadFilter();f.type='bandpass';f.Q.value=1.1;
+  f.frequency.setValueAtTime(f0,t);f.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  var g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+dur*0.22);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  // the flutter is what separates paper from wind - sheets catch and release
+  var lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.type='sawtooth';lfo.frequency.value=26;lg.gain.value=vol*0.55;
+  lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
+}
+function bNib(t,vol){nz(t,5200,2.2,0.030,vol*0.6);nz(t+0.012,3400,3.0,0.045,vol*0.45);}
+function bInk(t,f,vol,dec){
+  [[1,1],[2.42,0.34],[4.18,0.18],[6.60,0.08]].forEach(function(p){
+    [-4,4].forEach(function(c){
+      var o=actx.createOscillator(),g=actx.createGain(),pk=vol*p[1]*0.5;
+      o.type='sine';o.frequency.value=f*p[0];o.detune.value=c;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(pk,t+0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+      o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dec+0.05);
+    });
+  });
+  nz(t,f*2.6,4,0.014,vol*0.34);
+}
+// TUNDRA A - the depot. Aluminium, canvas and boots in a small dry space.
+function bClink(t,f,vol,dec){
+  nz(t,f*2.2,2.0,0.014,vol*0.55);
+  [[1,1],[2.31,0.52],[3.94,0.30],[6.12,0.14]].forEach(function(p){
+    [-6,6].forEach(function(c){
+      var o=actx.createOscillator(),g=actx.createGain(),pk=vol*p[1]*0.5;
+      o.type='sine';o.frequency.value=f*p[0];o.detune.value=c;
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(pk,t+0.002);
+      g.gain.exponentialRampToValueAtTime(pk*0.18,t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+dec);
+      o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+dec+0.05);
+    });
+  });
+}
+function bFlap(t,dur,vol){
+  var s=actx.createBufferSource();s.buffer=fbuf;s.loop=true;
+  var f=actx.createBiquadFilter();f.type='bandpass';f.Q.value=0.8;
+  f.frequency.setValueAtTime(700,t);f.frequency.exponentialRampToValueAtTime(1800,t+dur*0.4);
+  f.frequency.exponentialRampToValueAtTime(560,t+dur);
+  var g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.05);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  var lfo=actx.createOscillator(),lg=actx.createGain();
+  lfo.type='triangle';lfo.frequency.value=11;lg.gain.value=vol*0.7;
+  lfo.connect(lg);lg.connect(g.gain);lfo.start(t);lfo.stop(t+dur);
+  s.connect(f);f.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
+}
+function bSnow(t,vol){
+  // packed snow is many small collapses, never one - so it is scattered grains, not a burst
+  for(var i=0;i<9;i++)nz(t+Math.random()*0.09,700+Math.random()*2200,3.5,0.012,vol*(0.4+Math.random()*0.6));
+  pt(t+0.02,90,0.10,vol*0.45,'sine',0.7);
+}
+// TUNDRA B - open ice. The environment rather than the gear.
+function bIce(t,f0,vol,ring){iceOn(actx,BUS||mbus,nbuf,t,f0,vol,ring);}
+function bBoom(t,vol){
+  var o=actx.createOscillator(),g=actx.createGain();
+  o.type='sine';o.frequency.setValueAtTime(78,t);o.frequency.exponentialRampToValueAtTime(31,t+1.5);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.06);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+1.7);
+  o.connect(g);g.connect(BUS||mbus);o.start(t);o.stop(t+1.75);
+  for(var i=0;i<14;i++){var d=i/14;nz(t+0.05+d*1.1,900+d*3400,5,0.012,vol*0.30*(1-d*0.7));}   // the crack running away
+}
+function bDrift(t,dur,vol){
+  var s=actx.createBufferSource();s.buffer=fbuf;s.loop=true;
+  var f=actx.createBiquadFilter();f.type='highpass';f.frequency.value=1800;
+  var b=actx.createBiquadFilter();b.type='bandpass';b.Q.value=0.5;
+  b.frequency.setValueAtTime(2600,t);b.frequency.exponentialRampToValueAtTime(5200,t+dur);
+  var g=actx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+dur*0.35);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(f);f.connect(b);b.connect(g);g.connect(BUS||mbus);s.start(t);s.stop(t+dur+0.05);
+}
+
+var BCUES=[
+  ['rest',  'Rest over',       'The alert at the end of a rest.'],
+  ['log',   'Set logged',      'The most-heard sound in the app. Kept in Obsidian - the Tundra ones are new, because inheriting it is what makes the two themes sound alike.'],
+  ['hold',  'Hold target hit', 'A timed hold reaches its target.'],
+  ['page',  'Turning a day',   'Moving between days inside the week.'],
+  ['unseal','Unseal and wipe', 'Opening a sealed week, with the wipe crossing behind it.']
+];
+var BENCH={
+  dark:{
+    a:{label:'A — the orrery',note:'Brass, and a mechanism that turns whether or not you are watching. Cues differ by register and by how many teeth go past, never by material.',
+      rest:function(t){bTine(t,659,0.30,2.2);bTine(t+0.62,659,0.26,2.0);bTine(t+1.24,988,0.30,2.6);bDrone(t,2.4,0.05,82);},
+      hold:function(t){bDetent(t,0.16,2600);bTine(t+0.03,880,0.20,1.1);},
+      page:function(t){bDetent(t,0.12,2200);bDetent(t+0.085,0.09,2000);bTine(t+0.10,494,0.09,0.5);bDrone(t,0.42,0.045,110);},
+      unseal:function(t){
+        bDrone(t,2.2,0.13,55);
+        for(var i=0;i<11;i++){var d=Math.pow(i/11,0.7);bDetent(t+0.06+d*1.5,0.13*(1-d*0.5),1900+i*130);}
+        bTine(t+1.72,330,0.30,2.6);
+      }},
+    b:{label:'B — the study',note:'Paper, a nib and a struck inkwell. Close and quiet; the loudest thing in the room is glass.',
+      rest:function(t){bInk(t,784,0.34,1.5);bInk(t+0.55,784,0.30,1.4);bInk(t+1.10,1046,0.36,2.0);bPaper(t,0.5,0.03,900,2400);},
+      hold:function(t){bNib(t,0.20);bInk(t+0.06,988,0.18,0.9);},
+      page:function(t){bPaper(t,0.46,0.10,500,2200);nz(t+0.40,1100,1.4,0.035,0.07);},
+      unseal:function(t){bPaper(t,1.5,0.13,340,3000);bPaper(t+0.18,1.2,0.09,2600,700);bInk(t+1.25,392,0.22,1.9);}}
+  },
+  light:{
+    a:{label:'A — the depot',note:'Gear, not weather. Aluminium, canvas and boots in a small dry space.',
+      rest:function(t){bClink(t,1480,0.34,0.9);bClink(t+0.52,1760,0.32,0.8);bClink(t+1.04,2217,0.38,1.2);bFlap(t,0.7,0.05);},
+      log:function(t){bSnow(t,0.16);pt(t,104,0.28,0.16,'sine',0.55);nz(t,320,0.8,0.10,0.10);},   // a crate set down on boards
+      hold:function(t){bClink(t,2093,0.26,0.7);bFlap(t+0.02,0.28,0.05);},
+      page:function(t){bFlap(t,0.34,0.09);bSnow(t+0.10,0.09);},
+      unseal:function(t){bFlap(t,1.30,0.16);bSnow(t+0.15,0.16);bSnow(t+0.55,0.13);bClink(t+1.05,988,0.24,1.4);}},
+    b:{label:'B — open ice',note:'The environment. Struck ice, spindrift, and the low note a sheet makes when it moves against itself.',
+      rest:function(t){bDrift(t,2.0,0.06);bIce(t,980,0.60,1.00);bIce(t+0.60,1176,0.56,0.90);bIce(t+1.20,1470,0.68,1.30);},
+      log:function(t){pt(t,88,0.34,0.18,'sine',0.6);nz(t,240,0.7,0.12,0.13);bIce(t,392,0.10,0.28);},   // a knock on thick ice
+      hold:function(t){bIce(t,1568,0.34,0.7);bDrift(t,0.42,0.05);},
+      page:function(t){bDrift(t,0.44,0.07);bIce(t+0.06,784,0.10,0.34);},
+      unseal:function(t){bBoom(t,0.26);bDrift(t+0.10,1.9,0.09);bIce(t+1.35,659,0.26,1.9);}}
+  }
+};
+// The loudest option wins a comparison whatever it sounds like, so each candidate is trimmed to
+// the peak of the sound it is competing with. Measured by rendering every cue offline; NOW is
+// always 1 because it is the reference. The one exception is Tundra's page turn: its shipped
+// gust peaks at 0.01 against 0.09 for Obsidian's, about 19dB under everything else in the app,
+// so the candidates are matched to Obsidian's level instead of to a sound that is itself broken.
+var BTRIM={
+  'dark/a/rest':2.20,'dark/b/rest':2.15,
+  'dark/a/hold':0.94,'dark/b/hold':1.19,
+  'dark/a/page':0.53,'dark/b/page':2.25,
+  'dark/a/unseal':0.72,'dark/b/unseal':1.13,
+  'light/a/rest':1.72,'light/b/rest':1.00,
+  'light/a/log':1.26,'light/b/log':0.85,
+  'light/a/hold':0.82,'light/b/hold':0.60,
+  'light/a/page':1.50,'light/b/page':0.50,
+  'light/a/unseal':0.84,'light/b/unseal':0.72
+};
+var BNOW={rest:function(){sfxRest();},log:function(){sfxLog();},hold:function(){sfxHold();},
+          page:function(){sfxPage();},unseal:function(){sfxUnseal();}};
+var bRoomMode='ship',bTimers=[];
+function bTheme(){return LT()?'light':'dark';}
+function bStop(){for(var i=0;i<bTimers.length;i++)clearTimeout(bTimers[i]);bTimers.length=0;}
+function bPlay(dir,cue){
+  initAudio();
+  if(!actx)return;
+  if(dir==='cur'){try{BNOW[cue]();}catch(e){}return;}
+  var d=BENCH[bTheme()][dir],fn=d&&d[cue];
+  if(!fn){try{BNOW[cue]();}catch(e){}return;}      // no candidate means the cue is being kept
+  var g=actx.createGain();
+  g.gain.value=BTRIM[bTheme()+'/'+dir+'/'+cue]||1;
+  // The alert has its own bus and limiter; everything else is a room sound. Candidates take the
+  // same route as the cue they are standing in for, or the comparison is against the wrong chain.
+  g.connect(cue==='rest'?(abus||mbus):mbus);
+  var prev=BUS;BUS=g;
+  try{fn(actx.currentTime+0.02);}catch(e){}finally{BUS=prev;}
+}
+function bSet(dir){
+  bStop();
+  var gaps={rest:4400,log:1300,hold:1400,page:1200,unseal:3200},d=0;
+  BCUES.forEach(function(c){
+    var id=c[0];
+    bTimers.push(setTimeout(function(){bPlay(dir,id);},d));
+    d+=gaps[id];
+  });
+}
+// Only the send moves, which is the same lever applyRoom already pulls per theme - the tail
+// itself is built once. Closing the panel hands it straight back.
+function bSetRoom(m){
+  bRoomMode=m;
+  if(rsend)rsend.gain.value=m==='hut'?0.16:(m==='open'?0.05:(FG()?0.06:(MW()?0.68:0.42)));
+  bDraw();
+}
+function benchRestore(){bStop();bRoomMode='ship';applyRoom();}
+function openBench(){
+  initAudio();
+  bRoomMode='ship';
+  bDraw();
+  document.getElementById('benchOvl').classList.add('on');
+}
+function bDraw(){
+  var e=document.getElementById('benchBody');if(!e)return;
+  var th=bTheme(),other=th==='dark'?'light':'dark';
+  var sub=document.getElementById('benchSub');
+  if(sub)sub.textContent=(FG()||MW())
+    ? 'The bench covers Obsidian and Tundra. You are in '+(FG()?'Forge':'Moonwell')+', so what plays below is Obsidian’s set.'
+    : 'Auditioning '+(th==='light'?'Tundra':'Obsidian')+'. Judge a direction by playing its whole set, not cue by cue — a palette is the decision, individual sounds are not.';
+  var D=BENCH[th],h='';
+  h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
+     '<button class="preset sm" onclick="bSet(\'cur\')">PLAY NOW</button>'+
+     '<button class="preset sm" onclick="bSet(\'a\')">PLAY A</button>'+
+     '<button class="preset sm" onclick="bSet(\'b\')">PLAY B</button></div>';
+  h+='<div class="footnote" style="margin:8px 2px 0">'+D.a.label+' — '+D.a.note+'</div>';
+  h+='<div class="footnote" style="margin:6px 2px 10px">'+D.b.label+' — '+D.b.note+'</div>';
+  h+='<div class="sfx-lbl"><span>Room</span></div>';
+  h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
+     ['ship','hut','open'].map(function(m){
+       var n=m==='ship'?'AS SHIPPED':(m==='hut'?'SMALL HUT':'OPEN AIR');
+       return '<button class="preset sm'+(bRoomMode===m?' on':'')+'" onclick="bSetRoom(\''+m+'\')">'+n+'</button>';
+     }).join('')+'</div>';
+  h+='<div class="footnote" style="margin:8px 2px 12px">Tundra ships in Obsidian’s 2.8s stone chamber. That one number changes every cue at once, so it is worth settling before judging any single sound.</div>';
+  BCUES.forEach(function(c){
+    var kept=!D.a[c[0]]&&!D.b[c[0]];
+    h+='<div class="sfx-lbl"><span>'+c[1]+(kept?' — kept':'')+'</span></div>';
+    h+='<div class="footnote" style="margin:0 2px 6px">'+c[2]+'</div>';
+    h+='<div class="presets" style="grid-template-columns:1fr 1fr 1fr">'+
+       '<button class="preset sm" onclick="bPlay(\'cur\',\''+c[0]+'\')">NOW</button>'+
+       '<button class="preset sm" onclick="bPlay(\'a\',\''+c[0]+'\')">A</button>'+
+       '<button class="preset sm" onclick="bPlay(\'b\',\''+c[0]+'\')">B</button></div>';
+  });
+  h+='<div class="footnote" style="margin:12px 2px 0">Judging the other theme means being in it: '+
+     '<b onclick="setTheme(\''+other+'\')" style="text-decoration:underline">switch to '+
+     (other==='light'?'Tundra':'Obsidian')+'</b>. That relaunches the app, which is how a theme is meant to be met.</div>';
+  e.innerHTML=h;
+}
 // ---------- rest notice ----------
 // Back, and now the primary way the alert reaches you rather than a garnish on it.
 // Everything the page can play has to survive Chrome: the AudioContext is suspended the moment
