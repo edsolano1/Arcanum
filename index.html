@@ -1840,6 +1840,10 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
         oninput="setAlertLvl(this.value,true)" onchange="setAlertLvl(this.value)">
       <span class="slider-num num" id="alertNum"></span>
     </div>
+    <div class="sfx-lbl"><span>Rest log</span></div>
+    <div class="footnote" style="margin:0 2px 8px">Temporary. Run one rest your usual way, come back here, and send me what this says.</div>
+    <pre id="restLog" style="font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto"></pre>
+    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" onclick="copyText('restLog','rlCopy')" id="rlCopy">COPY LOG</button></div>
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
@@ -2510,7 +2514,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.6';
+var APPV='v4.7';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4403,6 +4407,21 @@ function exportAll(){
 }
 function copyExport(){copyEl('exportTxt','copyBtn');}
 function copyHist(){copyEl('histTxt','copyHistBtn');}
+// copyEl works on a textarea, through select() and value. This one takes the text out of any
+// element, which the rest log needs because it is a <pre> and has neither.
+function copyText(id,btn){
+  var t=document.getElementById(id);if(!t)return;
+  var s=t.textContent||'';
+  try{if(navigator.clipboard)navigator.clipboard.writeText(s);}catch(e){}
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=s;ta.style.cssText='position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta);ta.select();
+    document.execCommand('copy');document.body.removeChild(ta);
+  }catch(e){}
+  var b=document.getElementById(btn);
+  if(b){var o=b.textContent;b.textContent='COPIED';setTimeout(function(){b.textContent=o;},1400);}
+}
 function copyEl(id,btn){
   var t=document.getElementById(id);t.select();
   try{document.execCommand('copy');}catch(e){}
@@ -5325,16 +5344,43 @@ function buildMoonAlert(){
 // of the rest and made genuinely audible - at a volume nobody can hear - for the last stretch of
 // it. The speaker is held for fifteen seconds rather than two minutes, and by the time the alert
 // is due the element is live enough to simply be turned up.
+// ---- rest log (temporary) ----
+// Five builds of this have been guesswork about what Chrome does to a hidden page, and the
+// guesses have been wrong more than once. This writes down what actually happened instead:
+// whether the element was still playing, whether play was refused and with what, what state the
+// context was in. One rest, then read it in Settings. Comes out once the alert is fixed.
+var RLOG=[],RLOG_T0=0;
+function rlog(m){
+  if(!RLOG_T0)RLOG_T0=Date.now();
+  if(RLOG.length>60)return;
+  RLOG.push(((Date.now()-RLOG_T0)/1000).toFixed(1)+'s '+m);
+}
+function rlogReset(){RLOG=[];RLOG_T0=Date.now();}
+function elState(a){
+  if(!a)return 'no element';
+  return 'paused='+a.paused+' muted='+a.muted+' vol='+(Math.round(a.volume*1000)/1000)+
+         ' t='+(Math.round(a.currentTime*10)/10)+' end='+a.ended;
+}
+function drawRestLog(){
+  var e=document.getElementById('restLog');if(!e)return;
+  e.textContent=RLOG.length?RLOG.join('\n'):'Nothing recorded yet. Run one rest, then reopen this.';
+}
 var preRolling=false,LEAD_MS=15000,leadT=null;
 function alertLead(){
-  if(!preRolling)return;
+  if(!preRolling){rlog('lead-in SKIPPED, not rolling');return;}
   var a=elAlert;if(!a)return;
   try{
+    rlog('lead-in before '+elState(a)+' vis='+document.visibilityState);
     a.muted=false;a.volume=0.0001;
     // If Chrome dropped it while it was muted, this is the last chance to get it running again
     // while there is still time in hand.
-    if(a.paused){var p=a.play();if(p&&p['catch'])p['catch'](function(){});}
-  }catch(e){}
+    if(a.paused){
+      var p=a.play();
+      rlog('lead-in was PAUSED, retrying play');
+      if(p&&p.then)p.then(function(){rlog('lead-in replay OK '+elState(a));})
+        ['catch'](function(err){rlog('lead-in replay REFUSED '+(err&&err.name||err));});
+    }else rlog('lead-in still live '+elState(a));
+  }catch(e){rlog('lead-in THREW '+(e&&e.name));}
 }
 // Started by the tap that begins the rest, which is the only moment Chrome is certain to allow
 // it. Nine seconds out was still a play() from a hidden page, which is the exact thing that gets
@@ -5343,9 +5389,12 @@ function alertLead(){
 // speaker and should not dim anything; volume zero still counts as playing something. At the end
 // it is only unmuted, which needs no permission from anyone because it never stopped playing.
 function alertPreRoll(){
-  if(preRolling||alertMuted()||!SFX_ON)return;
+  if(preRolling||alertMuted()||!SFX_ON){
+    rlog('preroll SKIPPED rolling='+preRolling+' alertMuted='+alertMuted()+' sfx='+SFX_ON);
+    return;
+  }
   var a=alertElement();
-  if(!a)return;
+  if(!a){rlog('preroll NO ELEMENT for theme '+curTheme());return;}
   preRolling=true;
   try{
     // KEEP_ON is the whole trade, and it cannot be split. Audible - even at a volume nobody can
@@ -5357,8 +5406,10 @@ function alertPreRoll(){
     a.muted=!KEEP_ON;
     a.volume=KEEP_ON?0.0001:alertLoudness();
     var p=a.play();
-    if(p&&p['catch'])p['catch'](function(){preRolling=false;});
-  }catch(e){preRolling=false;}
+    rlog('preroll start keepOn='+KEEP_ON+' '+elState(a));
+    if(p&&p.then)p.then(function(){rlog('preroll PLAYING '+elState(a));})
+      ['catch'](function(err){preRolling=false;rlog('preroll REFUSED '+(err&&err.name||err));});
+  }catch(e){preRolling=false;rlog('preroll THREW '+(e&&e.name));}
 }
 // loop lives on the element, not on the flag, so it is cleared unconditionally. Leaving a stale
 // loop:true behind is what made an ordinary alert ring over and over: the next play inherited it
@@ -5433,10 +5484,16 @@ function playAlertElement(){
     if(preRolling){
       preRolling=false;
       if(leadT){clearTimeout(leadT);leadT=null;}
+      rlog('ZERO via preroll, before: '+elState(a));
       a.loop=false;a.muted=false;a.volume=alertLoudness();a.currentTime=0;
       // It has been running audibly since the lead-in, so this is normally just a volume change.
       // The play is only for the case where something stopped it in the meantime.
-      if(a.paused){var q=a.play();if(q&&q['catch'])q['catch'](function(){try{sfxRest();}catch(e){}});}
+      if(a.paused){
+        var q=a.play();
+        rlog('ZERO element was PAUSED, replaying');
+        if(q&&q.then)q.then(function(){rlog('ZERO replay OK');})
+          ['catch'](function(err){rlog('ZERO replay REFUSED '+(err&&err.name||err));try{sfxRest();}catch(e){}});
+      }else rlog('ZERO unmuted a live element '+elState(a));
       return true;
     }
     a.loop=false;                 // never inherit a loop left behind by a pre-roll
@@ -5467,6 +5524,8 @@ function restAlert(){
   // In front of you the app's own phrase is worth more than a system ping, so the notice goes up
   // silent beside it. Backgrounded, the notice is asked to sound as well.
   var loud=bg&&notifLive();
+  rlog('REST OVER vis='+document.visibilityState+' ctx='+(actx?actx.state:'none')+
+       ' bg='+bg+' notifSounds='+loud+' sfx='+SFX_ON+' alertLvl='+ALERT_LVL);
   restDoneNotif(loud);
   // The page used to stand down here and let the notice be the alert, so the two could not
   // collide. That was the right shape and the wrong bet: Android is posting the notice without
@@ -6259,6 +6318,8 @@ function startTimer(secs){
   // Right here, inside the tap that logged the set. Any later and the page may already be behind
   // a game, where starting audio is refused - and it is the same call whether the rest is fifteen
   // seconds or three minutes, so a short one now tests exactly what a long one does.
+  rlogReset();
+  rlog('rest started '+secs+'s, keepOn='+KEEP_ON+' notif='+(notifLive()?'live':'off'));
   alertPreRoll();
   if(leadT)clearTimeout(leadT);
   leadT=setTimeout(alertLead,Math.max(0,span-LEAD_MS));
@@ -6424,7 +6485,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawThemePick();drawKeepTog();drawNotifTog();
+  drawSfxTog();drawAlertLvl();drawThemePick();drawKeepTog();drawNotifTog();drawRestLog();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
