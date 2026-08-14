@@ -1843,7 +1843,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <pre id="restLog" style="font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto"></pre>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" onclick="copyText('restLog','rlCopy')" id="rlCopy">COPY LOG</button></div>
     <div class="sfx-lbl"><span>Guided tour</span></div>
-    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Walk me through it</button></div>
+    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Tutorial</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
@@ -2512,7 +2512,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.13';
+var APPV='v4.14';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7199,7 +7199,7 @@ function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e
 function TUTC(){
   var t=curTheme();
   var C={
-    dark:{btn:'Walk me through it',ttl:'First time here?',
+    dark:{btn:'Tutorial',ttl:'First time here?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
       {t:'Your week',b:'Seven slots, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
@@ -7213,7 +7213,7 @@ function TUTC(){
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Cyan</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
-    forge:{btn:'Walk me through it',ttl:'First time at the forge?',
+    forge:{btn:'Tutorial',ttl:'First time at the forge?',
       msg:'A short guided pass over the real screens, on sample stock. A few minutes at most, and your own work stays untouched.',
       yes:'SHOW ME',steps:[
       {t:'The week\u2019s work',b:'Seven slots, Sunday to Saturday, set out in the order they come to the fire. Look them over \u2014 then tap NEXT and we will open one together.'},
@@ -7227,7 +7227,7 @@ function TUTC(){
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
-    moon:{btn:'Walk me through it',ttl:'First time at the well?',
+    moon:{btn:'Tutorial',ttl:'First time at the well?',
       msg:'A short guided pass over the real screens, on sample water. A few minutes at most, and your own record stays untouched.',
       yes:'SHOW ME',steps:[
       {t:'Your week',b:'Seven nights, Sunday to Saturday, laid out as they come round. Take them in \u2014 then tap NEXT and we will open one together.'},
@@ -7241,7 +7241,7 @@ function TUTC(){
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>White</b> &mdash; passes your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Moon-gold</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole night. Tap Finish when it is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
       {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
-    light:{btn:'Walk me through it',ttl:'First time out?',
+    light:{btn:'Tutorial',ttl:'First time out?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
       {t:'Your week',b:'Seven days, Sunday to Saturday, laid out as they come round. Have a look at all of them \u2014 then tap NEXT and we will open one together.'},
