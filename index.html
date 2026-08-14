@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.3';
+var APPV='v4.4';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5317,14 +5317,20 @@ function buildMoonAlert(){
 // element that never stopped playing cannot be refused by anybody.
 // It costs a short dip in the music - the element takes the speaker while it loops - but seconds
 // of it at the end of a rest rather than the whole two minutes the keep-alive was holding.
-var PREROLL_MS=9000,preRollT=null,preRolling=false;
+var preRolling=false;
+// Started by the tap that begins the rest, which is the only moment Chrome is certain to allow
+// it. Nine seconds out was still a play() from a hidden page, which is the exact thing that gets
+// refused - the window had moved but not out of the way.
+// MUTED, not volume zero. A muted element is not audible output, so it should not claim the
+// speaker and should not dim anything; volume zero still counts as playing something. At the end
+// it is only unmuted, which needs no permission from anyone because it never stopped playing.
 function alertPreRoll(){
   if(preRolling||alertMuted()||!SFX_ON)return;
   var a=alertElement();
   if(!a)return;
   preRolling=true;
   try{
-    a.loop=true;a.volume=0;a.currentTime=0;
+    a.loop=true;a.muted=true;a.volume=alertLoudness();a.currentTime=0;
     var p=a.play();
     if(p&&p['catch'])p['catch'](function(){preRolling=false;});
   }catch(e){preRolling=false;}
@@ -5333,9 +5339,8 @@ function alertPreRoll(){
 // loop:true behind is what made an ordinary alert ring over and over: the next play inherited it
 // and there was nothing left to turn it off.
 function stopPreRoll(){
-  if(preRollT){clearTimeout(preRollT);preRollT=null;}
   preRolling=false;
-  try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;}}catch(e){}
+  try{var a=elAlert;if(a){a.loop=false;a.muted=false;a.pause();a.currentTime=0;}}catch(e){}
 }
 var alertArmed=false;
 function armAlert(){
@@ -5344,10 +5349,11 @@ function armAlert(){
   if(!a)return;
   alertArmed=true;
   try{
-    var v=a.volume;
-    a.volume=0;
+    // Muted rather than turned down: muted playback is the one case Chrome never refuses, which
+    // is what makes this a reliable way to spend the gesture.
+    a.muted=true;
     var p=a.play();
-    var done=function(){try{a.pause();a.currentTime=0;a.volume=v;}catch(e){}};
+    var done=function(){try{a.pause();a.currentTime=0;a.muted=false;}catch(e){}};
     if(p&&p.then)p.then(done)['catch'](function(){alertArmed=false;done();});
     else done();
   }catch(e){alertArmed=false;}
@@ -5368,7 +5374,7 @@ function alertElement(){
     // only comes back up once the element has actually stopped. It is paused the moment it ends.
     elAlert.addEventListener('ended',function(){
       preRolling=false;
-      try{elAlert.loop=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
+      try{elAlert.loop=false;elAlert.muted=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
     });
   }
   if(elAlertSrc!==want){elAlert.src=want;elAlertSrc=want;}
@@ -5392,9 +5398,11 @@ function playAlertElement(){
   if(!a)return false;
   try{
     // Already looping silently from the pre-roll: turn it up rather than start it again.
+    // Already running silently since the rest began: unmute it. No play() call, so nothing to
+    // refuse - which is the whole point of having started it back when the page was in front.
     if(preRolling){
       preRolling=false;
-      a.loop=false;a.currentTime=0;a.volume=alertLoudness();
+      a.loop=false;a.currentTime=0;a.volume=alertLoudness();a.muted=false;
       return true;
     }
     a.loop=false;                 // never inherit a loop left behind by a pre-roll
@@ -6214,10 +6222,10 @@ function startTimer(secs){
   skipQuiet=false;
   var span=secs*1000;
   keepAwake(true);
-  // Scheduled off the clock rather than off the tick, so a throttled tick cannot miss the window.
-  if(preRollT)clearTimeout(preRollT);
-  if(span>PREROLL_MS)preRollT=setTimeout(alertPreRoll,span-PREROLL_MS);
-  else alertPreRoll();
+  // Right here, inside the tap that logged the set. Any later and the page may already be behind
+  // a game, where starting audio is refused - and it is the same call whether the rest is fifteen
+  // seconds or three minutes, so a short one now tests exactly what a long one does.
+  alertPreRoll();
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
