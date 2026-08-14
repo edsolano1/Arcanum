@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.9';
+var APPV='v4.0';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5380,14 +5380,17 @@ function restAlert(){
   if(TUTON)return;   // the tour starts a real rest so you can watch it; it must not fire
   // Hidden, or the context went to sleep anyway.
   var bg=(document.visibilityState!=='visible')||(actx&&actx.state!=='running');
-  // Exactly one of the two makes the noise. In front of you the app's own phrase is worth more
-  // than a system ping, so the notice goes up silent beside it. In the background the notice IS
-  // the alert - Android will sound it when this tab cannot - and the page does not also try,
-  // because two alerts landing together is worse than either alone. The notice carries its own
-  // vibration, so the buzz below is skipped in that case too.
+  // In front of you the app's own phrase is worth more than a system ping, so the notice goes up
+  // silent beside it. Backgrounded, the notice is asked to sound as well.
   var loud=bg&&notifLive();
   restDoneNotif(loud);
-  if(loud)return;
+  // The page used to stand down here and let the notice be the alert, so the two could not
+  // collide. That was the right shape and the wrong bet: Android is posting the notice without
+  // sounding it, and standing down left nothing at all. A rest you do not hear is the failure
+  // that matters, so both go now - the element has been armed since the first tap and may well
+  // play where it could not before. If they both land, the repeat below is dropped so it is one
+  // overlap and not a stutter, and this comes back out once we know which one works.
+  var dbl=loud;
   // The one moment the app is allowed to reach into the music, and only for as long as it
   // sounds. Handed back the moment the phrase is done, or the moment the alert is dismissed.
   audioMode('transient');
@@ -5399,6 +5402,7 @@ function restAlert(){
   // a full breath, so the two rounds read as one steady cadence rather than a stutter.
   var gap=2260;
   if(FG())gap=hamBuf?HAM_GAP:1700;
+  if(dbl){setTimeout(function(){audioMode('ambient');},2600);return;}   // one round only
   restRep=setTimeout(function(){
     vib([140,90,460]);
     if(FG()&&!used)try{sfxRest();}catch(e){}
