@@ -630,6 +630,9 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
 .sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
 .sfx-tog:hover{border-color:var(--go);color:var(--go);}
+/* A lit toggle. drawDiag has been setting this class since the flicker panel went in, but the
+   rule was never written, so the frame counter's switch has looked identical on and off. */
+.sfx-tog.on{border-color:var(--go);color:var(--go);}
 
 /* ---------- GYM MODE ---------- */
 html.light,body.light{--bg:#e6eaf1;--surface:#fbfcfe;--surface2:#dbe2ed;--line:#c2cbdb;--txt:#0d111a;--txt2:#48536a;--txt3:#727e95;--go:#0b6f96;--gold:#8a6a1e;}
@@ -1832,7 +1835,13 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
       <button class="preset sm" onclick="sfxPR()">Record</button>
       <button class="preset sm" onclick="sfxRestTest()">Rest over</button>
     </div>
+    <div class="presets" style="grid-template-columns:1fr;margin-top:8px">
+      <button class="preset sm" onclick="sfxRestElTest()">Rest over - background path</button>
+    </div>
     <div class="footnote" style="margin:6px 2px 0" id="audioDiag"></div>
+    <div class="footnote" style="margin:2px 2px 0">The three above play the way a rest sounds with the app in front of you. The wide one plays it the way it sounds when the app is not - a different path entirely, and the one that argues with your music. Put something on, then tap it: dipping is right, stopping is the fault.</div>
+    <div class="sfx-lbl"><span>Alert with app closed</span><span class="sfx-tog" id="keepTog" onclick="toggleKeep()"></span></div>
+    <div class="footnote" style="margin:0 2px 8px">On holds a silent sound for the whole rest so the alert still fires with the app in the background - and that silent sound is what dims your music for the entire rest, not just the alert. Off leaves the music alone, but the alert may only arrive once you open the app.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="presets" id="alertLvl" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="sfx-lbl"><span>Ambient motion</span></div>
@@ -2510,7 +2519,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v3.2';
+var APPV='v3.3';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4859,6 +4868,38 @@ function fpsStart(){
 // when it was not. It takes the transient session the real alert takes, holds it for as long
 // as the phrase runs, and hands it back, so what you hear against music is what a real rest
 // ending sounds like. The readout is redrawn either side so the session can be watched moving.
+// The check above plays through WebAudio, which is what a rest sounds like with the app in
+// front of you - and WebAudio, on the evidence, mixes with music quite happily. It is not the
+// path that fights Spotify. That is this one: the <audio> element the alert falls back to when
+// the page is hidden. Testing the wrong one of the two is how "it didn't dip at all" got read
+// as a pass. This plays the element directly so the fault can be heard without backgrounding
+// the app and waiting out a rest.
+function sfxRestElTest(){
+  audioMode('transient');
+  initAudio();
+  var ok=false;
+  try{ok=playAlertElement();}catch(e){}
+  var e=document.getElementById('audioDiag');
+  if(!ok&&e)e.textContent='Background path unavailable - no recording for this theme, or the alert is muted.';
+  else drawAudioDiag();
+  setTimeout(function(){audioMode('ambient');drawAudioDiag();},2600);
+}
+// The keep-alive is the whole of the two-minute dip, and also the only reason the alert fires
+// with the app closed. Nothing can separate them on a phone without an audio session, so the
+// trade is handed over rather than guessed at.
+var KEEP_ON=(function(){try{return localStorage.getItem('arc_keep')==='0'?0:1;}catch(e){return 1;}})();
+function toggleKeep(){
+  KEEP_ON=KEEP_ON?0:1;
+  try{localStorage.setItem('arc_keep',KEEP_ON);}catch(e){}
+  if(!KEEP_ON)keepAwake(false);          // let go of the music straight away, not at the bell
+  drawKeepTog();
+}
+function drawKeepTog(){
+  var e=document.getElementById('keepTog');
+  if(!e)return;
+  e.textContent=KEEP_ON?'ON':'OFF';
+  e.className='sfx-tog'+(KEEP_ON?' on':'');
+}
 function sfxRestTest(){
   audioMode('transient');drawAudioDiag();
   try{sfxRest();}catch(e){}
@@ -5236,14 +5277,16 @@ function silentWavURL(){
 function keepAwake(on){
   try{
     if(on){
+      if(!KEEP_ON)return;               // the music is being left alone; the alert takes its chances
       if(!kaEl){
         kaEl=new Audio(silentWavURL());
         kaEl.loop=true;kaEl.volume=0.02;
         kaEl.setAttribute('playsinline','');
       }
-      // The keep-alive is what held the music down for the whole rest. It still plays for the
-      // whole rest - that is the only thing keeping the tab off Android's freezer - but on an
-      // ambient session, where playing costs the music nothing.
+      // This is what holds the music down for the whole rest, and asking for an ambient session
+      // does not help: the Fold has no navigator.audioSession, so that request is a no-op there.
+      // It plays for the whole rest because that is the only thing keeping the tab off Android's
+      // freezer, and on that phone there is no way to have both. Hence the switch above it.
       audioMode('ambient');
       var p=kaEl.play();
       if(p&&p['catch'])p['catch'](function(){});
@@ -6226,7 +6269,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();drawAudioDiag();
+  drawSfxTog();drawAlertLvl();drawAmbRow();drawDiag();drawThemePick();drawAudioDiag();drawKeepTog();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
