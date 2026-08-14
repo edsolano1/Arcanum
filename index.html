@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.2';
+var APPV='v4.3';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5329,9 +5329,11 @@ function alertPreRoll(){
     if(p&&p['catch'])p['catch'](function(){preRolling=false;});
   }catch(e){preRolling=false;}
 }
+// loop lives on the element, not on the flag, so it is cleared unconditionally. Leaving a stale
+// loop:true behind is what made an ordinary alert ring over and over: the next play inherited it
+// and there was nothing left to turn it off.
 function stopPreRoll(){
   if(preRollT){clearTimeout(preRollT);preRollT=null;}
-  if(!preRolling)return;
   preRolling=false;
   try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;}}catch(e){}
 }
@@ -5360,7 +5362,15 @@ function alertElement(){
     if(!b64)return null;
     want='data:audio/mpeg;base64,'+b64;
   }
-  if(!elAlert){elAlert=new Audio();elAlert.setAttribute('playsinline','');}
+  if(!elAlert){
+    elAlert=new Audio();elAlert.setAttribute('playsinline','');
+    // Reaching the end of a file is not the same as letting go of the speaker, and the music
+    // only comes back up once the element has actually stopped. It is paused the moment it ends.
+    elAlert.addEventListener('ended',function(){
+      preRolling=false;
+      try{elAlert.loop=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
+    });
+  }
   if(elAlertSrc!==want){elAlert.src=want;elAlertSrc=want;}
   return elAlert;
 }
@@ -5387,6 +5397,7 @@ function playAlertElement(){
       a.loop=false;a.currentTime=0;a.volume=alertLoudness();
       return true;
     }
+    a.loop=false;                 // never inherit a loop left behind by a pre-roll
     a.volume=alertLoudness();
     a.currentTime=0;
     var p=a.play();
@@ -5427,7 +5438,10 @@ function restAlert(){
   audioMode('transient');
   var used=false;
   if(bg&&SFX_ON)used=playAlertElement();
-  if(!used)try{sfxRest();}catch(e){}
+  // If the element is not the one delivering this - in front of you it is not, WebAudio sounds
+  // better - the pre-roll still has to be let go of. It was left looping silently in that case,
+  // which held the speaker for good and is why the music never came back up.
+  if(!used){stopPreRoll();try{sfxRest();}catch(e){}}
   vib([140,90,460]);
   // Arcanum's recording already holds two tolls; the forge phrase is struck again after
   // a full breath, so the two rounds read as one steady cadence rather than a stutter.
