@@ -2510,7 +2510,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.1';
+var APPV='v4.2';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5310,6 +5310,31 @@ function buildMoonAlert(){
 // scope - so it was asking for that right at the one moment it cannot be given. Arming it means
 // playing it silently the first time you touch anything, after which it may play whenever it
 // likes. Costs nothing audible and happens once.
+// Starting an <audio> element while the page is hidden is the thing Chrome is most willing to
+// refuse, and it is exactly what the alert was asking to do. So it does not start it there. The
+// element is set running SILENTLY and on loop a few seconds before the rest ends, while the page
+// still has a claim on the speaker, and at zero it is only turned UP. A volume change on an
+// element that never stopped playing cannot be refused by anybody.
+// It costs a short dip in the music - the element takes the speaker while it loops - but seconds
+// of it at the end of a rest rather than the whole two minutes the keep-alive was holding.
+var PREROLL_MS=9000,preRollT=null,preRolling=false;
+function alertPreRoll(){
+  if(preRolling||alertMuted()||!SFX_ON)return;
+  var a=alertElement();
+  if(!a)return;
+  preRolling=true;
+  try{
+    a.loop=true;a.volume=0;a.currentTime=0;
+    var p=a.play();
+    if(p&&p['catch'])p['catch'](function(){preRolling=false;});
+  }catch(e){preRolling=false;}
+}
+function stopPreRoll(){
+  if(preRollT){clearTimeout(preRollT);preRollT=null;}
+  if(!preRolling)return;
+  preRolling=false;
+  try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;}}catch(e){}
+}
 var alertArmed=false;
 function armAlert(){
   if(alertArmed)return;
@@ -5356,6 +5381,12 @@ function playAlertElement(){
   var a=alertElement();
   if(!a)return false;
   try{
+    // Already looping silently from the pre-roll: turn it up rather than start it again.
+    if(preRolling){
+      preRolling=false;
+      a.loop=false;a.currentTime=0;a.volume=alertLoudness();
+      return true;
+    }
     a.volume=alertLoudness();
     a.currentTime=0;
     var p=a.play();
@@ -5416,7 +5447,11 @@ function stopRestAlert(){
   if(restRep){clearTimeout(restRep);restRep=null;}
   stopRestSrcs();
   if(elAlertT){clearTimeout(elAlertT);elAlertT=null;}
-  if(elAlert)try{elAlert.pause();elAlert.currentTime=0;}catch(e){}
+  // Not while it is pre-rolling. restAlert opens by calling this, and pausing the element here
+  // would stop the very thing that is about to be turned up - the alert would set a volume on a
+  // paused element and report success. Anything that really wants it stopped calls stopPreRoll,
+  // which stopTimer does before this runs.
+  if(elAlert&&!preRolling)try{elAlert.pause();elAlert.currentTime=0;}catch(e){}
 }
 // the diamond catching light
 function sfxIgnite(){
@@ -6165,6 +6200,10 @@ function startTimer(secs){
   skipQuiet=false;
   var span=secs*1000;
   keepAwake(true);
+  // Scheduled off the clock rather than off the tick, so a throttled tick cannot miss the window.
+  if(preRollT)clearTimeout(preRollT);
+  if(span>PREROLL_MS)preRollT=setTimeout(alertPreRoll,span-PREROLL_MS);
+  else alertPreRoll();
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
@@ -6196,6 +6235,7 @@ function adjustTimer(d){
 }
 function stopTimer(){
   if(timerInt){clearInterval(timerInt);timerInt=null;}
+  stopPreRoll();
   keepAwake(false);
   stopRestAlert();
   clearRestNotif();
