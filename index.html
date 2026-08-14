@@ -2512,7 +2512,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.8';
+var APPV='v4.9';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5300,6 +5300,34 @@ function drawRestLog(){
   e.textContent=RLOG.length?RLOG.join('\n'):'Nothing recorded yet. Run one rest, then reopen this.';
 }
 var preRolling=false;
+// The bell was getting about half a second out before something cut it. An element that turns
+// audible inside a hidden page is exactly what Chrome is entitled to pause, and Android can take
+// the speaker back just as fast. One play() call assumes the first attempt sticks; this does not.
+// For a few seconds after the alert it watches, and puts the element back every time it is
+// stopped. Then it stands down and leaves the speaker alone.
+var guardT=null,guardEnd=0;
+function alertGuard(a){
+  guardEnd=Date.now()+5000;
+  if(guardT)clearInterval(guardT);
+  guardT=setInterval(function(){
+    if(!a||Date.now()>guardEnd){
+      clearInterval(guardT);guardT=null;
+      rlog('guard done '+elState(a));
+      try{a.loop=false;a.pause();a.currentTime=0;a.muted=false;}catch(e){}
+      return;
+    }
+    if(a.paused){
+      rlog('guard: PAUSED, putting it back '+elState(a));
+      try{
+        var p=a.play();
+        if(p&&p['catch'])p['catch'](function(err){rlog('guard replay refused '+(err&&err.name||err));});
+      }catch(e){}
+    }
+  },200);
+}
+function stopGuard(){
+  if(guardT){clearInterval(guardT);guardT=null;}
+}
 // Started by the tap that begins the rest, which is the only moment Chrome is certain to allow
 // it. Nine seconds out was still a play() from a hidden page, which is the exact thing that gets
 // refused - the window had moved but not out of the way.
@@ -5341,6 +5369,7 @@ function alertPreRoll(){
 // killed the music outright rather than dipping it.
 function stopPreRoll(){
   preRolling=false;
+  stopGuard();
   try{var a=elAlert;if(a){a.loop=false;a.pause();a.currentTime=0;a.muted=false;}}catch(e){}
 }
 var alertArmed=false;
@@ -5404,7 +5433,11 @@ function playAlertElement(){
     if(preRolling){
       preRolling=false;
       rlog('ZERO via preroll, before: '+elState(a));
-      a.loop=false;a.muted=false;a.volume=alertLoudness();a.currentTime=0;
+      // loop stays ON through the guarded window. If the phrase is cut part way, the element
+      // starts it again rather than sitting at the end with nothing to resume; the guard turns
+      // the loop off when it stands down, so it rings for those seconds and then stops.
+      a.loop=true;a.muted=false;a.volume=alertLoudness();a.currentTime=0;
+      alertGuard(a);
       // It has been running audibly since the lead-in, so this is normally just a volume change.
       // The play is only for the case where something stopped it in the meantime.
       if(a.paused){
@@ -5485,7 +5518,10 @@ function stopRestAlert(){
   // would stop the very thing that is about to be turned up - the alert would set a volume on a
   // paused element and report success. Anything that really wants it stopped calls stopPreRoll,
   // which stopTimer does before this runs.
-  if(elAlert&&!preRolling)try{elAlert.pause();elAlert.currentTime=0;}catch(e){}
+  // Logging the next set silences a ringing alert, so the guard has to let go too or it would
+  // put the bell straight back.
+  stopGuard();
+  if(elAlert&&!preRolling)try{elAlert.loop=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
 }
 // the diamond catching light
 function sfxIgnite(){
