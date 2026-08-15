@@ -169,6 +169,13 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 
 /* ---------- REORDER ---------- */
 .blk{position:relative;transition:transform .19s cubic-bezier(.2,0,.2,1);}
+/* Day cards reorder by grabbing the grip, the same held-press the exercise handle uses. The
+   others slide to open a gap rather than a line marking the spot - the cards are all one height,
+   so the gap is unambiguous and reads as the place it will land. */
+.carddrag{display:inline-flex;align-items:center;padding:0 0 0 9px;color:var(--txt2);opacity:.55;touch-action:none;cursor:grab;}
+.carddrag svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+.card.cdrag{z-index:60;opacity:.96;transition:none;box-shadow:0 20px 44px -14px rgba(0,0,0,.6);}
+.card.cslide{transition:transform .16s ease;}
 .blk.dragging{z-index:60;opacity:.94;transition:none;}
 .blk.dragging .exc{box-shadow:0 20px 44px -14px rgba(0,0,0,.65);}
 /* While a block is being dragged the whole list collapses to name rows: a three-deep
@@ -2518,7 +2525,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.21';
+var APPV='v4.22';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2944,7 +2951,7 @@ function planCard(id,i,nx){
   var lbl=d?d.day.toUpperCase():'EXTRA';
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top">'+dayLbl(lbl+(isToday?' &middot; TODAY':(up?' &middot; UP NEXT':''))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top">'+dayLbl(lbl+(isToday?' &middot; TODAY':(up?' &middot; UP NEXT':''))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0;align-items:center">'+pills+CARDGRIP+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
@@ -3302,6 +3309,7 @@ function renderHome(){
     ? 'Not part of the week &mdash; open one whenever you want it'
     : 'Empty. Hold a day above to '+mkEsc(MKTXT().xa.charAt(0).toLowerCase()+MKTXT().xa.slice(1))+'.';
   mkBindCards();
+  cardBind();
   syncPumpBtn();
   document.getElementById('weekHint').textContent=MKTXT().hint;
   var fg=FG();
@@ -3432,6 +3440,7 @@ function rowFor(swaps,row,wk){
   return {id:base,baseId:base,exId:base,swapId:null,data:R(row,wk)};
 }
 var DRAGSVG='<div class="exdrag" title="Drag to reorder"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/></svg></div>';
+var CARDGRIP='<span class="carddrag" title="Drag to reorder"><svg viewBox="0 0 20 20"><path d="M4 6h12M4 10h12M4 14h12"/></svg></span>';
 // two links of chain: the mark of a pair that runs back to back on one rest
 var CHAIN='<svg class="sslink" viewBox="0 0 20 20"><path d="M8.4 11.6a3.4 3.4 0 0 0 5 .3l2.2-2.2a3.4 3.4 0 0 0-4.8-4.8l-1.2 1.2"/>'+
   '<path d="M11.6 8.4a3.4 3.4 0 0 0-5-.3L4.4 10.3a3.4 3.4 0 0 0 4.8 4.8l1.2-1.2"/></svg>';
@@ -3811,7 +3820,6 @@ function mkActions(id){
   // the verb - the sheet is titled with the day, so "THIS DAY" on every row said nothing.
   var h='';
   h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',\''+(mine?id:'')+'\')">EDIT</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+id+'\')">MOVE IT</div>';
   h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',null,true)">BUILD FROM SCRATCH</div>';
   // Every day can come off the plan now, made or stock - there is no slot underneath one that
   // has to keep holding something, so nothing is displaced and nothing needs putting back.
@@ -7069,7 +7077,110 @@ function exAddWrite(id,keep){
   renderSession();renderHome();
   try{sfxLog();}catch(e){}
 }
-// ---- reordering ----
+// ---- reordering the plan ----
+// Grab the grip on a card and the plan reorders under it. Same held press as the exercise
+// handle - 520ms and 8px - because the home screen scrolls too, and a brush past a grip on the
+// way down the page must not count as a grab. The cards are uniform, so instead of a drop line
+// the others slide aside and the gap itself shows where it lands.
+var CDRAG=null;
+function cardBind(){
+  [].forEach.call(document.querySelectorAll('#weekCards .carddrag'),function(hd){
+    hd.addEventListener('pointerdown',function(ev){
+      var el=hd.parentNode&&hd.parentNode.parentNode?hd.parentNode.parentNode.parentNode:null;
+      if(!el||!el.getAttribute||!el.getAttribute('data-base'))return;
+      // The card underneath carries both a tap-to-open and a hold-for-menu. Neither may fire
+      // from a grab on the grip, so the event stops here.
+      ev.preventDefault();ev.stopPropagation();
+      var sx=ev.clientX,sy=ev.clientY;
+      clearTimeout(hd._dt);
+      var cancel=function(){clearTimeout(hd._dt);hd._dt=null;off();};
+      var moved=function(m){if(Math.abs(m.clientX-sx)>8||Math.abs(m.clientY-sy)>8)cancel();};
+      var off=function(){
+        document.removeEventListener('pointermove',moved);
+        document.removeEventListener('pointerup',cancel);
+        document.removeEventListener('pointercancel',cancel);
+      };
+      document.addEventListener('pointermove',moved);
+      document.addEventListener('pointerup',cancel);
+      document.addEventListener('pointercancel',cancel);
+      hd._dt=setTimeout(function(){hd._dt=null;off();cardStart(el,sy);},520);
+    });
+  });
+}
+function cardStart(el,sy){
+  var id=el.getAttribute('data-base');
+  // Reordering renames the weekday under a session that is already running, which is the one
+  // thing moving a day must never do.
+  if(openHere(id)){mkNote(MOVE_BUSY);return;}
+  var cards=[].slice.call(document.querySelectorAll('#weekCards .card[data-base]'));
+  var i=cards.indexOf(el);
+  if(i<0)return;
+  var rects=cards.map(function(c){return c.getBoundingClientRect();});
+  var gap=cards.length>1?Math.max(4,Math.round(rects[1].top-rects[0].bottom)):12;
+  var sc=document.getElementById('home');
+  CDRAG={el:el,i:i,to:i,y0:sy,cy:sy,cards:cards,rects:rects,h:rects[i].height+gap,
+         sc:sc,sc0:sc?sc.scrollTop:0,mv:false};
+  el.classList.add('cdrag');
+  cards.forEach(function(c){if(c!==el)c.classList.add('cslide');});
+  try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
+  cardApply();
+  document.addEventListener('pointermove',cardMove);
+  document.addEventListener('pointerup',cardEnd);
+  document.addEventListener('pointercancel',cardEnd);
+}
+// Rects are cached from drag-start, so every read is corrected by how far the page has scrolled
+// since - otherwise the target index oscillates the moment the list moves under the finger.
+function cardApply(){
+  var d=CDRAG;if(!d)return;
+  var sd=d.sc?d.sc.scrollTop-d.sc0:0;
+  var dy=(d.cy-d.y0)+sd;
+  d.el.style.transform='translateY('+dy+'px)';
+  var mid=d.rects[d.i].top+d.rects[d.i].height/2+dy-sd,j=d.i;
+  d.rects.forEach(function(r,n){
+    if(n===d.i)return;
+    var m=r.top+r.height/2-sd;
+    if(n<d.i&&mid<m)j=Math.min(j,n);
+    if(n>d.i&&mid>m)j=Math.max(j,n);
+  });
+  d.to=j;
+  d.cards.forEach(function(c,n){
+    if(n===d.i)return;
+    var shift=0;
+    if(d.to>d.i&&n>d.i&&n<=d.to)shift=-d.h;
+    else if(d.to<d.i&&n<d.i&&n>=d.to)shift=d.h;
+    c.style.transform=shift?'translateY('+shift+'px)':'';
+  });
+}
+function cardMove(ev){
+  if(!CDRAG)return;
+  CDRAG.cy=ev.clientY;
+  if(Math.abs(ev.clientY-CDRAG.y0)>6)CDRAG.mv=true;
+  cardApply();
+}
+function cardEnd(){
+  document.removeEventListener('pointermove',cardMove);
+  document.removeEventListener('pointerup',cardEnd);
+  document.removeEventListener('pointercancel',cardEnd);
+  var d=CDRAG;if(!d)return;CDRAG=null;
+  d.cards.forEach(function(c){c.style.transform='';c.classList.remove('cslide');});
+  d.el.classList.remove('cdrag');
+  if(d.mv&&d.to!==d.i){
+    var id=d.el.getAttribute('data-base'),ids=(DB.plan||[]).slice(),from=ids.indexOf(id);
+    if(from>-1){
+      ids.splice(from,1);
+      // d.to indexes the rendered list, so it is translated through the id sitting there:
+      // dragging down lands after that card, dragging up lands before it.
+      var tid=d.cards[d.to]?d.cards[d.to].getAttribute('data-base'):null;
+      var to=tid?ids.indexOf(tid):-1;
+      if(to<0)to=ids.length;else if(d.to>d.i)to+=1;
+      ids.splice(to,0,id);
+      DB.plan=ids;saveDB();
+      try{sfxLog();}catch(e){}
+    }
+  }
+  renderHome();
+}
+// ---- reordering exercises ----
 // The dragged block is the only thing that moves; a line marks where it will land. Live
 // reflow of everything else costs a layout pass per frame on a list this tall.
 var DRAG=null;
