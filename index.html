@@ -1849,6 +1849,13 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="footnote" style="margin:0 2px 8px">Temporary. Run one rest your usual way, come back here, and send me what this says.</div>
     <pre id="restLog" style="font-family:var(--mono);font-size:10px;line-height:1.5;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto"></pre>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" onclick="copyText('restLog','rlCopy')" id="rlCopy">COPY LOG</button></div>
+    <div class="sfx-lbl"><span>Backup</span></div>
+    <div class="footnote" style="margin:0 2px 8px">Your history lives on this device only, and an installed app cannot see another app's storage. Back up before changing phones, and keep the file somewhere real.</div>
+    <div class="presets" style="grid-template-columns:1fr 1fr">
+      <button class="preset sm" onclick="doBackup()">SAVE A BACKUP</button>
+      <button class="preset sm" onclick="pickRestore()">RESTORE</button>
+    </div>
+    <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Tutorial</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
@@ -2524,7 +2531,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.23';
+var APPV='v4.25';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3529,9 +3536,15 @@ function edPad(){
 function openEdit(id,i,which){
   initAudio();
   var A=DB.active[CUR],r=null;
-  W[CUR].sections.forEach(function(sec){sec.rows.forEach(function(row){
-    var rf=rowFor(A.swaps,row);if(rf.id===id)r=rf.data;
-  });});
+  // Walk the day the way the session itself does. This read W[CUR].sections directly, which is
+  // the day as PLANNED - it does not include anything added to the day, so tapping the weight on
+  // an exercise you had just added found no row, threw on the next line, and the sheet never
+  // opened. The field highlighted because the tap landed; nothing behind it ran.
+  edAllRows(CUR).forEach(function(row){
+    var rf=rowFor(A.swaps,row,CUR);
+    if(rf.id===id)r=rf.data;
+  });
+  if(!r)return;
   var cur=parseFloat(document.getElementById((which==='w'?'w-':'r-')+id+'-'+i).value)||0;
   var isSec=(r.sets.split('\n')[i]||'').indexOf('sec')>-1;
   edCtx={id:id,i:i,which:which,val:cur,isSec:isSec};
@@ -3725,6 +3738,10 @@ function mkBindCards(){
     var base=el.getAttribute('data-base'),xid=el.getAttribute('data-extra');
     if(!base&&!xid)return;        // the pump card is not a week slot - nothing to reshape
     el.addEventListener('pointerdown',function(ev){
+      // The grip owns the hold. Relying on stopPropagation from the grip's own listener was not
+      // enough in practice - the menu came up mid-drag - so the card checks for itself where the
+      // finger actually landed. Grip: rearrange. Anywhere else on the card: menu.
+      if(ev.target&&ev.target.closest&&ev.target.closest('.carddrag'))return;
       LP.fired=false;LP.x=ev.clientX;LP.y=ev.clientY;
       clearTimeout(LP.t);
       // The tour hands the whole Tuesday card to the fence so it can be tapped open, and a
@@ -4479,6 +4496,71 @@ function saveAndExit(){
   renderHome();
 }
 // write every logged session out as a text file
+// ---------- backup and restore ----------
+// exportAll below writes prose - a history you can read, not a file you can restore from. This
+// writes the database itself, which is a different job and the one that matters when a phone is
+// lost or when the app moves house. Storage is per-app: the installed PWA and the Android build
+// load the same URL and still cannot see each other's data, so a file is the only bridge.
+// Version and app go in the header so a future format change can be recognised rather than
+// guessed at.
+function backupBlob(){
+  var s={};
+  ['arc_sfx','arc_alert10','arc_notif'].forEach(function(k){
+    try{var v=localStorage.getItem(k);if(v!==null)s[k]=v;}catch(e){}
+  });
+  try{s[TKEY]=curTheme();}catch(e){}
+  return JSON.stringify({arcanum:1,app:APPV,at:new Date().toISOString(),db:DB,settings:s});
+}
+function backupName(){return 'arcanum-backup-'+today()+'.json';}
+function doBackup(){
+  var txt=backupBlob();
+  try{
+    var b=new Blob([txt],{type:'application/json'}),u=URL.createObjectURL(b);
+    var a=document.createElement('a');
+    a.href=u;a.download=backupName();
+    document.body.appendChild(a);a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
+    mkNote('Backup saved: '+backupName());
+  }catch(e){
+    // Some webviews refuse a generated download. The text is still recoverable by hand.
+    try{if(navigator.clipboard)navigator.clipboard.writeText(txt);}catch(e2){}
+    ask('This app blocked the download, so the backup was copied to your clipboard instead. Paste it into a note or a file and keep it safe.',null,'Copied instead');
+  }
+}
+function pickRestore(){var i=document.getElementById('restoreFile');if(i){i.value='';i.click();}}
+// Restoring REPLACES everything. It asks first, and says what it is about to overwrite, because
+// there is no undo behind it and the thing at stake is every session you have ever logged.
+function doRestore(input){
+  var f=input&&input.files&&input.files[0];
+  if(!f)return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var d=null;
+    try{d=JSON.parse(String(rd.result));}catch(e){}
+    if(!d||!d.db||!d.db.logs){ask('That file is not an Arcanum backup.',null,'Could not read it');return;}
+    var inN=d.db.logs.length,haveN=(DB.logs||[]).length;
+    ask('The backup holds '+inN+' logged session'+(inN===1?'':'s')+', from '+(d.at||'an unknown date').slice(0,10)+
+        '. Restoring replaces everything currently in this app'+
+        (haveN?' — including the '+haveN+' session'+(haveN===1?'':'s')+' here now':'')+'. This cannot be undone.',
+      function(){
+        DB=d.db;
+        if(!DB.active)DB.active={};if(!DB.up)DB.up={};if(!DB.upSkip)DB.upSkip={};
+        if(!DB.extra)DB.extra=[];if(!DB.plan)DB.plan=[];if(!DB.walks)DB.walks=[];
+        if(DB.walkRun===undefined)DB.walkRun=null;
+        var s=d.settings||{};
+        Object.keys(s).forEach(function(k){
+          if(k===TKEY)return;
+          try{localStorage.setItem(k,s[k]);}catch(e){}
+        });
+        mergeCustom();persistNow();
+        try{if(s[TKEY])Store.set(TKEY,s[TKEY]);}catch(e){}
+        // A full boot is the only way to be sure every screen is rebuilt from the restored data
+        // rather than half of it still showing what was there before.
+        setTimeout(function(){location.reload();},400);
+      },'Restore '+inN+' session'+(inN===1?'':'s')+'?','RESTORE');
+  };
+  rd.readAsText(f);
+}
 function exportAll(){
   if(!DB.logs.length){ask('Finish a session first.',null,'Nothing to export');return;}
   var txt=APPNAME()+' \u2014 full history\n'+DB.logs.length+' sessions\n\n'+
@@ -5866,7 +5948,27 @@ function playAlertElement(){
 // no alert at all, and it is the one channel that works with the ringer on silent.
 var REST_VIB=[200,110,200,110,200,110,520];
 // the alert repeats until you pick the phone up or the next set is logged
-var restRep=null;
+var restRep=null,restBuzz=null;
+// Android decides a notification's vibration from its channel, not from the vibrate array a web
+// notification asks for - so a four-pulse pattern arrives from behind a game as a single buzz, and
+// the page's own navigator.vibrate is ignored entirely while hidden. The only lever left is that
+// re-posting under the same tag with renotify makes Android alert again, and an alert is a buzz.
+// So the pattern is built out of notifications rather than out of one. They cannot be silent:true
+// - that suppresses the vibration along with the sound, which is the whole point of the repost.
+function restBuzzTrain(n){
+  if(restBuzz){clearTimeout(restBuzz);restBuzz=null;}
+  if(n<=0)return;
+  restBuzz=setTimeout(function(){
+    restBuzz=null;
+    try{
+      pushNotif(TXT('restTtl'),TXT('restBody'),{
+        tag:'arcanum-done',silent:false,renotify:true,requireInteraction:true,vibrate:REST_VIB
+      });
+    }catch(e){}
+    restBuzzTrain(n-1);
+  },1150);
+}
+function stopBuzzTrain(){if(restBuzz){clearTimeout(restBuzz);restBuzz=null;}}
 function notifLive(){return !!(NOTIF_ON&&notifOk()&&Notification.permission==='granted');}
 function restAlert(){
   stopRestAlert();
@@ -5893,7 +5995,8 @@ function restAlert(){
   vib(REST_VIB);
   var gap=2260;
   if(FG())gap=hamBuf?HAM_GAP:1700;
-  if(loud)return;                       // Android sounded and buzzed it; one round is enough
+  // Backgrounded, the buzz IS the alert, so it is worth three of them.
+  if(loud){restBuzzTrain(2);return;}
   restRep=setTimeout(function(){
     vib(REST_VIB);
     if(!bg&&SFX_ON)try{sfxRest();}catch(e){}
@@ -5902,6 +6005,7 @@ function restAlert(){
 }
 function stopRestAlert(){
   audioMode('ambient');
+  stopBuzzTrain();          // logging the next set stops the buzzing, not just the sound
   if(restRep){clearTimeout(restRep);restRep=null;}
   stopRestSrcs();
   if(elAlertT){clearTimeout(elAlertT);elAlertT=null;}
