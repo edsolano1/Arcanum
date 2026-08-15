@@ -2534,7 +2534,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.28';
+var APPV='v4.29';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3058,19 +3058,28 @@ setTimeout(function(){dismissSplash();},3600);
 // system bars and URL chrome settle, each one growing the box a little. That stepping
 // was the visible stutter. If the viewport grows past the pinned box afterwards, the
 // html background behind it is the same colour, so the growth simply does not read.
+// Three sizes were tried here and two were wrong, so the reasoning is worth keeping.
+// Pinning once at first paint left a gap: in the WebView the viewport is still settling then, so
+// the box locked in shorter than the finished window and the week showed underneath it. Pinning
+// to screen.height overshot the other way: the screen is larger than the WebView gets, so the
+// splash ran past the window and over the system bars.
+// So: pin to the viewport, then re-measure a few times while it settles, and only ever GROW.
+// Growing catches the settling. Never shrinking is what stops the stepping the pin was added for.
 var splashLocked=false;
+function fitSplash(){
+  var s=document.getElementById('splash');if(!s||splashGone)return;
+  var w=Math.max(window.innerWidth,document.documentElement.clientWidth||0);
+  var h=Math.max(window.innerHeight,document.documentElement.clientHeight||0);
+  if(w>(parseFloat(s.style.width)||0))s.style.width=w+'px';
+  if(h>(parseFloat(s.style.height)||0))s.style.height=h+'px';
+}
 function lockSplash(){
   if(splashLocked)return;
   var s=document.getElementById('splash');if(!s||splashGone)return;
   splashLocked=true;
   s.style.overflow='hidden';
-  // Pinned to the SCREEN, not just the viewport. In the Android app the WebView is still settling
-  // at first paint, so innerHeight can be well short of the finished window - the box got pinned
-  // to that smaller number and the week showed in the gap underneath it. Overflow is hidden, so
-  // pinning too large costs nothing, while pinning too small is a hole in the splash.
-  var sw=(window.screen&&window.screen.width)||0,sh=(window.screen&&window.screen.height)||0;
-  s.style.width=Math.max(window.innerWidth,document.documentElement.clientWidth||0,sw)+'px';
-  s.style.height=Math.max(window.innerHeight,document.documentElement.clientHeight||0,sh)+'px';
+  fitSplash();
+  [120,350,800,1500].forEach(function(ms){setTimeout(fitSplash,ms);});
 }
 lockSplash();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
@@ -6396,6 +6405,14 @@ function nativeSchedule(secs){
   var ln=LN();if(!ln)return false;
   try{
     ln.cancel({notifications:[{id:NATIVE_REST_ID}]});
+    // The one that made it look broken. Every rest posts under the same id, and Capacitor sets
+    // ONLY_ALERT_ONCE - so if the previous rest's notice is STILL SITTING IN THE SHADE, Android
+    // treats the new one as an update to it and delivers it silently. No buzz, no sound, nothing.
+    // The first rest of a session alerted; every rest after it was mute until the shade was
+    // cleared by hand. Clearing the delivered one first makes each rest a fresh alert.
+    // cancel() alone does not do this - that only drops alarms not yet fired.
+    try{ln.removeDeliveredNotifications({notifications:[{id:NATIVE_REST_ID,tag:null}]});}
+    catch(e){try{ln.removeAllDeliveredNotifications();}catch(e2){}}
     ln.schedule({notifications:[{
       id:NATIVE_REST_ID,
       title:TXT('restTtl'),
