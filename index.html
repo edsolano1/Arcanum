@@ -2540,7 +2540,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.32';
+var APPV='v4.33';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6020,7 +6020,11 @@ function restAlert(){
   // Everything the element path needed is still in the file and unwired - alertPreRoll,
   // playAlertElement, alertGuard, buildRestWAV - so this is a handful of call sites to put back
   // if the platform ever grows a way to do it politely. See rest-alert.md.
-  if(!bg&&SFX_ON)try{sfxRest();}catch(e){}
+  // In the app the sound is the scheduled native one. It fires whether or not the page is alive,
+  // and it does not care whether the audio context survived being backgrounded - which is the
+  // reason nothing sounded in the foreground either: bg is true whenever the context is not
+  // running, and in a WebView it frequently is not. Playing WebAudio here as well would double it.
+  if(!isNative()&&!bg&&SFX_ON)try{sfxRest();}catch(e){}
   vib(REST_VIB);
   var gap=2260;
   if(FG())gap=hamBuf?HAM_GAP:1700;
@@ -6028,7 +6032,7 @@ function restAlert(){
   if(loud){restBuzzTrain(2);return;}
   restRep=setTimeout(function(){
     vib(REST_VIB);
-    if(!bg&&SFX_ON)try{sfxRest();}catch(e){}
+    if(!isNative()&&!bg&&SFX_ON)try{sfxRest();}catch(e){}
     restRep=null;
   },gap);
 }
@@ -6937,6 +6941,13 @@ function adjustTimer(d){
   if(d>0)flFlare=Math.max(flFlare,0.55);
   document.getElementById('tTime').textContent=fmtT(timerEnd-Date.now());
   startRestNotif();
+  // Android is holding the alert at the time it was given when the rest STARTED. Moving the
+  // clock in the page does not move that - press -15 and the countdown ends early while the
+  // alarm still fires at the original moment, arriving long after you are back under the bar.
+  // Both alarms are re-handed over on every adjustment.
+  var left=Math.max(0,(timerEnd-Date.now())/1000);
+  if(NOTIF_ON)nativeSchedule(left);
+  if(SFX_ON&&!alertMuted())nativeSound(left);
   sfxTick(d>0);
 }
 function stopTimer(){
