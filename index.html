@@ -2540,7 +2540,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.31';
+var APPV='v4.32';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6406,6 +6406,22 @@ function LN(){
   return null;
 }
 function isNative(){return !!LN();}
+// Our own plugin, which plays the alert on the media stream. It exists because a notification's
+// sound is muted whenever the ringer is on vibrate - which is exactly how a phone is carried at a
+// gym - no matter which stream its channel asks for. Media playback has no such gate, and asks
+// for no audio focus, so the alert mixes over Spotify rather than ducking or stopping it.
+function RA(){
+  try{
+    var C=window.Capacitor;
+    if(C&&C.Plugins&&C.Plugins.RestAlert)return C.Plugins.RestAlert;
+  }catch(e){}
+  return null;
+}
+function nativeSound(secs){
+  var ra=RA();if(!ra)return false;
+  try{ra.schedule({seconds:secs,theme:curTheme()});return true;}catch(e){return false;}
+}
+function nativeSoundCancel(){var ra=RA();if(ra)try{ra.cancel();}catch(e){}}
 function nativeAsk(){var ln=LN();if(ln)try{ln.requestPermissions();}catch(e){}}
 function nativeSchedule(secs){
   var ln=LN();if(!ln)return false;
@@ -6428,7 +6444,7 @@ function nativeSchedule(secs){
       // once Android has seen it, so changing a sound or a pattern means a NEW id. If a tweak
       // ever seems to have no effect on the phone, this is why - bump the suffix here and in
       // MainActivity together.
-      channelId:'arcanum-rest-'+curTheme()+'-v2',
+      channelId:'arcanum-rest-'+curTheme()+'-v3',
       // allowWhileIdle gets it past Doze, which is exactly the state a phone sitting on a bench
       // between sets is in.
       schedule:{at:new Date(Date.now()+secs*1000),allowWhileIdle:true}
@@ -6890,6 +6906,9 @@ function startTimer(secs){
   // Handed to Android now rather than fired by the page later. If the app is killed mid-rest the
   // alert still lands, which the web path could never promise.
   if(NOTIF_ON)nativeSchedule(secs);
+  // The buzz and the notice come from the channel; the sound comes from ours. Two alarms for one
+  // rest, because Android will not let one thing do both.
+  if(SFX_ON&&!alertMuted())nativeSound(secs);
   // No pre-roll. It existed only to keep a media element alive so it could be unmuted from a
   // hidden page, and the hidden page no longer makes a sound.
   startFlame();
@@ -6925,6 +6944,7 @@ function stopTimer(){
   // A scheduled alert outlives the page, so skipping a rest or logging the next set early has to
   // reach into Android and take it back - otherwise it buzzes later for a rest that is long over.
   nativeCancel();
+  nativeSoundCancel();
   stopPreRoll();
   stopRestAlert();
   clearRestNotif();
