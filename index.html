@@ -2518,7 +2518,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.15';
+var APPV='v4.17';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2708,10 +2708,15 @@ function setGrade(exId,set){
   if(w===bw&&r===br)return 'match';
   return 'under';
 }
+// A first-ever set is the best you have ever done it, so it reads like one: gold, and the record
+// cue. It used to land grey, which is a grade, and there is nothing to grade it against yet.
+// It is not recorded as a PR though - e.pr stays off, so first sessions do not inflate the count.
+// Once there is a baseline, the real grading takes over.
+function isTop(g){return g==='pr'||g==='first';}
 function gradeClass(e){
   if(!e)return '';
   var g=e.g||(e.pr?'pr':'');               // entries logged before grading existed
-  return g==='pr'?' ispr':(g==='under'||g==='first')?' isunder':g==='match'?' ismatch':'';
+  return isTop(g)?' ispr':g==='under'?' isunder':g==='match'?' ismatch':'';
 }
 function isReady(exId,tgts){
   var L=lastFor(exId);
@@ -3251,9 +3256,15 @@ function renderHome(){
   document.getElementById('mkNewBtn').innerHTML=PLUS+MKTXT().mk;
   var xs=extraIds();
   document.getElementById('extraCards').innerHTML=xs.map(xcard).join('');
+  // The bank used to hide itself when it was empty, which is exactly when it needed explaining -
+  // there was no way to find out the place existed, so nothing ever went in it. It stands under
+  // the week now whether or not it holds anything, and says what it is for when it is empty.
   document.getElementById('extraLabel').textContent=MKTXT().xl;
-  document.getElementById('extraLabel').style.display=xs.length?'':'none';
-  document.getElementById('extraHint').style.display=xs.length?'':'none';
+  document.getElementById('extraLabel').style.display='';
+  document.getElementById('extraHint').style.display='';
+  document.getElementById('extraHint').innerHTML=xs.length
+    ? 'Not part of the week &mdash; open one whenever you want it'
+    : 'Empty. Hold a day above to '+mkEsc(MKTXT().xa.charAt(0).toLowerCase()+MKTXT().xa.slice(1))+'.';
   mkBindCards();
   syncPumpBtn();
   document.getElementById('weekHint').textContent=MKTXT().hint;
@@ -3504,6 +3515,18 @@ function saveEdit(){
     A.entries[edCtx.id][edCtx.i].r=parseFloat(document.getElementById('r-'+edCtx.id+'-'+edCtx.i).value)||0;
     saveDB();
   }
+  // You load the bar once, not once per set. A weight change carries down the rest of the lift so
+  // 45 to 42.5 is one edit rather than three. Reps are left alone - those genuinely do differ set
+  // to set. Anything already logged stands: a set that happened happened, at the weight it
+  // happened at, and this must never rewrite history behind you.
+  if(edCtx.which==='w'){
+    for(var j=edCtx.i+1;;j++){
+      var nx=document.getElementById('w-'+edCtx.id+'-'+j);
+      if(!nx)break;
+      if(A&&A.entries[edCtx.id]&&A.entries[edCtx.id][j])continue;
+      nx.value=el.value;
+    }
+  }
   closeOvl('editOvl');edCtx=null;
 }
 function toggleSet(id,i,rest,unit){
@@ -3536,16 +3559,16 @@ function toggleSet(id,i,rest,unit){
     // and it being logged - a throw in the flare/sound path used to eat the whole set.
     A.entries[id][i]=e;
     row.classList.add('done');
-    if(gr)row.classList.add(gr==='pr'?'ispr':gr==='match'?'ismatch':'isunder');   // 'first' lands grey
+    if(gr)row.classList.add(isTop(gr)?'ispr':gr==='match'?'ismatch':'isunder');
     // rest starts the moment the set lands, before any effects
     var secs=parseRest(rest);
     if(secs>0)startTimer(secs);
     try{
-      if(gr==='pr'){sfxPR();vib([40,60,40,60,140]);}
+      if(isTop(gr)){sfxPR();vib([40,60,40,60,140]);}
       else{sfxLog();vib(35);}
       if(cb){
         cb.classList.remove('flare','pr');void cb.offsetWidth;
-        cb.classList.add('flare');if(gr==='pr')cb.classList.add('pr');
+        cb.classList.add('flare');if(isTop(gr))cb.classList.add('pr');
         setTimeout(function(){cb.classList.remove('flare','pr');},700);
       }
     }catch(err){}
@@ -3754,6 +3777,7 @@ function mkActions(base){
   h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD ONE FROM SCRATCH</div>';
   h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+base+'\')">MOVE THIS DAY</div>';
   if(mine){
+    h+='<div class="btn" onclick="mkBank(\''+base+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
     h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
     h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
   }
@@ -3805,6 +3829,19 @@ function mkRestore(base){
 }
 // Anything that comes off a slot lands under Kept days. Without this a custom day taken off
 // the week had no card anywhere and no route back, while still sitting in storage.
+// Taking a day off the week does not delete it - it drops to the bank underneath, and the slot
+// falls back to whatever it held by default. That fallback is also the answer to a day going
+// missing when something was moved onto it: the original was never gone, it was underneath, and
+// this is the one tap that brings it back rather than leaving the only route a hold-menu away.
+function mkBank(base){
+  var wk=effWk(base);
+  if(wk===base)return;                 // a stock day IS the slot's fallback; it has nowhere to go
+  if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
+  shelve(wk);
+  delete DB.slots[base];
+  saveDB();mergeCustom();closeOvl('mkActOvl');renderHome();
+  try{sfxLog();}catch(e){}
+}
 function shelve(id){
   if(!id||!DB.custom||!DB.custom[id])return;
   DB.extra=DB.extra||[];
@@ -5623,6 +5660,17 @@ var preRolling=false;
 // the speaker back just as fast. One play() call assumes the first attempt sticks; this does not.
 // For a few seconds after the alert it watches, and puts the element back every time it is
 // stopped. Then it stands down and leaves the speaker alone.
+// Pausing an element is not the same as letting go of the speaker. Chrome keeps the page's media
+// session alive while the element still holds a source, and Android keeps the duck on for as long
+// as that session exists - which is why the music dipped at the bell and stayed dipped until the
+// next set was logged, because logging one is what finally tore the element down. Dropping the
+// source and standing the session down releases it there and then, a few seconds after the alert.
+function releaseAlert(){
+  var a=elAlert;if(!a)return;
+  try{a.loop=false;a.pause();a.currentTime=0;a.muted=false;}catch(e){}
+  try{a.removeAttribute('src');a.load();elAlertSrc='';}catch(e){}
+  try{if(navigator.mediaSession)navigator.mediaSession.playbackState='none';}catch(e){}
+}
 var guardT=null,guardEnd=0;
 function alertGuard(a){
   guardEnd=Date.now()+5000;
@@ -5631,7 +5679,7 @@ function alertGuard(a){
     if(!a||Date.now()>guardEnd){
       clearInterval(guardT);guardT=null;
       rlog('guard done '+elState(a));
-      try{a.loop=false;a.pause();a.currentTime=0;a.muted=false;}catch(e){}
+      releaseAlert();
       return;
     }
     if(a.paused){
@@ -5805,6 +5853,10 @@ function playAlertElement(){
     return true;
   }catch(e){return false;}
 }
+// Four pulses, not one, and long enough to feel through a pocket with the phone face down on a
+// bench. This is carrying more of the alert than it used to - a buzz you can miss is the same as
+// no alert at all, and it is the one channel that works with the ringer on silent.
+var REST_VIB=[200,110,200,110,200,110,520];
 // the alert repeats until you pick the phone up or the next set is logged
 var restRep=null;
 function notifLive(){return !!(NOTIF_ON&&notifOk()&&Notification.permission==='granted');}
@@ -5835,14 +5887,14 @@ function restAlert(){
   // better - the pre-roll still has to be let go of. It was left looping silently in that case,
   // which held the speaker for good and is why the music never came back up.
   if(!used){stopPreRoll();try{sfxRest();}catch(e){}}
-  vib([140,90,460]);
+  vib(REST_VIB);
   // Arcanum's recording already holds two tolls; the forge phrase is struck again after
   // a full breath, so the two rounds read as one steady cadence rather than a stutter.
   var gap=2260;
   if(FG())gap=hamBuf?HAM_GAP:1700;
   if(dbl){setTimeout(function(){audioMode('ambient');},2600);return;}   // one round only
   restRep=setTimeout(function(){
-    vib([140,90,460]);
+    vib(REST_VIB);
     if(FG()&&!used)try{sfxRest();}catch(e){}
     else if(FG()&&used)playAlertElement();
     restRep=null;
@@ -5861,7 +5913,7 @@ function stopRestAlert(){
   // Logging the next set silences a ringing alert, so the guard has to let go too or it would
   // put the bell straight back.
   stopGuard();
-  if(elAlert&&!preRolling)try{elAlert.loop=false;elAlert.pause();elAlert.currentTime=0;}catch(e){}
+  if(elAlert&&!preRolling)releaseAlert();
 }
 // the diamond catching light
 function sfxIgnite(){
