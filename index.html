@@ -2518,7 +2518,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.17';
+var APPV='v4.18';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3772,14 +3772,16 @@ function mkActions(base){
   WEEK.forEach(function(x){if(x.wk===base)e=x;});
   document.getElementById('mkActTtl').textContent=e?e.day:'This day';
   document.getElementById('mkActSub').textContent=w.name.replace('Optional: ','')+' \u2014 '+totalSets(wk)+' sets';
+  // Six entries was already a scroll on a folded phone, and two of them did the same thing: taking
+  // a day off the week and putting the original back are one action, not two. Labels are cut to
+  // the verb - the sheet is titled with the day, so "THIS DAY" on every row said nothing.
   var h='';
-  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+(mine?wk:'')+'\')">EDIT THIS DAY</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD ONE FROM SCRATCH</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+base+'\')">MOVE THIS DAY</div>';
+  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+(mine?wk:'')+'\')">EDIT</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+base+'\')">MOVE IT</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD FROM SCRATCH</div>';
   if(mine){
-    h+='<div class="btn" onclick="mkBank(\''+base+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
-    h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
-    h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
+    h+='<div class="btn" onclick="mkRestore(\''+base+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
+    h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE</div>';
   }
   if(e){
     var cv=wkVar(e,mine),back=(e.v==='rest')?'rest':'';
@@ -3822,10 +3824,10 @@ function mkDeleteX(id){
 function mkRestore(base){
   var wk=effWk(base);
   if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
-  delete DB.slots[base];
-  shelve(wk);                              // it keeps existing, just not on the week
+  vacate(base);                            // it keeps existing, just not on the week
   saveDB();mergeCustom();
   closeOvl('mkActOvl');renderHome();
+  try{sfxLog();}catch(e){}
 }
 // Anything that comes off a slot lands under Kept days. Without this a custom day taken off
 // the week had no card anywhere and no route back, while still sitting in storage.
@@ -3833,14 +3835,20 @@ function mkRestore(base){
 // falls back to whatever it held by default. That fallback is also the answer to a day going
 // missing when something was moved onto it: the original was never gone, it was underneath, and
 // this is the one tap that brings it back rather than leaving the only route a hold-menu away.
-function mkBank(base){
+// Emptying a slot used to assume its occupant was a made day: shelve it, let the slot fall back.
+// Days can be moved between slots now, so the occupant may be a STOCK day whose home is its own
+// slot - and a stock day cannot be shelved, so it simply vanished, while the slot it came from
+// was left pointing at a day that had just reverted. That is the "it doesn't move" and the rest
+// day that would not come back. A made day goes to the bank; a stock day goes home, which undoes
+// the swap that brought it here. Either way seven slots still hold seven days.
+function vacate(base){
   var wk=effWk(base);
-  if(wk===base)return;                 // a stock day IS the slot's fallback; it has nowhere to go
-  if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
-  shelve(wk);
   delete DB.slots[base];
-  saveDB();mergeCustom();closeOvl('mkActOvl');renderHome();
-  try{sfxLog();}catch(e){}
+  if(DB.custom&&DB.custom[wk]){shelve(wk);return;}
+  if(wk===base)return;
+  var displaced=DB.slots[wk];          // whatever took its place back home
+  if(displaced&&DB.custom&&DB.custom[displaced])shelve(displaced);
+  delete DB.slots[wk];
 }
 function shelve(id){
   if(!id||!DB.custom||!DB.custom[id])return;
@@ -3859,8 +3867,9 @@ function mkDelete(base){
   ask('Delete '+nm+'? '+(W[base]?W[base].name.replace('Optional: ','')+' comes back to this slot.':'')+
       ' Sessions you already logged stay in your history.',
     function(){
-      delete DB.slots[base];
+      vacate(base);
       if(DB.custom)delete DB.custom[wk];
+      DB.extra=(DB.extra||[]).filter(function(x){return x!==wk;});   // and out of the bank with it
       saveDB();mergeCustom();renderHome();
     },'Delete this day','DELETE');
 }
@@ -5665,10 +5674,14 @@ var preRolling=false;
 // as that session exists - which is why the music dipped at the bell and stayed dipped until the
 // next set was logged, because logging one is what finally tore the element down. Dropping the
 // source and standing the session down releases it there and then, a few seconds after the alert.
+// The source is deliberately NOT dropped here any more. Clearing it and calling load() released
+// the duck sooner, but the background alert stopped sounding in the same build, and a rest you
+// cannot hear is a worse failure than music that stays dipped a few seconds too long. Standing
+// the media session down is the part that is safe to keep. If the duck lingers again, the source
+// is the thing to try next - one change at a time, or we learn nothing from either.
 function releaseAlert(){
   var a=elAlert;if(!a)return;
   try{a.loop=false;a.pause();a.currentTime=0;a.muted=false;}catch(e){}
-  try{a.removeAttribute('src');a.load();elAlertSrc='';}catch(e){}
   try{if(navigator.mediaSession)navigator.mediaSession.playbackState='none';}catch(e){}
 }
 var guardT=null,guardEnd=0;
@@ -6323,7 +6336,10 @@ function restDoneNotif(loud){
   pushNotif(TXT('restTtl'),TXT('restBody'),{
     tag:'arcanum-done',silent:!loud,renotify:true,
     requireInteraction:!!loud,          // stays put until dismissed, rather than vanishing unseen
-    vibrate:loud?[180,90,180]:[]
+    // The page's own navigator.vibrate is ignored while the page is hidden, which is every time
+    // this matters - so the pattern has to ride on the notification, which Android buzzes itself.
+    // That is why a longer pattern set in restAlert still arrived as one short buzz.
+    vibrate:loud?REST_VIB:[]
   });
   setTimeout(function(){clearNotifTag('arcanum-done');},14000);
 }
