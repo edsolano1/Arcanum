@@ -66,7 +66,10 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums;}
 
 /* ---------- HOME ---------- */
-#home{max-width:600px;margin:0 auto;padding:26px 18px 80px;}
+/* The status bar sits ON the page in the Android build - the WebView draws edge to edge, which a
+   browser tab never did - so the mark and the week title were under the notification icons.
+   env() is 0 anywhere the window is already inset, so this changes nothing on the web. */
+#home{max-width:600px;margin:0 auto;padding:calc(26px + env(safe-area-inset-top,0px)) 18px 80px;}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
 .brandtxt{min-width:0;flex:1;}
 @media(max-width:400px){.wordmark{font-size:23px;}}
@@ -271,7 +274,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 /* The week is the one screen the tour has to show whole. At full size a phone shows three
    cards; scaled down the seven fit above the card. */
 body.tut #weekCards{transform:scale(.76);transform-origin:50% 0;}
-body.tut #home{padding-top:14px;padding-bottom:30px;}
+body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:30px;}
 .tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
   border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
 .tut-nudge.on{display:block;}
@@ -2531,7 +2534,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.27';
+var APPV='v4.28';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3061,8 +3064,13 @@ function lockSplash(){
   var s=document.getElementById('splash');if(!s||splashGone)return;
   splashLocked=true;
   s.style.overflow='hidden';
-  s.style.width=Math.max(window.innerWidth,document.documentElement.clientWidth||0)+'px';
-  s.style.height=Math.max(window.innerHeight,document.documentElement.clientHeight||0)+'px';
+  // Pinned to the SCREEN, not just the viewport. In the Android app the WebView is still settling
+  // at first paint, so innerHeight can be well short of the finished window - the box got pinned
+  // to that smaller number and the week showed in the gap underneath it. Overflow is hidden, so
+  // pinning too large costs nothing, while pinning too small is a hole in the splash.
+  var sw=(window.screen&&window.screen.width)||0,sh=(window.screen&&window.screen.height)||0;
+  s.style.width=Math.max(window.innerWidth,document.documentElement.clientWidth||0,sw)+'px';
+  s.style.height=Math.max(window.innerHeight,document.documentElement.clientHeight||0,sh)+'px';
 }
 lockSplash();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
