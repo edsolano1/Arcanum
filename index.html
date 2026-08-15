@@ -69,7 +69,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 /* The status bar sits ON the page in the Android build - the WebView draws edge to edge, which a
    browser tab never did - so the mark and the week title were under the notification icons.
    env() is 0 anywhere the window is already inset, so this changes nothing on the web. */
-#home{max-width:600px;margin:0 auto;padding:calc(26px + env(safe-area-inset-top,0px)) 18px 80px;}
+#home{max-width:600px;margin:0 auto;padding:calc(26px + env(safe-area-inset-top,0px)) 18px calc(80px + env(safe-area-inset-bottom,0px));}
 .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
 .brandtxt{min-width:0;flex:1;}
 @media(max-width:400px){.wordmark{font-size:23px;}}
@@ -288,10 +288,15 @@ body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bot
 @keyframes tutp{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
 
 /* ---------- SESSION ---------- */
-#session,#make{display:none;position:fixed;inset:0;background:var(--bg);overflow-y:auto;z-index:100;padding-bottom:100px;}
+/* These are full-screen and fixed, so in the app build they run under both system bars: the
+   session header disappeared behind the status bar and the foot of the list behind the
+   navigation bar. env() is 0 on the web, so the browser layout is untouched. */
+#session,#make{display:none;position:fixed;inset:0;background:var(--bg);overflow-y:auto;z-index:100;padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));}
 #session.on,#make.on{display:block;}
 #make{z-index:120;}
-.s-head{position:sticky;top:0;background:rgba(7,8,14,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:12px 16px;z-index:10;display:flex;align-items:center;gap:12px;}
+/* Sticky to the top of a container that starts under the status bar, so the day's name was
+   sitting behind the notification icons. The bar grows by the inset instead of moving. */
+.s-head{position:sticky;top:0;background:rgba(7,8,14,.95);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px;z-index:10;display:flex;align-items:center;gap:12px;}
 .s-tb{flex:1;min-width:0;}
 .s-title{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:600;letter-spacing:-.022em;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .s-sub{font-size:12px;color:var(--txt3);margin-top:2px;}
@@ -483,7 +488,8 @@ body.arriving .foot{animation-delay:.72s;}
 .wk-pace{text-align:center;font-size:11.5px;color:var(--txt3);font-family:var(--mono);margin-top:12px;min-height:15px;}
 
 /* timer */
-.timer-pill{display:none;align-items:center;gap:9px;position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);color:var(--txt);padding:9px 11px 9px 13px;border-radius:16px;z-index:120;box-shadow:0 10px 34px rgba(0,0,0,.55);white-space:nowrap;}
+/* Sat under the navigation bar in the app build - the timer was there, just unreadable. */
+.timer-pill{display:none;align-items:center;gap:9px;position:fixed;bottom:calc(22px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--line);color:var(--txt);padding:9px 11px 9px 13px;border-radius:16px;z-index:120;box-shadow:0 10px 34px rgba(0,0,0,.55);white-space:nowrap;}
 .timer-pill.on{display:flex;}
 .ttime{font-family:var(--mono);font-size:20px;font-weight:500;min-width:58px;text-align:center;letter-spacing:-.03em;}
 .tbtn{font-size:12px;font-weight:500;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--txt2);cursor:pointer;}
@@ -2534,7 +2540,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.29';
+var APPV='v4.30';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
