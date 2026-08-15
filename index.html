@@ -2531,7 +2531,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.26';
+var APPV='v4.27';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6301,13 +6301,32 @@ function sfxTick(up){
 // tab is being frozen outright, the answer is a push server and no amount of this helps.
 var NOTIF_ON=(function(){try{return localStorage.getItem('arc_notif')==='0'?0:1;}catch(e){return 1;}})();
 // Default on, but pushNotif also demands granted permission, so it stays inert until asked for.
-function notifBlocked(){return notifOk()&&Notification.permission==='denied';}
+// notifOk() answers "can this build notify at all", which is now true in the Android app too -
+// so it can no longer be read as "the web Notification object exists". Reading .permission off a
+// missing object threw, and the throw took the whole Settings sheet down with it.
+function notifBlocked(){
+  if(isNative())return false;      // Android's own settings own this; nothing to report here
+  return typeof Notification!=='undefined'&&Notification.permission==='denied';
+}
 function toggleNotif(){
+  // Native asks Android through the plugin; the answer arrives asynchronously and the switch
+  // follows it rather than guessing.
+  if(isNative()){
+    var ln=LN();
+    if(!NOTIF_ON){
+      try{
+        var p=ln.requestPermissions();
+        if(p&&p.then){p.then(function(r){notifSet(!r||r.display!=='denied');},function(){notifSet(true);});return;}
+      }catch(e){}
+    }
+    notifSet(!NOTIF_ON);
+    return;
+  }
   // Ask whenever Android has never been asked, whatever the stored preference says. This used
   // to be gated behind the switch being OFF - and since it defaults to ON, the ask never
   // happened: the switch read ON, permission stayed ungranted, and every notice was dropped
   // without a sound or a sign. The prompt only works inside a tap, so here is the only place.
-  if(notifOk()&&Notification.permission==='default'){
+  if(typeof Notification!=='undefined'&&Notification.permission==='default'){
     try{
       var r=Notification.requestPermission(function(p){notifSet(p==='granted');});
       if(r&&r.then)r.then(function(p){notifSet(p==='granted');});
@@ -7962,6 +7981,18 @@ function tutOffer(){
   renderHome();
   wkArm();                                 // a walk left running keeps counting across a cold start
   initBack();
+  // Android 13 and up will not deliver a notification until the app has asked, and unlike the web
+  // this ask needs no tap behind it. Written once and never called, which is why the first build
+  // installed silently and then never buzzed.
+  // The bridge is injected around page load, so this waits rather than testing for it too early.
+  setTimeout(function(){
+    if(!isNative())return;
+    try{
+      var ln=LN(),p=ln.checkPermissions();
+      if(p&&p.then)p.then(function(r){if(!r||r.display!=='granted')nativeAsk();},function(){nativeAsk();});
+      else nativeAsk();
+    }catch(e){}
+  },1200);
   setTimeout(tutOffer,1600);               // after the launch animation has cleared
 })();
 </script>
