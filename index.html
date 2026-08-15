@@ -2476,7 +2476,6 @@ function applyTheme(t){
   // in the same tap that kicked it off, finding no WAV yet, and falling back to the 5.85s
   // recording. That fallback is the one thing that stops the music, so it should never be the
   // first rest after a launch. Guarded because boot may reach here before the renderer exists.
-  try{buildRestWAV(t);}catch(e){}
   drawThemePick();
   drawThemeSheet();
   refreshChks();
@@ -2525,7 +2524,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.22';
+var APPV='v4.23';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4936,15 +4935,9 @@ function setAlertLvl(n,quiet){
 // between this and a real backgrounded alert is the ceiling: an element tops out at 1x.
 // Start Spotify, press this, and you know inside three seconds whether the music survives -
 // no backgrounding, no waiting out a rest.
-function sfxRestTest(){
-  audioMode('transient');
-  // Not in the middle of a real rest: playAlertElement would spend the pre-roll and ring the
-  // actual alert early.
-  var used=false;
-  if(!preRolling){try{used=playAlertElement();}catch(e){}}
-  if(!used)try{sfxRest();}catch(e){}
-  setTimeout(function(){audioMode('ambient');},2600);
-}
+// Back to the plain path. It played the <audio> element for a while so the fight with Spotify
+// could be heard without backgrounding the app; there is no fight left to hear.
+function sfxRestTest(){try{sfxRest();}catch(e){}}
 function drawAlertLvl(){
   var e=document.getElementById('alertLvl');if(!e)return;
   var r=document.getElementById('alertRange'),n=document.getElementById('alertNum');
@@ -5010,11 +5003,9 @@ function initAudio(){
     if(actx.state==='suspended')actx.resume();
     applyRoom();
     loadForgeClips();
-    if(MW())buildMoonAlert();
-    else if(!FG())buildRestWAV();
-    // Everything that calls initAudio is a tap, which makes this the right place to spend the
-    // gesture the background alert will need later and cannot get for itself.
-    armAlert();
+    // The offline render and the armed element were both for the background alert. Nothing plays
+    // from behind another app any more, so neither is built - that is a render and a ~200KB data
+    // URI per theme that no longer happen.
   }catch(e){}
 }
 function applyRoom(){
@@ -5888,34 +5879,25 @@ function restAlert(){
   rlog('REST OVER vis='+document.visibilityState+' ctx='+(actx?actx.state:'none')+
        ' bg='+bg+' notifSounds='+loud+' sfx='+SFX_ON+' alertLvl='+ALERT_LVL);
   restDoneNotif(loud);
-  // The page used to stand down here and let the notice be the alert, so the two could not
-  // collide. That was the right shape and the wrong bet: Android is posting the notice without
-  // sounding it, and standing down left nothing at all. A rest you do not hear is the failure
-  // that matters, so both go now - the element has been armed since the first tap and may well
-  // play where it could not before. If they both land, the repeat below is dropped so it is one
-  // overlap and not a stutter, and this comes back out once we know which one works.
-  var dbl=loud;
-  // The one moment the app is allowed to reach into the music, and only for as long as it
-  // sounds. Handed back the moment the phrase is done, or the moment the alert is dismissed.
-  audioMode('transient');
-  var used=false;
-  if(bg&&SFX_ON)used=playAlertElement();
-  // If the element is not the one delivering this - in front of you it is not, WebAudio sounds
-  // better - the pre-roll still has to be let go of. It was left looping silently in that case,
-  // which held the speaker for good and is why the music never came back up.
-  if(!used){stopPreRoll();try{sfxRest();}catch(e){}}
+  // ---- the backgrounded alert no longer makes a sound of its own ----
+  // Roughly a day and a half went into making a hidden page audible without killing the music,
+  // and the platform will not have it: audible media from a background tab takes permanent audio
+  // focus, and everything that avoided that also avoided being heard. So the page stops trying.
+  // Backgrounded, the alert is the notification and the buzz - Android owns both, neither
+  // competes for the speaker, and the whole five-second/audio-focus problem goes with it.
+  // In front of you nothing changed: WebAudio has always mixed happily and is still the alert.
+  // Everything the element path needed is still in the file and unwired - alertPreRoll,
+  // playAlertElement, alertGuard, buildRestWAV - so this is a handful of call sites to put back
+  // if the platform ever grows a way to do it politely. See rest-alert.md.
+  if(!bg&&SFX_ON)try{sfxRest();}catch(e){}
   vib(REST_VIB);
-  // Arcanum's recording already holds two tolls; the forge phrase is struck again after
-  // a full breath, so the two rounds read as one steady cadence rather than a stutter.
   var gap=2260;
   if(FG())gap=hamBuf?HAM_GAP:1700;
-  if(dbl){setTimeout(function(){audioMode('ambient');},2600);return;}   // one round only
+  if(loud)return;                       // Android sounded and buzzed it; one round is enough
   restRep=setTimeout(function(){
     vib(REST_VIB);
-    if(FG()&&!used)try{sfxRest();}catch(e){}
-    else if(FG()&&used)playAlertElement();
+    if(!bg&&SFX_ON)try{sfxRest();}catch(e){}
     restRep=null;
-    setTimeout(function(){if(!restRep)audioMode('ambient');},2600);   // the music comes back up
   },gap);
 }
 function stopRestAlert(){
@@ -6697,7 +6679,8 @@ function startTimer(secs){
   // seconds or three minutes, so a short one now tests exactly what a long one does.
   rlogReset();
   rlog('rest started '+secs+'s, notif='+(notifLive()?'live':'off'));
-  alertPreRoll();
+  // No pre-roll. It existed only to keep a media element alive so it could be unmuted from a
+  // hidden page, and the hidden page no longer makes a sound.
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
