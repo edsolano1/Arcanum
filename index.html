@@ -2389,7 +2389,7 @@ function TXT(k){
     restingTtl:'Still',
     restingBody:'Next set at',
     skipAct:   'Skip rest',
-    week:      'Your Week',
+    week:      'Up Next',
     ready:     'Rise',
     splashTag: 'Drawing the water',
     restTtl:   'Rest over',
@@ -2412,7 +2412,7 @@ function TXT(k){
     restingTtl:'Resting',
     restingBody:'Next set at',
     skipAct:   'Move on',
-    week:      'Your Week',
+    week:      'Up Next',
     ready:     'Push on',
     splashTag: 'Breaking trail',
     restTtl:   'Rest over',
@@ -2436,7 +2436,7 @@ function TXT(k){
     restingTtl:f?'Cooling':'Resting',
     restingBody:f?'Back on the anvil at':'Next set at',
     skipAct:   f?'Back to it':'Skip rest',
-    week:      f?'The Week&rsquo;s Work':'Your Week',
+    week:      f?'The Work Ahead':'Up Next',
     ready:     f?'Heat':'Ascend',
     splashTag: f?'Lighting the forge':'Loading',
     restTtl:   f?'Back to the anvil':'Rest over',
@@ -2518,8 +2518,8 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.18';
-var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
+var APPV='v4.20';
+var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
   try{var raw=localStorage.getItem(KEY+':bak');var p=raw?JSON.parse(raw):null;if(p&&p.db&&p.db.logs)bak=p.db;}catch(e){}
@@ -2530,7 +2530,7 @@ async function loadDB(){
       if(cnt(bak)>cnt(d))d=bak;
     }
   }
-  if(d&&d.logs){DB=d;if(!DB.active)DB.active={};if(!DB.up)DB.up={};if(!DB.upSkip)DB.upSkip={};if(!DB.extra)DB.extra=[];if(!DB.walks)DB.walks=[];if(DB.walkRun===undefined)DB.walkRun=null;}
+  if(d&&d.logs){DB=d;if(!DB.active)DB.active={};if(!DB.up)DB.up={};if(!DB.upSkip)DB.upSkip={};if(!DB.extra)DB.extra=[];if(!DB.plan)DB.plan=[];if(!DB.walks)DB.walks=[];if(DB.walkRun===undefined)DB.walkRun=null;}
   mergeCustom();
 }
 var saveT=null;
@@ -2879,37 +2879,67 @@ function roman(n){
   var R=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
   return R[n]||String(n);
 }
-// Whether a day is optional is the user's call, not the plan's. The override is filed
-// against the week slot, so it holds even after a day of their own is dropped onto it.
-function wkVar(e,mine){
-  var o=(typeof DB!=='undefined'&&DB.vOvr)?DB.vOvr[e.wk]:undefined;
-  if(o!==undefined)return o||null;
-  return mine?null:(e.v||null);
+// ---------- the plan ----------
+// The week is gone. Seven weekday slots with days dropped onto them is what produced every
+// move/restore/overwrite bug in this area, and the weekday was never doing any work: what
+// mattered was only ever which workout comes next. So the plan is one ordered list of day ids,
+// a day means itself, and two workouts on the same calendar day is not a case that has to
+// exist - there are no calendar days to collide on. WEEK survives only as the seed for that
+// list and as the source of a stock day's default rest/optional marking.
+// Migration runs once: resolve each old slot to whatever was actually sitting on it, in order,
+// then empty the slot table so effWk stops indirecting and every id means itself.
+function planIds(){
+  if(!DB.plan||!DB.plan.length){
+    DB.plan=WEEK.map(function(e){return (DB.slots&&DB.slots[e.wk])||e.wk;});
+    DB.slots={};
+    try{saveDB();}catch(e){}
+  }
+  return DB.plan.filter(function(id){return !!W[id];});
 }
-function setWkVar(base,v){
+function onPlan(id){return (DB.plan||[]).indexOf(id)>-1;}
+function wkDefault(id){var e=null;WEEK.forEach(function(x){if(x.wk===id)e=x;});return e;}
+// The one you are on if a session is open, otherwise the first one not yet finished this week.
+function nextUp(ids){
+  var i;
+  for(i=0;i<ids.length;i++)if(loggedCount(ids[i])>0)return ids[i];
+  var lw=loggedThisWeek();
+  for(i=0;i<ids.length;i++)if(!lw[ids[i]]&&wkVar(ids[i])!=='rest')return ids[i];
+  return ids[0]||null;
+}
+// Whether a day is optional is the user's call, not the plan's. The override is filed against
+// the day itself now rather than a slot, because there is no slot for it to outlive.
+function wkVar(id){
+  var o=(typeof DB!=='undefined'&&DB.vOvr)?DB.vOvr[id]:undefined;
+  if(o!==undefined)return o||null;
+  var e=wkDefault(id);
+  return e?(e.v||null):null;
+}
+function setWkVar(id,v){
   DB.vOvr=DB.vOvr||{};
-  var e=null;WEEK.forEach(function(x){if(x.wk===base)e=x;});
-  var def=e?(e.v||''):'';
-  if((v||'')===def)delete DB.vOvr[base];else DB.vOvr[base]=v||'';
+  var e=wkDefault(id),def=e?(e.v||''):'';
+  if((v||'')===def)delete DB.vOvr[id];else DB.vOvr[id]=v||'';
   saveDB();closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(err){}
 }
-function card(e){
-  var wk=effWk(e.wk),mine=wk!==e.wk;
-  var w=W[wk]||W[e.wk],v=wkVar(e,mine),isToday=new Date().getDay()===e.js;
+// One card per workout, in the order you will do them. Where the weekday used to sit there is
+// now the position, and the one you are actually on is UP NEXT - which is the only piece of
+// that label anyone was reading anyway.
+function planCard(id,i,nx){
+  var w=W[id];if(!w)return '';
+  var v=wkVar(id),mine=!!(DB.custom&&DB.custom[id]),e=wkDefault(id);
   // gate on the plan itself: a lit arrow must always have something behind it. Readiness
   // also counts timed rows, which have no weight to add and never enter the plan.
-  var live=loggedCount(wk)>0,rdy=v?0:levelPlan(wk).length;
-  var sealed=!live&&!!loggedThisWeek()[wk];
+  var live=loggedCount(id)>0,rdy=v?0:levelPlan(id).length;
+  var sealed=!live&&!!loggedThisWeek()[id];
+  var up=(id===nx);
   var pills='';
-  if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(wk)+'/'+totalSets(wk)+'</span>';
+  if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(id)+'/'+totalSets(id)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
-  else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+wk+'\')">'+ARROW+'</span>';
-  if(isToday)pills+='';
-  var meta=v==='rest'?(e.label||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(wk)+' sets &middot; lift, walk, or rest':totalSets(wk)+' sets');
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+e.wk+'" style="--c:'+dayC(wk)+';--gd:-'+(e.js*0.77).toFixed(2)+'s" onclick="mkTap(\''+wk+'\')">'+
+  else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
+  var meta=v==='rest'?((e&&e.label)||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets &middot; lift, walk, or rest':totalSets(id)+' sets');
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top">'+dayLbl(e.day.toUpperCase()+(isToday?' &middot; TODAY':'')+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top">'+dayLbl((up?'UP NEXT':roman(i+1))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
@@ -3252,7 +3282,8 @@ function renderHome(){
       '<span style="display:flex;gap:0"><span class="pill pill-live">Resume '+loggedCount('pump')+'/'+totalSets('pump')+'</span></span></div>'+
       '<div class="card-name">'+W.pump.name+'</div>'+
       '<div class="card-meta">Still open &mdash; pick up where you left off</div></div>':'';
-  document.getElementById('weekCards').innerHTML=pumpOpen+WEEK.map(card).join('');
+  var pids=planIds(),pnx=nextUp(pids);
+  document.getElementById('weekCards').innerHTML=pumpOpen+pids.map(function(id,i){return planCard(id,i,pnx);}).join('');
   document.getElementById('mkNewBtn').innerHTML=PLUS+MKTXT().mk;
   var xs=extraIds();
   document.getElementById('extraCards').innerHTML=xs.map(xcard).join('');
@@ -3295,9 +3326,11 @@ function renderHome(){
   var sn=document.getElementById('storeNote');
   sn.textContent=m[Store.mode]||'';
   sn.style.display=m[Store.mode]?'':'none';
-  var td=WEEK.filter(function(e){return e.day.slice(0,3).toLowerCase()===['sun','mon','tue','wed','thu','fri','sat'][new Date().getDay()];})[0];
+  // The splash used to name whatever the calendar said today was. It names what you are actually
+  // about to do instead, which is the same question the whole screen now answers.
+  var spIds=planIds(),spNx=nextUp(spIds);
   var st=document.getElementById('spTag');
-  if(st)st.textContent=td&&W[effWk(td.wk)]?W[effWk(td.wk)].name.replace('Optional: ',''):(FG()?'Cold day':'Rest day');
+  if(st)st.textContent=(spNx&&W[spNx])?W[spNx].name.replace('Optional: ',''):(FG()?'Cold day':'Rest day');
   markHomeReady();
 }
 
@@ -3644,10 +3677,10 @@ var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',blocks:[]};
 var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','2-3 min'];
 function MKTXT(){
-  if(LT())return {t:'Stake a day',save:'STAKE THIS DAY',hint:'Hold a day to stake your own',act:'Stake this day again',mk:'STAKE A NEW DAY',xl:'Cached days',xa:'Cache it off the week',xc:'CACHED'};
-  if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again',mk:'DRAW A NEW DAY',xl:'Kept days',xa:'Keep it off the week',xc:'KEPT'};
-  if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again',mk:'FORGE A NEW DAY',xl:'On the rack',xa:'Rack it off the week',xc:'RACKED'};
-  return {t:'Inscribe a day',save:'INSCRIBE THIS DAY',hint:'Hold a day to inscribe your own',act:'Inscribe this day again',mk:'INSCRIBE A NEW DAY',xl:'Kept days',xa:'Keep it off the week',xc:'KEPT'};
+  if(LT())return {t:'Stake a day',save:'STAKE THIS DAY',hint:'Hold a day to stake your own',act:'Stake this day again',mk:'STAKE A NEW DAY',xl:'Cached days',xa:'Cache it off the plan',xc:'CACHED'};
+  if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again',mk:'DRAW A NEW DAY',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
+  if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again',mk:'FORGE A NEW DAY',xl:'On the rack',xa:'Rack it off the plan',xc:'RACKED'};
+  return {t:'Inscribe a day',save:'INSCRIBE THIS DAY',hint:'Hold a day to inscribe your own',act:'Inscribe this day again',mk:'INSCRIBE A NEW DAY',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
 }
 function effWk(wk){return (DB.slots&&DB.slots[wk])||wk;}
 function baseOf(wk){for(var s in (DB.slots||{}))if(DB.slots[s]===wk)return s;return wk;}
@@ -3703,91 +3736,82 @@ function mkBindCards(){
 var PLUS='<svg viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg>';
 // The builder always writes into a week slot, so a new day starts by choosing which slot it
 // takes. Same model as holding a card - this just makes it findable.
-function openNewDay(){openSlotPick(null);}
-// id === null builds a new day; an id moves an existing kept day onto a slot.
-function openSlotPick(id){
-  SLOTFOR=id;
-  document.getElementById('mkSlotTtl').textContent=id?'Put it on the week':MKTXT().t;
-  var head='';
-  if(!id)head='<div class="slotrow" onclick="closeOvl(\'mkSlotOvl\');openMake(null,null)">'+
-    '<span class="sd">OFF</span><span class="sn">'+MKTXT().xa+'</span>'+
-    '<span class="sm">kept day</span></div>';
-  document.getElementById('mkSlotBody').innerHTML=head+WEEK.map(function(e){
-    var wk=effWk(e.wk),w=W[wk],mine=wk!==e.wk,busy=openHere(wk);
-    return '<div class="slotrow'+(busy?' off':'')+'"'+(busy?'':' onclick="slotPicked(\''+e.wk+'\')"')+'>'+
-      '<span class="sd">'+e.day.slice(0,3).toUpperCase()+'</span>'+
-      '<span class="sn">'+w.name.replace('Optional: ','')+'</span>'+
-      '<span class="sm">'+(busy?'session open':mine?'yours':totalSets(wk)+' sets')+'</span></div>';
-  }).join('');
-  document.getElementById('mkSlotOvl').classList.add('on');
-}
-// ---- moving a day ----
-// A week is seven slots and they are always full, so moving a day is a swap: there is nowhere for
-// one to go that does not send another back. That is also what makes it safe for the stock days,
-// which do not live in DB.slots at all until something displaces them - writing both sides of the
-// trade names them both, so neither slot is left resolving to a day that has moved away.
-// The optional/rest marking belongs to the slot rather than to the day, so it stays put: a rest
-// day is Sunday being a rest day, not the workout on it.
-var MOVEFROM=null;
-function openDayMove(base){
-  MOVEFROM=base;
-  var here=effWk(base);
-  document.getElementById('mkSlotTtl').textContent='Move it to';
-  document.getElementById('mkSlotBody').innerHTML=WEEK.map(function(e){
-    if(e.wk===base)return '';
-    var wk=effWk(e.wk),w=W[wk],busy=openHere(wk)||openHere(here);
-    return '<div class="slotrow'+(busy?' off':'')+'"'+(busy?'':' onclick="dayMoved(\''+e.wk+'\')"')+'>'+
-      '<span class="sd">'+e.day.slice(0,3).toUpperCase()+'</span>'+
-      '<span class="sn">'+w.name.replace('Optional: ','')+'</span>'+
-      '<span class="sm">'+(busy?'session open':'trade places')+'</span></div>';
-  }).join('');
-  document.getElementById('mkSlotOvl').classList.add('on');
-}
-function dayMoved(to){
-  var from=MOVEFROM;MOVEFROM=null;
-  closeOvl('mkSlotOvl');
-  if(!from||from===to)return;
-  var a=effWk(from),b=effWk(to);
-  // An open session is anchored to the day it was started on, so neither end can move under it.
-  if(openHere(a)||openHere(b)){mkNote('There is an open session on one of those days. Finish or seal it first.');return;}
-  DB.slots=DB.slots||{};
-  DB.slots[from]=b;DB.slots[to]=a;
-  saveDB();mergeCustom();renderHome();
+// Straight into the editor. There is no weekday left to pick on the way in, and the editor
+// already carries the only choice that remains: on the plan, or in the bank.
+function openNewDay(){openMake(null,null);}
+function planAdd(id){
+  DB.plan=DB.plan||[];
+  if(DB.plan.indexOf(id)<0)DB.plan.push(id);
+  DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+  saveDB();mergeCustom();closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(e){}
 }
-var SLOTFOR=null;
-function slotPicked(base){
-  var id=SLOTFOR;SLOTFOR=null;
-  closeOvl('mkSlotOvl');
-  if(!id){openMake(base,null);return;}
-  DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
-  for(var s in DB.slots)if(DB.slots[s]===id)delete DB.slots[s];
-  var out=DB.slots[base];                  // the slot's current tenant goes to the shelf
-  if(out&&out!==id)shelve(out);
-  DB.slots[base]=id;
-  saveDB();mergeCustom();renderHome();
+function planDrop(id){
+  DB.plan=(DB.plan||[]).filter(function(x){return x!==id;});
+  DB.extra=DB.extra||[];
+  if(DB.extra.indexOf(id)<0)DB.extra.push(id);
 }
-function mkActions(base){
-  var wk=effWk(base),mine=wk!==base,w=W[wk],e=null;
-  WEEK.forEach(function(x){if(x.wk===base)e=x;});
-  document.getElementById('mkActTtl').textContent=e?e.day:'This day';
-  document.getElementById('mkActSub').textContent=w.name.replace('Optional: ','')+' \u2014 '+totalSets(wk)+' sets';
+// ---- moving a day ----
+var MOVEFROM=null;
+// A day with a session open cannot move, and the two ways that used to be communicated were a
+// greyed row and nothing at all - if the day you were moving was the busy one, every row went
+// dead and the sheet just sat there. It says so now, and says what to do about it, at whichever
+// end the open session is.
+var MOVE_BUSY='That day has a session open, so it cannot move. Seal it or finish it first, then move it.';
+// Moving is now reordering: pick what it should come before, or send it to the end. Swapping two
+// weekdays is not a thing any more, because the position IS the day.
+function openDayMove(id){
+  if(openHere(id)){mkNote(MOVE_BUSY);return;}
+  MOVEFROM=id;
+  var ids=planIds(),h='';
+  document.getElementById('mkSlotTtl').textContent='Move it';
+  ids.forEach(function(x,i){
+    if(x===id)return;
+    h+='<div class="slotrow" onclick="dayMoved(\''+x+'\')">'+
+       '<span class="sd">'+roman(i+1)+'</span>'+
+       '<span class="sn">Before '+mkEsc(W[x].name.replace('Optional: ',''))+'</span>'+
+       '<span class="sm">move here</span></div>';
+  });
+  h+='<div class="slotrow" onclick="dayMoved(\'\')">'+
+     '<span class="sd">END</span><span class="sn">Last on the plan</span>'+
+     '<span class="sm">move here</span></div>';
+  document.getElementById('mkSlotBody').innerHTML=h;
+  document.getElementById('mkSlotOvl').classList.add('on');
+}
+function dayMoved(before){
+  var id=MOVEFROM;MOVEFROM=null;
+  closeOvl('mkSlotOvl');
+  if(!id)return;
+  if(openHere(id)){mkNote(MOVE_BUSY);return;}
+  var ids=(DB.plan||[]).slice(),from=ids.indexOf(id);
+  if(from<0)return;
+  ids.splice(from,1);
+  var to=before?ids.indexOf(before):-1;
+  if(to<0)to=ids.length;
+  ids.splice(to,0,id);
+  DB.plan=ids;
+  saveDB();renderHome();
+  try{sfxLog();}catch(e){}
+}
+function mkActions(id){
+  var w=W[id];if(!w)return;
+  var mine=!!(DB.custom&&DB.custom[id]);
+  document.getElementById('mkActTtl').textContent=w.name.replace('Optional: ','');
+  document.getElementById('mkActSub').textContent=(onPlan(id)?'On the plan':'In the bank')+' \u2014 '+totalSets(id)+' sets';
   // Six entries was already a scroll on a folded phone, and two of them did the same thing: taking
   // a day off the week and putting the original back are one action, not two. Labels are cut to
   // the verb - the sheet is titled with the day, so "THIS DAY" on every row said nothing.
   var h='';
-  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+(mine?wk:'')+'\')">EDIT</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+base+'\')">MOVE IT</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD FROM SCRATCH</div>';
-  if(mine){
-    h+='<div class="btn" onclick="mkRestore(\''+base+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
-    h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE</div>';
-  }
-  if(e){
-    var cv=wkVar(e,mine),back=(e.v==='rest')?'rest':'';
-    h+='<div class="btn" onclick="setWkVar(\''+base+'\',\''+(cv==='opt'?back:'opt')+'\')">'+
-       (cv==='opt'?'MAKE IT A REQUIRED DAY':'MAKE IT OPTIONAL')+'</div>';
-  }
+  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',\''+(mine?id:'')+'\')">EDIT</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+id+'\')">MOVE IT</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',null,true)">BUILD FROM SCRATCH</div>';
+  // Every day can come off the plan now, made or stock - there is no slot underneath one that
+  // has to keep holding something, so nothing is displaced and nothing needs putting back.
+  h+='<div class="btn" onclick="mkRestore(\''+id+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
+  if(mine)h+='<div class="btn btn-bad" onclick="mkDelete(\''+id+'\')">DELETE</div>';
+  var e=wkDefault(id),cv=wkVar(id),back=(e&&e.v==='rest')?'rest':'';
+  h+='<div class="btn" onclick="setWkVar(\''+id+'\',\''+(cv==='opt'?back:'opt')+'\')">'+
+     (cv==='opt'?'MAKE IT A REQUIRED DAY':'MAKE IT OPTIONAL')+'</div>';
   document.getElementById('mkActBody').innerHTML=h;
   openHeld('mkActOvl');
 }
@@ -3804,11 +3828,11 @@ function openHeld(id){
 function mkActionsX(id){
   var w=W[id];if(!w)return;
   document.getElementById('mkActTtl').textContent=w.name.replace('Optional: ','');
-  document.getElementById('mkActSub').textContent='Kept off the week \u2014 '+totalSets(id)+' sets';
+  document.getElementById('mkActSub').textContent='In the bank \u2014 '+totalSets(id)+' sets';
   document.getElementById('mkActBody').innerHTML=
     '<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(null,\''+id+'\')">'+MKTXT().act.toUpperCase()+'</div>'+
-    '<div class="btn" onclick="closeOvl(\'mkActOvl\');openSlotPick(\''+id+'\')">PUT IT ON THE WEEK</div>'+
-    '<div class="btn btn-bad" onclick="mkDeleteX(\''+id+'\')">DELETE THIS DAY</div>';
+    '<div class="btn" onclick="planAdd(\''+id+'\')">PUT IT ON THE PLAN</div>'+
+    '<div class="btn btn-bad" onclick="mkDeleteX(\''+id+'\')">DELETE</div>';
   openHeld('mkActOvl');
 }
 function mkDeleteX(id){
@@ -3821,35 +3845,15 @@ function mkDeleteX(id){
     saveDB();mergeCustom();renderHome();
   },'Delete this day','DELETE');
 }
-function mkRestore(base){
-  var wk=effWk(base);
-  if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
-  vacate(base);                            // it keeps existing, just not on the week
+function mkRestore(id){
+  if(openHere(id)){closeOvl('mkActOvl');mkNote(MOVE_BUSY);return;}
+  planDrop(id);                            // it keeps existing, just not on the plan
   saveDB();mergeCustom();
   closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(e){}
 }
-// Anything that comes off a slot lands under Kept days. Without this a custom day taken off
-// the week had no card anywhere and no route back, while still sitting in storage.
-// Taking a day off the week does not delete it - it drops to the bank underneath, and the slot
-// falls back to whatever it held by default. That fallback is also the answer to a day going
-// missing when something was moved onto it: the original was never gone, it was underneath, and
-// this is the one tap that brings it back rather than leaving the only route a hold-menu away.
-// Emptying a slot used to assume its occupant was a made day: shelve it, let the slot fall back.
-// Days can be moved between slots now, so the occupant may be a STOCK day whose home is its own
-// slot - and a stock day cannot be shelved, so it simply vanished, while the slot it came from
-// was left pointing at a day that had just reverted. That is the "it doesn't move" and the rest
-// day that would not come back. A made day goes to the bank; a stock day goes home, which undoes
-// the swap that brought it here. Either way seven slots still hold seven days.
-function vacate(base){
-  var wk=effWk(base);
-  delete DB.slots[base];
-  if(DB.custom&&DB.custom[wk]){shelve(wk);return;}
-  if(wk===base)return;
-  var displaced=DB.slots[wk];          // whatever took its place back home
-  if(displaced&&DB.custom&&DB.custom[displaced])shelve(displaced);
-  delete DB.slots[wk];
-}
+// Anything that comes off the plan lands in the bank. Without this a day taken off had no card
+// anywhere and no route back, while still sitting in storage.
 function shelve(id){
   if(!id||!DB.custom||!DB.custom[id])return;
   DB.extra=DB.extra||[];
@@ -3859,17 +3863,15 @@ function openHere(wk){var a=DB.active[wk];return !!(a&&Object.keys(a.entries||{}
 // Putting the original back leaves the custom day in store, so it can be dropped onto a slot
 // again later. Deleting is the one that discards it. Logged history is never touched - those
 // sessions happened, whatever the day was called.
-function mkDelete(base){
-  var wk=effWk(base);
-  if(openHere(wk)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
-  var nm=(W[wk]&&W[wk].name)||'this day';
+function mkDelete(id){
+  if(openHere(id)){closeOvl('mkActOvl');mkNote(MOVE_BUSY);return;}
+  var nm=(W[id]&&W[id].name.replace('Optional: ',''))||'this day';
   closeOvl('mkActOvl');
-  ask('Delete '+nm+'? '+(W[base]?W[base].name.replace('Optional: ','')+' comes back to this slot.':'')+
-      ' Sessions you already logged stay in your history.',
+  ask('Delete '+nm+'? Sessions you already logged stay in your history.',
     function(){
-      vacate(base);
-      if(DB.custom)delete DB.custom[wk];
-      DB.extra=(DB.extra||[]).filter(function(x){return x!==wk;});   // and out of the bank with it
+      DB.plan=(DB.plan||[]).filter(function(x){return x!==id;});
+      DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+      if(DB.custom)delete DB.custom[id];
       saveDB();mergeCustom();renderHome();
     },'Delete this day','DELETE');
 }
@@ -3881,7 +3883,7 @@ function openMake(base,editId,blank){
   if(src){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
-        color:w.color||MK_COLS[0],slot:base,tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+        color:w.color||MK_COLS[0],slot:(editId?(onPlan(editId)?'plan':null):'plan'),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
       blocks:w.sections.map(function(s){
         return {title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
           var id=typeof row==='string'?row:row[0];
@@ -3892,7 +3894,7 @@ function openMake(base,editId,blank){
         })};
       })};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:base,tag:'Yours',time:'~9:00 PM',
+    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:(editId?(onPlan(editId)?'plan':null):'plan'),tag:'Yours',time:'~9:00 PM',
       blocks:[{title:'',ss:false,rows:[]}]};
   }
   document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
@@ -3909,14 +3911,11 @@ function mkRender(){
   document.getElementById('mkSub').textContent=MK.blocks.reduce(function(a,b){return a+b.rows.reduce(function(x,r){return x+(r.n||0);},0);},0)+' sets';
   h+='<div class="mk-lbl">Name</div>'+
      '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
+  // Seven weekday chips and an OFF became two: a day is either on the plan or waiting in the
+  // bank. Where it sits in the order is set by moving it, not by picking a weekday here.
   h+='<div class="mk-lbl">Where it lives</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
-  // The eighth chip takes it off the week entirely - reachable from inside the editor, not
-  // only from the picker you came in through.
+  h+='<div class="mk-slot'+(MK.slot?' sel':'')+'" onclick="MK.slot=\'plan\';mkRender()"><b>PLAN</b><small>Up next</small></div>';
   h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>OFF</b><small>'+T.xl+'</small></div>';
-  WEEK.forEach(function(e){
-    var cur=effWk(e.wk),nm=W[cur]?W[cur].name.replace('Optional: ',''):'';
-    h+='<div class="mk-slot'+(MK.slot===e.wk?' sel':'')+'" onclick="MK.slot=\''+e.wk+'\';mkRender()"><b>'+e.day.slice(0,3).toUpperCase()+'</b><small>'+mkEsc(nm)+'</small></div>';
-  });
   h+='</div>';
   h+='<div class="mk-lbl">Its color</div><div class="mk-cols">';
   MK_COLS.forEach(function(c){
@@ -4070,32 +4069,21 @@ function mkSave(){
   if(!MK.name.trim()){mkNote('Name the day first \u2014 it goes on the card.');return;}
   var w=mkBuild();
   if(!w.sections.length){mkNote('Add at least one exercise before saving.');return;}
-  // Nothing on the week is being displaced, so none of the replace warnings apply.
-  if(!MK.slot){mkCommit();return;}
-  var cur=effWk(MK.slot),e=null;
-  WEEK.forEach(function(x){if(x.wk===MK.slot)e=x;});
-  var dayName=e?e.day:'that day';
-  if(cur!==MK.id&&openHere(cur)){mkNote('There is an open session on '+dayName+'. Finish or seal it first.');return;}
-  var n=DB.logs.filter(function(L){return L.day===cur;}).length;
-  var go=function(){mkCommit();};
-  if(cur!==MK.id&&n){
-    ask(dayName+' holds '+W[cur].name.replace('Optional: ','')+', with '+n+' logged session'+(n===1?'':'s')+
-        '. Those sessions stay in your history exactly as they are \u2014 only the day ahead is replaced.',
-        go,'Replace '+dayName+'?','REPLACE');
-    return;
-  }
-  go();
+  // Nothing gets displaced any more - a day joins the plan, it does not evict whatever was
+  // standing on a weekday - so the whole replace-warning path goes with the week.
+  mkCommit();
 }
 function mkCommit(){
   var id=MK.id||('cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36));
   DB.custom[id]=mkBuild();
-  for(var s in DB.slots)if(DB.slots[s]===id)delete DB.slots[s];
+  DB.plan=DB.plan||[];DB.extra=DB.extra||[];
   if(MK.slot){
-    var out=DB.slots[MK.slot];             // whoever held this slot keeps existing, off the week
-    if(out&&out!==id)shelve(out);
-    DB.slots[MK.slot]=id;
+    DB.extra=DB.extra.filter(function(x){return x!==id;});
+    if(DB.plan.indexOf(id)<0)DB.plan.push(id);
+  }else{
+    DB.plan=DB.plan.filter(function(x){return x!==id;});
+    if(DB.extra.indexOf(id)<0)DB.extra.push(id);
   }
-  else{DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id);}
   mergeCustom();saveDB();
   try{sfxLog();}catch(e){}
   closeMake();renderHome();
