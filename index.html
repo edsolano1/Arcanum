@@ -2464,6 +2464,12 @@ function applyTheme(t){
   var m=document.querySelector('meta[name=theme-color]');
   if(m)m.setAttribute('content',THEME_BAR[t]);
   applyRoom();
+  // Started here rather than on the first tap. Nothing about an offline render needs a gesture,
+  // and it takes tens of milliseconds - but the first rest of a session was reaching alertPreRoll
+  // in the same tap that kicked it off, finding no WAV yet, and falling back to the 5.85s
+  // recording. That fallback is the one thing that stops the music, so it should never be the
+  // first rest after a launch. Guarded because boot may reach here before the renderer exists.
+  try{buildRestWAV(t);}catch(e){}
   drawThemePick();
   drawThemeSheet();
   refreshChks();
@@ -2512,7 +2518,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.14';
+var APPV='v4.15';
 var DB={logs:[],active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3692,6 +3698,40 @@ function openSlotPick(id){
   }).join('');
   document.getElementById('mkSlotOvl').classList.add('on');
 }
+// ---- moving a day ----
+// A week is seven slots and they are always full, so moving a day is a swap: there is nowhere for
+// one to go that does not send another back. That is also what makes it safe for the stock days,
+// which do not live in DB.slots at all until something displaces them - writing both sides of the
+// trade names them both, so neither slot is left resolving to a day that has moved away.
+// The optional/rest marking belongs to the slot rather than to the day, so it stays put: a rest
+// day is Sunday being a rest day, not the workout on it.
+var MOVEFROM=null;
+function openDayMove(base){
+  MOVEFROM=base;
+  var here=effWk(base);
+  document.getElementById('mkSlotTtl').textContent='Move it to';
+  document.getElementById('mkSlotBody').innerHTML=WEEK.map(function(e){
+    if(e.wk===base)return '';
+    var wk=effWk(e.wk),w=W[wk],busy=openHere(wk)||openHere(here);
+    return '<div class="slotrow'+(busy?' off':'')+'"'+(busy?'':' onclick="dayMoved(\''+e.wk+'\')"')+'>'+
+      '<span class="sd">'+e.day.slice(0,3).toUpperCase()+'</span>'+
+      '<span class="sn">'+w.name.replace('Optional: ','')+'</span>'+
+      '<span class="sm">'+(busy?'session open':'trade places')+'</span></div>';
+  }).join('');
+  document.getElementById('mkSlotOvl').classList.add('on');
+}
+function dayMoved(to){
+  var from=MOVEFROM;MOVEFROM=null;
+  closeOvl('mkSlotOvl');
+  if(!from||from===to)return;
+  var a=effWk(from),b=effWk(to);
+  // An open session is anchored to the day it was started on, so neither end can move under it.
+  if(openHere(a)||openHere(b)){mkNote('There is an open session on one of those days. Finish or seal it first.');return;}
+  DB.slots=DB.slots||{};
+  DB.slots[from]=b;DB.slots[to]=a;
+  saveDB();mergeCustom();renderHome();
+  try{sfxLog();}catch(e){}
+}
 var SLOTFOR=null;
 function slotPicked(base){
   var id=SLOTFOR;SLOTFOR=null;
@@ -3712,6 +3752,7 @@ function mkActions(base){
   var h='';
   h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',\''+(mine?wk:'')+'\')">EDIT THIS DAY</div>';
   h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+base+'\',null,true)">BUILD ONE FROM SCRATCH</div>';
+  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openDayMove(\''+base+'\')">MOVE THIS DAY</div>';
   if(mine){
     h+='<div class="btn" onclick="mkRestore(\''+base+'\')">PUT BACK '+(W[base]?W[base].name.replace('Optional: ','').toUpperCase():'THE ORIGINAL')+'</div>';
     h+='<div class="btn btn-bad" onclick="mkDelete(\''+base+'\')">DELETE THIS DAY</div>';
@@ -5660,7 +5701,16 @@ function armAlert(){
     // is what makes this a reliable way to spend the gesture.
     a.muted=true;
     var p=a.play();
-    var done=function(){try{a.pause();a.currentTime=0;a.muted=false;}catch(e){}};
+    // Arming and pre-rolling share one element, and this used to tidy up regardless of who owned
+    // it by then. When the tap that logs a set is also the first tap of the session - which is
+    // every first rest after a launch, and every rest after a theme change, because switching
+    // theme relaunches - the arming play resolved a moment AFTER the pre-roll had started, paused
+    // the element and unmuted it. The rest then ended on a paused element, play() was refused for
+    // being a hidden page, and nothing sounded at all.
+    var done=function(){
+      if(preRolling)return;      // the pre-roll owns it now; leave it alone
+      try{a.pause();a.currentTime=0;a.muted=false;}catch(e){}
+    };
     if(p&&p.then)p.then(done)['catch'](function(){alertArmed=false;done();});
     else done();
   }catch(e){alertArmed=false;}
