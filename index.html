@@ -2389,7 +2389,7 @@ function TXT(k){
     restingTtl:'Still',
     restingBody:'Next set at',
     skipAct:   'Skip rest',
-    week:      'Up Next',
+    week:      'Your Week',
     ready:     'Rise',
     splashTag: 'Drawing the water',
     restTtl:   'Rest over',
@@ -2412,7 +2412,7 @@ function TXT(k){
     restingTtl:'Resting',
     restingBody:'Next set at',
     skipAct:   'Move on',
-    week:      'Up Next',
+    week:      'Your Week',
     ready:     'Push on',
     splashTag: 'Breaking trail',
     restTtl:   'Rest over',
@@ -2436,7 +2436,7 @@ function TXT(k){
     restingTtl:f?'Cooling':'Resting',
     restingBody:f?'Back on the anvil at':'Next set at',
     skipAct:   f?'Back to it':'Skip rest',
-    week:      f?'The Work Ahead':'Up Next',
+    week:      f?'The Week&rsquo;s Work':'Your Week',
     ready:     f?'Heat':'Ascend',
     splashTag: f?'Lighting the forge':'Loading',
     restTtl:   f?'Back to the anvil':'Rest over',
@@ -2518,7 +2518,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.20';
+var APPV='v4.21';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2921,12 +2921,16 @@ function setWkVar(id,v){
   saveDB();closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(err){}
 }
-// One card per workout, in the order you will do them. Where the weekday used to sit there is
-// now the position, and the one you are actually on is UP NEXT - which is the only piece of
-// that label anyone was reading anyway.
+// One card per workout, in the order you will do them - and the weekday is back, because a
+// roman numeral is filler and MONDAY is a word. The difference from before is that the weekday
+// is now a LABEL on a position rather than a slot that owns the workout: it comes from where the
+// card sits, so moving a day renames it and nothing is ever displaced or overwritten to do it.
+// Past the seventh there is no weekday left to give, so those read as extras - which is what
+// makes two workouts on one day possible at all.
 function planCard(id,i,nx){
   var w=W[id];if(!w)return '';
   var v=wkVar(id),mine=!!(DB.custom&&DB.custom[id]),e=wkDefault(id);
+  var d=WEEK[i]||null,isToday=!!(d&&new Date().getDay()===d.js);
   // gate on the plan itself: a lit arrow must always have something behind it. Readiness
   // also counts timed rows, which have no weight to add and never enter the plan.
   var live=loggedCount(id)>0,rdy=v?0:levelPlan(id).length;
@@ -2937,9 +2941,10 @@ function planCard(id,i,nx){
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
   else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
   var meta=v==='rest'?((e&&e.label)||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets &middot; lift, walk, or rest':totalSets(id)+' sets');
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+  var lbl=d?d.day.toUpperCase():'EXTRA';
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top">'+dayLbl((up?'UP NEXT':roman(i+1))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
+    '<div class="card-top">'+dayLbl(lbl+(isToday?' &middot; TODAY':(up?' &middot; UP NEXT':''))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0">'+pills+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
@@ -3326,11 +3331,14 @@ function renderHome(){
   var sn=document.getElementById('storeNote');
   sn.textContent=m[Store.mode]||'';
   sn.style.display=m[Store.mode]?'':'none';
-  // The splash used to name whatever the calendar said today was. It names what you are actually
-  // about to do instead, which is the same question the whole screen now answers.
-  var spIds=planIds(),spNx=nextUp(spIds);
+  // Back to naming today's work. Today is a position on the plan now rather than a slot, so it
+  // is looked up by which weekday label lands on which card, and falls back to whatever is up
+  // next if the plan is shorter than a week.
+  var spIds=planIds(),spI=-1,spNow=new Date().getDay();
+  WEEK.forEach(function(e,i){if(e.js===spNow&&i<spIds.length)spI=i;});
+  var spId=spI>=0?spIds[spI]:nextUp(spIds);
   var st=document.getElementById('spTag');
-  if(st)st.textContent=(spNx&&W[spNx])?W[spNx].name.replace('Optional: ',''):(FG()?'Cold day':'Rest day');
+  if(st)st.textContent=(spId&&W[spId])?W[spId].name.replace('Optional: ',''):(FG()?'Cold day':'Rest day');
   markHomeReady();
 }
 
@@ -3768,7 +3776,7 @@ function openDayMove(id){
   ids.forEach(function(x,i){
     if(x===id)return;
     h+='<div class="slotrow" onclick="dayMoved(\''+x+'\')">'+
-       '<span class="sd">'+roman(i+1)+'</span>'+
+       '<span class="sd">'+(WEEK[i]?WEEK[i].day.slice(0,3).toUpperCase():roman(i+1))+'</span>'+
        '<span class="sn">Before '+mkEsc(W[x].name.replace('Optional: ',''))+'</span>'+
        '<span class="sm">move here</span></div>';
   });
