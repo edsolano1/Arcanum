@@ -2531,7 +2531,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.25';
+var APPV='v4.26';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5969,7 +5969,11 @@ function restBuzzTrain(n){
   },1150);
 }
 function stopBuzzTrain(){if(restBuzz){clearTimeout(restBuzz);restBuzz=null;}}
-function notifLive(){return !!(NOTIF_ON&&notifOk()&&Notification.permission==='granted');}
+// Native has no per-page permission prompt to read back, so the toggle is the whole answer there.
+function notifLive(){
+  if(isNative())return !!NOTIF_ON;
+  return !!(NOTIF_ON&&typeof Notification!=='undefined'&&Notification.permission==='granted');
+}
 function restAlert(){
   stopRestAlert();
   if(TUTON)return;   // the tour starts a real rest so you can watch it; it must not fire
@@ -5980,7 +5984,9 @@ function restAlert(){
   var loud=bg&&notifLive();
   rlog('REST OVER vis='+document.visibilityState+' ctx='+(actx?actx.state:'none')+
        ' bg='+bg+' notifSounds='+loud+' sfx='+SFX_ON+' alertLvl='+ALERT_LVL);
-  restDoneNotif(loud);
+  // Natively it was scheduled when the rest began and Android has already delivered it; posting
+  // again here would be a second buzz for the same rest.
+  if(!isNative())restDoneNotif(loud);
   // ---- the backgrounded alert no longer makes a sound of its own ----
   // Roughly a day and a half went into making a hidden page audible without killing the music,
   // and the platform will not have it: audible media from a background tab takes permanent audio
@@ -6325,7 +6331,7 @@ function drawNotifTog(){
   e.className='sfx-tog'+(live?' on':'');
 }
 var notifT=null;
-function notifOk(){return typeof Notification!=='undefined';}
+function notifOk(){return isNative()||typeof Notification!=='undefined';}
 // installed apps post through the service worker; a plain tab falls back to a page notification
 function notifReg(){
   return new Promise(function(res){
@@ -6338,9 +6344,52 @@ function notifReg(){
     res(null);
   });
 }
+// ---------- the native alert, when running as the Android app ----------
+// Android's WebView has never implemented the web Notification API, so everything below this is
+// simply absent inside the app build - window.Notification does not exist and touching it throws.
+// Capacitor exposes its installed native plugins on window.Capacitor.Plugins with no bundler
+// involved, which is what lets one hand-written index.html reach them.
+// The gain is bigger than parity. This notification is SCHEDULED WITH ANDROID at the moment the
+// rest starts, rather than fired by the page when the rest ends - so it arrives even if the
+// WebView has been frozen or killed behind a game. That was the exact failure the muted pre-roll,
+// the audio element and the five-second rule all existed to work around, and it goes away here.
+// Its vibration comes from the channel created in MainActivity, which is the one place a custom
+// pattern can live.
+var NATIVE_REST_ID=8801;
+function LN(){
+  try{
+    var C=window.Capacitor;
+    if(C&&C.Plugins&&C.Plugins.LocalNotifications)return C.Plugins.LocalNotifications;
+  }catch(e){}
+  return null;
+}
+function isNative(){return !!LN();}
+function nativeAsk(){var ln=LN();if(ln)try{ln.requestPermissions();}catch(e){}}
+function nativeSchedule(secs){
+  var ln=LN();if(!ln)return false;
+  try{
+    ln.cancel({notifications:[{id:NATIVE_REST_ID}]});
+    ln.schedule({notifications:[{
+      id:NATIVE_REST_ID,
+      title:TXT('restTtl'),
+      body:TXT('restBody'),
+      channelId:'arcanum-rest',
+      // allowWhileIdle gets it past Doze, which is exactly the state a phone sitting on a bench
+      // between sets is in.
+      schedule:{at:new Date(Date.now()+secs*1000),allowWhileIdle:true}
+    }]});
+    return true;
+  }catch(e){return false;}
+}
+function nativeCancel(){
+  var ln=LN();if(!ln)return;
+  try{ln.cancel({notifications:[{id:NATIVE_REST_ID}]});}catch(e){}
+}
 function pushNotif(title,body,extra){
   if(TUTON)return;
-  if(!NOTIF_ON||!notifOk()||Notification.permission!=='granted')return;
+  if(!NOTIF_ON)return;
+  if(isNative())return;        // scheduled natively at rest start; nothing to post from here
+  if(typeof Notification==='undefined'||Notification.permission!=='granted')return;
   var o={body:body,tag:'arcanum-rest',icon:'icons/arcanum-192.png',badge:'icons/arcanum-192.png',silent:true,renotify:false};
   o.timestamp=Date.now();
   for(var k in (extra||{}))o[k]=extra[k];
@@ -6782,7 +6831,10 @@ function startTimer(secs){
   // a game, where starting audio is refused - and it is the same call whether the rest is fifteen
   // seconds or three minutes, so a short one now tests exactly what a long one does.
   rlogReset();
-  rlog('rest started '+secs+'s, notif='+(notifLive()?'live':'off'));
+  rlog('rest started '+secs+'s, notif='+(notifLive()?'live':'off')+' native='+isNative());
+  // Handed to Android now rather than fired by the page later. If the app is killed mid-rest the
+  // alert still lands, which the web path could never promise.
+  if(NOTIF_ON)nativeSchedule(secs);
   // No pre-roll. It existed only to keep a media element alive so it could be unmuted from a
   // hidden page, and the hidden page no longer makes a sound.
   startFlame();
@@ -6815,6 +6867,9 @@ function adjustTimer(d){
 }
 function stopTimer(){
   if(timerInt){clearInterval(timerInt);timerInt=null;}
+  // A scheduled alert outlives the page, so skipping a rest or logging the next set early has to
+  // reach into Android and take it back - otherwise it buzzes later for a rest that is long over.
+  nativeCancel();
   stopPreRoll();
   stopRestAlert();
   clearRestNotif();
