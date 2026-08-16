@@ -102,10 +102,33 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .card.today{border-color:color-mix(in srgb,var(--c) 55%,var(--line));
   background:color-mix(in srgb,var(--c) 8%,var(--surface));
   box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 14%,transparent),0 6px 22px -16px var(--c);}
-.card.today::before{width:5px;animation:todaybar 4.6s ease-in-out infinite;}
+.card.today::before{width:5px;}
 .card.today .card-day{text-shadow:0 0 11px color-mix(in srgb,var(--c) 60%,transparent);}
-@keyframes todaybar{0%,100%{box-shadow:0 0 8px color-mix(in srgb,var(--c) 45%,transparent);}
-  50%{box-shadow:0 0 17px color-mix(in srgb,var(--c) 85%,transparent);}}
+/* The accent bar carries a light that runs down it, so on a screen of seven near-identical rows
+   the day you are on is the only thing moving. The old todaybar keyframe animated box-shadow -
+   a paint property, on a full-height element, on every card - which is precisely the shape the
+   flicker work spent four builds taking out. This is a transform on a clipped child instead:
+   composited, and it costs the same on one card as on seven. */
+.card.today > .tdb{position:absolute;left:0;top:0;bottom:0;width:5px;overflow:hidden;
+  pointer-events:none;border-radius:var(--r) 0 0 var(--r);}
+.card.today > .tdb::after{content:'';position:absolute;left:-2px;right:-2px;top:-60%;height:60%;
+  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--c) 70%,#fff) 42%,#fff 55%,color-mix(in srgb,var(--c) 70%,#fff) 68%,transparent);
+  animation:tdrun 4.4s ease-in-out infinite;}
+@keyframes tdrun{from{transform:translateY(0);}to{transform:translateY(270%);}}
+/* Forge runs molten: the light is heat rather than shine, so it is slower, hotter in the core,
+   and drags an ember trail behind it instead of fading symmetrically. */
+body.forge .card.today > .tdb::after{height:76%;top:-76%;
+  background:linear-gradient(180deg,transparent,rgba(255,90,10,.5) 26%,#ff8a1f 46%,#fff0cd 57%,#ff6a12 70%,rgba(196,62,10,.35) 86%,transparent);
+  animation-duration:3.1s;animation-timing-function:cubic-bezier(.5,0,.6,1);}
+body.forge .card.today{border-color:color-mix(in srgb,#ff8a1f 55%,var(--line));}
+/* Moonwell is light passing over, not a strike - slow, cool, and never fully bright. */
+body.moon .card.today > .tdb::after{
+  background:linear-gradient(180deg,transparent,rgba(214,206,255,.55) 44%,rgba(245,242,255,.9) 55%,rgba(214,206,255,.5) 66%,transparent);
+  animation-duration:6.2s;}
+/* Tundra is a glint on ice: short, quick, and a long wait between. */
+body.light .card.today > .tdb::after{height:34%;top:-34%;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,.95) 50%,transparent);
+  animation-duration:5.4s;animation-timing-function:cubic-bezier(.85,0,.9,1);}
 .pill{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:7px;letter-spacing:.04em;white-space:nowrap;}
 .pill-today{background:var(--c);color:#0b0c0e;}
 .pill-live{background:var(--go);color:#0b0c0e;}
@@ -582,7 +605,7 @@ body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
    while a sheet is open costs nothing visible and stops the invalidations underneath */
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
 body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
-body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today::before{animation-play-state:paused;}
+body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today > .tdb::after{animation-play-state:paused;}
 /* A day and the builder are full-screen and painted on an opaque var(--bg), exactly like a
    sheet - but they are not .ovl, so none of the above ever applied to them and the entire
    ground went on painting and animating at full size behind a screen that completely covers
@@ -593,10 +616,10 @@ body:has(#session.on) #bg,body:has(#make.on) #bg,
 body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
 body:has(#session.on) .bg-light,body:has(#session.on) .bg-motes i,body:has(#session.on) .bg-ripple i,
 body:has(#session.on) .bg-rules,body:has(#session.on) .bg-rules > i,body:has(#session.on) .bg-wm svg,
-body:has(#session.on) .card-day::after,body:has(#session.on) .card.today::before,
+body:has(#session.on) .card-day::after,body:has(#session.on) .card.today > .tdb::after,
 body:has(#make.on) .bg-light,body:has(#make.on) .bg-motes i,body:has(#make.on) .bg-ripple i,
 body:has(#make.on) .bg-rules,body:has(#make.on) .bg-rules > i,body:has(#make.on) .bg-wm svg,
-body:has(#make.on) .card-day::after,body:has(#make.on) .card.today::before{animation-play-state:paused;}
+body:has(#make.on) .card-day::after,body:has(#make.on) .card.today > .tdb::after{animation-play-state:paused;}
 /* The tour is a scrim over the whole screen, so it gets the same treatment as an open
    sheet: the ground behind it is not visible and does not need to keep moving. */
 body.tut .bg-light,body.tut .bg-motes i,body.tut .bg-ripple i,
@@ -1278,7 +1301,7 @@ body.moon .card-day::after{animation-duration:7.8s;}
    and scaled deck already on the bill there is not, which is why the cards flickered from
    the step that opens a day onward and not before it. Off for the tour too. */
 .card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after,
-body.tut .card-day::after,body.tut .card.today::before{display:none;}
+body.tut .card-day::after,body.tut .card.today > .tdb{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
 body.booting .card-day,body.tut .card-day,body.tut .srow.ispr .inp{animation:none;}
 /* the mark keeps the same breath as the runes */
@@ -1332,7 +1355,7 @@ body.light .srow.done .chk,body.light .srow.ispr .chk,body.light .finishbtn{box-
   background:repeating-linear-gradient(135deg,rgba(150,164,192,.055) 0 2px,transparent 2px 6px),
              linear-gradient(180deg,transparent 55%,rgba(0,0,0,.45));}
 .card.sealed:hover{box-shadow:none;border-color:#3a4457;}
-.seal{position:absolute;right:14px;bottom:12px;width:34px;height:34px;opacity:.55;pointer-events:none;}
+.seal{position:absolute;right:12px;bottom:10px;width:20px;height:20px;opacity:.3;pointer-events:none;}
 .pill-done{background:transparent;border:1px solid color-mix(in srgb,var(--gold) 42%,transparent);color:var(--gold);}
 body.light .card.sealed{background:var(--surface2);border-color:var(--line);}
 body.light .card.sealed::after{opacity:.35;background:repeating-linear-gradient(135deg,rgba(60,72,96,.07) 0 2px,transparent 2px 6px);}
@@ -1536,7 +1559,7 @@ body.light .pill-today{background:color-mix(in srgb,var(--c) 50%,#0b1018);color:
 /* a glow does nothing on a pale ground, so Frost marks today by weight of tint instead */
 body.light .card.today{background:color-mix(in srgb,var(--c) 15%,var(--surface));
   border-color:color-mix(in srgb,var(--c) 45%,var(--line));box-shadow:none;}
-body.light .card.today::before{animation:none;}
+
 body.light .card.today .card-day{text-shadow:none;}
 body.light .ring .bar{stroke:color-mix(in srgb,var(--c) 50%,#0b1018);}
 body.light .ring .bar,body.light .ring.full .bar{filter:none;}
@@ -2600,7 +2623,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.41';
+var APPV='v4.42';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3048,7 +3071,13 @@ function planCard(id,i,nx){
   // the size of the day. The ADD-ON tag went because the meta already says Optional, and YOURS
   // because whose day it is has never been something you needed telling twice.
   var meta=v==='rest'?((e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+  // Which row is today. The card has been styled for this the whole time - tint, border, a wider
+  // accent bar, a per-theme override each - but nothing ever put the class on, so on the week
+  // screen it had never once appeared. e is this slot's WEEK entry, so e.js is its weekday even
+  // when the workout standing in the slot has been moved.
+  var isTd=!!(e&&e.js===new Date().getDay());
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+(isTd?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+    (isTd?'<i class="tdb"></i>':'')+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
     '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
       '<span class="card-r">'+pills+CARDGRIP+'</span></div>'+
