@@ -2701,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.51';
+var APPV='v4.52';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3733,20 +3733,30 @@ function renderSession(){
       var allDone=tg.length>0&&tg.every(function(_,i){return ent[i];});
       var L=lastFor(rf.exId),ready=isReady(rf.exId,tg),bst=bestEver(rf.exId);
       html+='<div class="exc'+(allDone?' alldone':'')+'" id="exc-'+id+'">';
-      html+='<div class="ex-h"><div class="ex-nrow">'+DRAGSVG+'<div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
+      // ex-body groups everything a press-and-hold actually acts on - the name and the
+      // target/last/best under it - so the tour has one box to ring. Ringing the name alone read
+      // as "rename this"; the hold changes the exercise, not what it is called. It stops short of
+      // the links row below on purpose: Instructions and Add note are not part of what a hold does.
+      html+='<div class="ex-h"><div class="ex-body"><div class="ex-nrow">'+DRAGSVG+'<div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
             '<div class="ex-tools">'+(ready&&canRaise[rf.exId]?'<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(CUR)">'+ARROW+'</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
+      // Your own note on the exercise. Keyed on exId, so it follows the lift through a swap and
+      // survives every session - machine seat height, a grip, a cue that only matters to you.
+      // Separate from r.note, which is the app's own coaching line and is not yours to edit.
+      // Declared HERE rather than beside the links below. It was read on this line and declared
+      // thirty lines further down, and var hoisting made it undefined at exactly this point - so
+      // this test was always false and the note NEVER appeared on the exercise. It saved, and the
+      // button below still read "Note" because that is written after the assignment, so the only
+      // thing missing was the one thing it is for: seeing it without opening anything.
+      var un=(DB.exNotes||{})[rf.exId]||'';
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
       if(un)html+='<div class="ex-unote">'+esc(un)+'</div>';
       html+='<div class="ex-stats">'+
             '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
             (L?'<span class="ex-stat st-last">Last <b>'+fmtSets(L.sets)+'</b></span>':'')+
             (bst?'<span class="ex-stat st-best">Best <b>'+(bst.w?bst.w+'\u00d7'+bst.r:bst.r+(bst.unit?' '+bst.unit:''))+'</b></span>':'')+
-            '</div>';
-      // Your own note on the exercise, beside the instructions because that is where you already
-      // look for "how do I do this one". Keyed on exId, so it follows the lift through a swap and
-      // survives every session - machine seat height, a grip, a cue that only matters to you.
-      // Separate from r.note, which is the app's own coaching line and is not yours to edit.
-      var un=(DB.exNotes||{})[rf.exId]||'';
+            '</div></div>';   // closes ex-stats, then ex-body
+      // The button sits beside the instructions because that is where you already look for
+      // "how do I do this one".
       var rl=refLink(rf.swapId||id,r.name);
       html+='<div class="ex-links">'+
             (rl?'<a href="'+rl+'" target="_blank" rel="noopener"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.2v.1"/></svg> Instructions</a>':'')+
@@ -7534,37 +7544,43 @@ var TUT_STEPS=[
   // Nothing is being asked for yet, so nothing here is wrong: a tap while you are still
   // taking the week in used to shake the card and tell you off before you had been given
   // anything to do. It is swallowed all the same - the next step is the one that opens a day.
-  {sel:'#weekCards',pad:6,quiet:true,nudge:'Read this one, then tap NEXT. End tour leaves at any point.'},
+  {sel:'#weekCards',pad:6,quiet:true,nudge:'Read this, then tap NEXT.'},
   {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',sweep:true,once:true,
-   w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card inside the highlight.',
+   w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card in the highlight.',
    when:function(){return document.getElementById('session').classList.contains('on');}},
   {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',once:true,
-   w:'Waiting for a tap on the weight',nudge:'Tap the weight itself, inside the highlight.',
+   w:'Waiting for the weight',nudge:'Tap the weight in the highlight.',
    when:function(){return tutOn('editOvl');}},
   {sel:'#editOvl .edsheet',pad:10,ovl:'editOvl',hit:'#editOvl .edsheet|#w-bench-0',ping:'#editOvl .btn-go',
-   reopen:true,w:'Waiting for 150 or more, then DONE',nudge:'It has to reach 150 before DONE will take it.',
+   reopen:true,w:'Waiting for 150 or more',nudge:'It has to reach 150 before DONE will take it.',
    when:function(){return !tutOn('editOvl')&&tutW()>=150;}},
   {sel:'#sr-bench-0',hit:'#sr-bench-0 .chk',ping:'#sr-bench-0 .chk',once:true,
-   w:'Waiting for the sigil',nudge:'Tap the sigil at the end of the highlighted row.',
+   w:'Waiting for the sigil',nudge:'Tap the sigil at the end of the row.',
    when:function(){var e=document.getElementById('sr-bench-0');return !!(e&&e.classList.contains('done'));}},
   // The only step whose subject can leave on its own: the rest runs out, the pill hides itself
   // four seconds later, and the card is left describing a timer that is no longer on screen.
   // Nothing rebuilds it, because a pill is not an overlay - hence keep rather than ovl.
   {sel:'#timerPill',pad:10,sample:true,keep:function(){tutRest();},
    nudge:'Tap NEXT when you have had a look.'},
-  // The ring was around the whole exercise block, which reads as "hold anywhere in here" - and
-  // holding a weight or a rep count is fenced off and does nothing, so the step looked broken to
-  // anyone who tried it there. It sits on the NAME now, which is the one place the hold works.
-  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-n',
-   block:'input,button,textarea,.chk,.hold,.ex-swap,.lvl,.exdrag',
-   w:'Waiting for a long press',nudge:'Hold the exercise NAME - the ringed line. Holding a weight or a rep count does something else.',
+  // The ring sits on ex-body: the name AND the target/last/best under it, which is the region a
+  // hold actually responds to. Around the whole block it read as "hold anywhere in here" when the
+  // weights and sigils are fenced off; around the name alone it read as "rename this". It is the
+  // exercise being changed, so the ring is drawn around the exercise's details.
+  // 'a' is in the block list to match bindExHold. Without it a tap on Instructions inside the
+  // handed-over card opened an external page in the middle of the tour.
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-body',
+   block:'input,button,textarea,a,.chk,.hold,.ex-swap,.lvl,.exdrag',
+   w:'Waiting for a long press',nudge:'Hold inside the ring. The grip, the arrows and the links are not part of it.',
    when:function(){return tutOn('exEditOvl');}},
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
   // on screen with the links row visible and nothing else competing for the highlight.
-  {sel:'#exc-bench .ex-links',pad:8,ping:'#exc-bench .unote-btn',nudge:'Tap NEXT to carry on.'},
+  // The spotlight was on the links row alone, which showed a pair of buttons floating with no
+  // sign of what they belonged to. The whole exercise is lit now and the ring picks out the
+  // button inside it, so you can see where Add note actually sits.
+  {sel:'#exc-bench',pad:6,ping:'#exc-bench .unote-btn',nudge:'Tap NEXT to carry on.'},
   {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,
-   w:'Waiting for Finish',nudge:'Tap Finish inside the highlight.',
+   w:'Waiting for Finish',nudge:'Tap Finish in the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
@@ -7589,23 +7605,28 @@ function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e
 // while GENERIC is on, and the four worlds below are kept whole for when it comes off.
 // The grades are named by what they MEAN rather than by their colour, because the colour is the
 // one thing that genuinely changes per theme - the swatch already shows it.
+// House style for every line below, because they had drifted into four different voices:
+// say what to do, then stop. No dashes standing in for punctuation, no sentence explaining the
+// sentence before it, no telling you how something feels. A step is one instruction and at most
+// one thing worth knowing. Lists carry anything longer, because a list is read and a paragraph
+// on a phone is skipped.
 var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
-  msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
+  msg:'A quick walk through the real screens, using sample data. Your own logs stay untouched.',
   yes:'SHOW ME',steps:[
-  {t:'Your week',b:'Seven days, Sunday to Saturday, laid out as they come round. An empty day is a rest day. Take them in — then tap NEXT and we will open one together.'},
+  {t:'Your week',b:'Seven days, Sunday to Saturday. An empty day is a rest day. Tap NEXT and we will open one.'},
   {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
-  {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-  {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
-  {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
-  {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero — silent during this tour</li></ul>'},
-  {t:'Change it on the spot',b:'Press and hold an exercise by its <b>name</b> — the ringed line on the bench. Holding a weight or a rep count does something else, so the hold has to land on the name.'},
-  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is completed. Keep it and every Tuesday carries the change.</p>'},
-  {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
-  {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever</b> &mdash; beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched</b> &mdash; equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under</b> &mdash; a first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
-  {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
-  {t:'Completed',b:'Tuesday is completed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
-  {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a day, or straight onto a different one.<ul><li>A day holds three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
-  {t:'Days without a home',b:'Anything with no day on it waits here, under the week. Drag one up onto any day to put it back in the rotation, or drag a workout down here to take it out of the week without losing it — everything you have ever logged against it stays exactly where it is.'}]};
+  {t:'The set grid',b:'Each row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+  {t:'Set the number',b:'Type it straight in. Raise it to 150 or more, then tap DONE.'},
+  {t:'Log it',b:'Tap the sigil at the end of the row. The set saves straight away and the rest timer starts.'},
+  {t:'The rest timer',b:'It starts when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
+  {t:'Change it on the spot',b:'Press and hold anywhere inside the ring. That covers the name and the target, last and best below it.<ul><li>The grip on the left reorders</li><li>The arrows on the right swap the exercise</li><li>The links underneath open their own things</li></ul>'},
+  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today and it clears when the day is done. Keep it and every Tuesday carries the change.</p>'},
+  {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
+  {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever.</b> Beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched.</b> Equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under.</b> A first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
+  {t:'The export',b:'The tiles are what you just did: sets, weight moved, reps, time and any records. Below them is the same session as plain text. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
+  {t:'Completed',b:'Tuesday is done for this week. Everything you logged stays in your history and the day comes back next week. This button reopens every day at once.'},
+  {t:'Move things around',b:'Every workout has a grip on its right edge. Drag by the grip to move it, either inside a day or onto another one.<ul><li>A day holds three at most</li><li>A full day turns you away</li><li>Tapping a card opens it, so drag by the grip</li></ul>'},
+  {t:'Days without a home',b:'Workouts with no day wait here. Drag one up onto a day to put it in the rotation, or drag one down here to take it out of the week. Everything you logged against it stays.'}]};
 function TUTC(){
   var t=curTheme();
   var C={
@@ -7728,7 +7749,7 @@ var tutNT=null;
 function tutNudge(){
   var c=document.getElementById('tutCard'),n=document.getElementById('tutNudge');
   c.classList.remove('shake');void c.offsetWidth;c.classList.add('shake');
-  n.textContent=TUT_STEPS[TUTI].nudge||'Use the highlighted control, or End tour to leave.';
+  n.textContent=TUT_STEPS[TUTI].nudge||'Tap inside the highlight, or End tour to leave.';
   n.classList.add('on');
   try{vib(25);}catch(e){}
   clearTimeout(tutNT);tutNT=setTimeout(function(){n.classList.remove('on');},3200);
@@ -8009,7 +8030,12 @@ function tutPlace(){
   var el=tutEls(st.sel)[0],ch=card.offsetHeight,vh=window.innerHeight-si.b;
   // Before anything is measured: a sheet that has to move must move first, or the spotlight
   // is cut around where it used to be and the hole sits above the sheet by the same gap.
-  tutShift(st.top&&st.ovl?document.getElementById(st.ovl):null,(ch+26)+'px');
+  // The sheet is pushed down to exactly where the card ENDS, plus a gap. This used to be ch+26,
+  // measured from the top of the screen while the card itself started at 14 - which worked until
+  // the card moved down by the status bar inset and the sheet did not follow. On anything with a
+  // status bar the two then overlapped by however tall that bar is, and the step was written over
+  // the exercises it was describing. Both now come off the same number.
+  tutShift(st.top&&st.ovl?document.getElementById(st.ovl):null,(14+si.t+ch+12)+'px');
   var pel=tutEls(st.ping)[0];
   if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
   if(!el||!el.offsetHeight){
