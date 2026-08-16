@@ -175,8 +175,16 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 /* Day cards reorder by grabbing the grip, the same held-press the exercise handle uses. The
    others slide to open a gap rather than a line marking the spot - the cards are all one height,
    so the gap is unambiguous and reads as the place it will land. */
-.carddrag{display:inline-flex;align-items:center;padding:0 0 0 9px;color:var(--txt2);opacity:.55;touch-action:none;cursor:grab;}
-.carddrag svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}
+/* Its own zone, and a big one. The grip was a 17px icon with no padding, so a thumb aiming for it
+   landed on the card and got the hold menu instead. The negative margins let the touch target grow
+   to about 44px without the card-top changing height, and the rule underneath is the visible edge
+   of it - press left of the line for the menu, on the line for dragging.
+   pointer-events:none on the svg is the other half: without it the finger lands on a <path>, and
+   the card's own handler cannot tell that is the grip. */
+.carddrag{display:inline-flex;align-items:center;padding:13px 4px 13px 13px;margin:-13px -4px -13px 6px;
+  border-left:1px solid var(--line);color:var(--txt2);opacity:.6;touch-action:none;cursor:grab;}
+.carddrag:active{opacity:1;color:var(--go);}
+.carddrag svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;pointer-events:none;}
 .card.cdrag{z-index:60;opacity:.96;transition:none;box-shadow:0 20px 44px -14px rgba(0,0,0,.6);}
 .card.cslide{transition:transform .16s ease;}
 /* Held below the bank heading. There is no gap to open down there - the bank has no order - so
@@ -2539,7 +2547,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.34';
+var APPV='v4.35';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3762,7 +3770,12 @@ function mkBindCards(){
       // The grip owns the hold. Relying on stopPropagation from the grip's own listener was not
       // enough in practice - the menu came up mid-drag - so the card checks for itself where the
       // finger actually landed. Grip: rearrange. Anywhere else on the card: menu.
-      if(ev.target&&ev.target.closest&&ev.target.closest('.carddrag'))return;
+      // Walked by hand rather than with closest(): the finger can land on an <svg> or a <path>
+      // inside the grip, and closest() is not guaranteed on SVG elements in a WebView. When it
+      // quietly returned nothing, the menu opened on top of the drag.
+      for(var t=ev.target;t&&t!==el;t=t.parentNode){
+        if(t.classList&&t.classList.contains('carddrag'))return;
+      }
       LP.fired=false;LP.x=ev.clientX;LP.y=ev.clientY;
       clearTimeout(LP.t);
       // The tour hands the whole Tuesday card to the fence so it can be tapped open, and a
