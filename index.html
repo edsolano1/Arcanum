@@ -185,11 +185,23 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
   border-left:1px solid var(--line);color:var(--txt2);opacity:.6;touch-action:none;cursor:grab;}
 .carddrag:active{opacity:1;color:var(--go);}
 .carddrag svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;pointer-events:none;}
-.card.cdrag{z-index:60;opacity:.96;transition:none;box-shadow:0 20px 44px -14px rgba(0,0,0,.6);}
-.card.cslide{transition:transform .16s ease;}
-/* Held below the bank heading. There is no gap to open down there - the bank has no order - so
-   the card itself says where it is going instead. */
-.card.cdrag.tobank{opacity:.72;filter:saturate(.35);}
+.card.cdrag{z-index:60;opacity:.96;transition:none;box-shadow:0 20px 44px -14px rgba(0,0,0,.6);pointer-events:none;}
+/* A day is a container: header, then whatever is in it, growing and shrinking to fit. An empty
+   one keeps its header and offers somewhere to drop, because empty is a real answer - it is a
+   rest day - not an absence. */
+.daybox{border:1px solid var(--line);border-radius:14px;padding:10px 10px 2px;margin-bottom:10px;
+  background:color-mix(in srgb,var(--surface) 45%,transparent);transition:border-color .15s,background .15s;}
+.daybox.empty{padding-bottom:10px;background:transparent;border-style:dashed;}
+.dayhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--txt3);padding:2px 4px 9px;}
+.daybox.today .dayhead{color:var(--go);}
+.daycount{font-size:10px;letter-spacing:.1em;opacity:.75;}
+.dayempty{font-size:12.5px;color:var(--txt3);padding:6px 4px 4px;opacity:.75;}
+/* Where it will land, and whether it can. */
+.daybox.dropok,#extraCards.dropok{border-color:var(--go);background:color-mix(in srgb,var(--go) 9%,transparent);}
+.daybox.dropfull,#extraCards.dropfull{border-color:var(--bad,#c2554a);background:color-mix(in srgb,#c2554a 10%,transparent);}
+#extraCards{border-radius:14px;padding:2px;transition:border-color .15s,background .15s;border:1px solid transparent;min-height:16px;}
 .blk.dragging{z-index:60;opacity:.94;transition:none;}
 .blk.dragging .exc{box-shadow:0 20px 44px -14px rgba(0,0,0,.65);}
 /* While a block is being dragged the whole list collapses to name rows: a three-deep
@@ -2547,7 +2559,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.35';
+var APPV='v4.36';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2908,24 +2920,51 @@ function roman(n){
   var R=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
   return R[n]||String(n);
 }
-// ---------- the plan ----------
-// The week is gone. Seven weekday slots with days dropped onto them is what produced every
-// move/restore/overwrite bug in this area, and the weekday was never doing any work: what
-// mattered was only ever which workout comes next. So the plan is one ordered list of day ids,
-// a day means itself, and two workouts on the same calendar day is not a case that has to
-// exist - there are no calendar days to collide on. WEEK survives only as the seed for that
-// list and as the source of a stock day's default rest/optional marking.
-// Migration runs once: resolve each old slot to whatever was actually sitting on it, in order,
-// then empty the slot table so effWk stops indirecting and every id means itself.
-function planIds(){
-  if(!DB.plan||!DB.plan.length){
-    DB.plan=WEEK.map(function(e){return (DB.slots&&DB.slots[e.wk])||e.wk;});
-    DB.slots={};
+// ---------- the week, as containers ----------
+// Three shapes have been tried here. Seven slots that OWNED a workout produced every
+// overwrite/restore bug. A flat ordered list fixed those, but then position decided the weekday -
+// drop something third and it became Tuesday, which is backwards: the day should be the fixed
+// thing and the workout the thing you place in it.
+// So a weekday is a container now, holding up to two workouts, and it grows and shrinks with what
+// is in it. A day with nothing in it is a rest day by consequence rather than by declaration.
+// WEEK survives only as the source of a stock day's default rest/optional marking.
+var DAYS=[
+  {k:'sun',n:'Sunday',js:0},{k:'mon',n:'Monday',js:1},{k:'tue',n:'Tuesday',js:2},
+  {k:'wed',n:'Wednesday',js:3},{k:'thu',n:'Thursday',js:4},{k:'fri',n:'Friday',js:5},
+  {k:'sat',n:'Saturday',js:6}
+];
+// Two a day because nobody should be doing three. Ten on the rack because somebody might.
+var DAY_MAX=2,BANK_MAX=10;
+function dayKeyOf(id){
+  var m=DB.days||{},k;
+  for(k in m)if((m[k]||[]).indexOf(id)>-1)return k;
+  return null;
+}
+// Migration runs once, from whichever earlier shape this device is holding.
+function dayMap(){
+  if(!DB.days||!Object.keys(DB.days).length){
+    DB.days={};
+    var plan=(DB.plan&&DB.plan.length?DB.plan:WEEK.map(function(e){return (DB.slots&&DB.slots[e.wk])||e.wk;}))
+             .filter(function(id){return !!W[id];});
+    DAYS.forEach(function(d,i){DB.days[d.k]=plan[i]?[plan[i]]:[];});
+    // Anything past the seventh has no weekday to land on, so it waits on the rack.
+    DB.extra=(DB.extra||[]).concat(plan.slice(7));
+    DB.slots={};DB.plan=[];
     try{saveDB();}catch(e){}
   }
-  return DB.plan.filter(function(id){return !!W[id];});
+  DAYS.forEach(function(d){
+    DB.days[d.k]=(DB.days[d.k]||[]).filter(function(id){return !!W[id];}).slice(0,DAY_MAX);
+  });
+  return DB.days;
 }
-function onPlan(id){return (DB.plan||[]).indexOf(id)>-1;}
+// Flattened in weekday order - for anything that just wants "the week's workouts, in order".
+function planIds(){
+  var m=dayMap(),out=[];
+  DAYS.forEach(function(d){(m[d.k]||[]).forEach(function(id){out.push(id);});});
+  return out;
+}
+function onPlan(id){return !!dayKeyOf(id);}
+function dayFull(k){return ((DB.days||{})[k]||[]).length>=DAY_MAX;}
 function wkDefault(id){var e=null;WEEK.forEach(function(x){if(x.wk===id)e=x;});return e;}
 // The one you are on if a session is open, otherwise the first one not yet finished this week.
 function nextUp(ids){
@@ -2950,16 +2989,12 @@ function setWkVar(id,v){
   saveDB();closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(err){}
 }
-// One card per workout, in the order you will do them - and the weekday is back, because a
-// roman numeral is filler and MONDAY is a word. The difference from before is that the weekday
-// is now a LABEL on a position rather than a slot that owns the workout: it comes from where the
-// card sits, so moving a day renames it and nothing is ever displaced or overwritten to do it.
-// Past the seventh there is no weekday left to give, so those read as extras - which is what
-// makes two workouts on one day possible at all.
+// The weekday has moved OFF the card and onto the container above it, so a card no longer claims
+// a day it does not own - which is what made position feel like it was choosing for you. What is
+// left on the card is the workout: its state, its name, its size.
 function planCard(id,i,nx){
   var w=W[id];if(!w)return '';
   var v=wkVar(id),mine=!!(DB.custom&&DB.custom[id]),e=wkDefault(id);
-  var d=WEEK[i]||null,isToday=!!(d&&new Date().getDay()===d.js);
   // gate on the plan itself: a lit arrow must always have something behind it. Readiness
   // also counts timed rows, which have no weight to add and never enter the plan.
   var live=loggedCount(id)>0,rdy=v?0:levelPlan(id).length;
@@ -2970,12 +3005,23 @@ function planCard(id,i,nx){
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
   else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
   var meta=v==='rest'?((e&&e.label)||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets &middot; lift, walk, or rest':totalSets(id)+' sets');
-  var lbl=d?d.day.toUpperCase():'EXTRA';
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(isToday?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+  var tag=up?'UP NEXT':(v==='opt'?'ADD-ON':(mine?'YOURS':''));
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top">'+dayLbl(lbl+(isToday?' &middot; TODAY':(up?' &middot; UP NEXT':''))+(v==='opt'?' &middot; ADD-ON':'')+(mine?' &middot; YOURS':''))+'<span style="display:flex;gap:0;align-items:center">'+pills+CARDGRIP+'</span></div>'+
+    '<div class="card-top">'+(tag?dayLbl(tag):'<span></span>')+'<span style="display:flex;gap:0;align-items:center">'+pills+CARDGRIP+'</span></div>'+
     '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
     '<div class="card-meta">'+meta+'</div></div>';
+}
+// A day and whatever is in it. Empty is a legitimate state - that is a rest day - so it still
+// draws its header and a place to drop into rather than vanishing.
+function dayBox(d,nx,n0){
+  var ids=(DB.days[d.k]||[]),isToday=(new Date().getDay()===d.js);
+  var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">';
+  h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span>'+
+     '<span class="daycount">'+(ids.length?ids.length+' of '+DAY_MAX:'rest')+'</span></div>';
+  if(!ids.length)h+='<div class="dayempty">Drag a workout here</div>';
+  else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
+  return h+'</div>';
 }
 // A kept day has no weekday and no slot, so it carries the day's own name where the weekday
 // would go. Everything else on the card behaves as a week card does.
@@ -3329,8 +3375,10 @@ function renderHome(){
       '<span style="display:flex;gap:0"><span class="pill pill-live">Resume '+loggedCount('pump')+'/'+totalSets('pump')+'</span></span></div>'+
       '<div class="card-name">'+W.pump.name+'</div>'+
       '<div class="card-meta">Still open &mdash; pick up where you left off</div></div>':'';
-  var pids=planIds(),pnx=nextUp(pids);
-  document.getElementById('weekCards').innerHTML=pumpOpen+pids.map(function(id,i){return planCard(id,i,pnx);}).join('');
+  var pids=planIds(),pnx=nextUp(pids),n0=0;
+  document.getElementById('weekCards').innerHTML=pumpOpen+DAYS.map(function(d){
+    var h=dayBox(d,pnx,n0);n0+=(DB.days[d.k]||[]).length;return h;
+  }).join('');
   document.getElementById('mkNewBtn').innerHTML=PLUS+MKTXT().mk;
   var xs=extraIds();
   document.getElementById('extraCards').innerHTML=xs.map(xcard).join('');
@@ -3806,60 +3854,40 @@ var PLUS='<svg viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg>';
 // Straight into the editor. There is no weekday left to pick on the way in, and the editor
 // already carries the only choice that remains: on the plan, or in the bank.
 function openNewDay(){openMake(null,null);}
-function planAdd(id){
-  DB.plan=DB.plan||[];
-  if(DB.plan.indexOf(id)<0)DB.plan.push(id);
-  DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+// Lands in the first day with room. Without a free day there is nowhere to put it, and saying so
+// beats silently dropping it back on the rack.
+function planAdd(id,k){
+  dayMap();
+  planDropSilent(id);
+  var key=k;
+  if(!key){
+    for(var i=0;i<DAYS.length;i++)if(!dayFull(DAYS[i].k)){key=DAYS[i].k;break;}
+  }
+  if(!key||dayFull(key)){
+    DB.extra=DB.extra||[];
+    if(DB.extra.indexOf(id)<0)DB.extra.push(id);
+    saveDB();mergeCustom();closeOvl('mkActOvl');renderHome();
+    mkNote('Every day already holds '+DAY_MAX+' workouts. Move one off first.');
+    return;
+  }
+  DB.days[key].push(id);
   saveDB();mergeCustom();closeOvl('mkActOvl');renderHome();
   try{sfxLog();}catch(e){}
 }
+function planDropSilent(id){
+  dayMap();
+  DAYS.forEach(function(d){DB.days[d.k]=(DB.days[d.k]||[]).filter(function(x){return x!==id;});});
+  DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+}
 function planDrop(id){
-  DB.plan=(DB.plan||[]).filter(function(x){return x!==id;});
+  planDropSilent(id);
   DB.extra=DB.extra||[];
-  if(DB.extra.indexOf(id)<0)DB.extra.push(id);
+  if(DB.extra.length>=BANK_MAX){mkNote('The rack is full at '+BANK_MAX+'. Delete one first.');return false;}
+  DB.extra.push(id);
+  return true;
 }
-// ---- moving a day ----
-var MOVEFROM=null;
-// A day with a session open cannot move, and the two ways that used to be communicated were a
-// greyed row and nothing at all - if the day you were moving was the busy one, every row went
-// dead and the sheet just sat there. It says so now, and says what to do about it, at whichever
-// end the open session is.
+// A day with a session open cannot move: the workout is anchored to the day it was started on.
 var MOVE_BUSY='That day has a session open, so it cannot move. Seal it or finish it first, then move it.';
-// Moving is now reordering: pick what it should come before, or send it to the end. Swapping two
-// weekdays is not a thing any more, because the position IS the day.
-function openDayMove(id){
-  if(openHere(id)){mkNote(MOVE_BUSY);return;}
-  MOVEFROM=id;
-  var ids=planIds(),h='';
-  document.getElementById('mkSlotTtl').textContent='Move it';
-  ids.forEach(function(x,i){
-    if(x===id)return;
-    h+='<div class="slotrow" onclick="dayMoved(\''+x+'\')">'+
-       '<span class="sd">'+(WEEK[i]?WEEK[i].day.slice(0,3).toUpperCase():roman(i+1))+'</span>'+
-       '<span class="sn">Before '+mkEsc(W[x].name.replace('Optional: ',''))+'</span>'+
-       '<span class="sm">move here</span></div>';
-  });
-  h+='<div class="slotrow" onclick="dayMoved(\'\')">'+
-     '<span class="sd">END</span><span class="sn">Last on the plan</span>'+
-     '<span class="sm">move here</span></div>';
-  document.getElementById('mkSlotBody').innerHTML=h;
-  document.getElementById('mkSlotOvl').classList.add('on');
-}
-function dayMoved(before){
-  var id=MOVEFROM;MOVEFROM=null;
-  closeOvl('mkSlotOvl');
-  if(!id)return;
-  if(openHere(id)){mkNote(MOVE_BUSY);return;}
-  var ids=(DB.plan||[]).slice(),from=ids.indexOf(id);
-  if(from<0)return;
-  ids.splice(from,1);
-  var to=before?ids.indexOf(before):-1;
-  if(to<0)to=ids.length;
-  ids.splice(to,0,id);
-  DB.plan=ids;
-  saveDB();renderHome();
-  try{sfxLog();}catch(e){}
-}
 function mkActions(id){
   var w=W[id];if(!w)return;
   var mine=!!(DB.custom&&DB.custom[id]);
@@ -3935,8 +3963,7 @@ function mkDelete(id){
   closeOvl('mkActOvl');
   ask('Delete '+nm+'? Sessions you already logged stay in your history.',
     function(){
-      DB.plan=(DB.plan||[]).filter(function(x){return x!==id;});
-      DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
+      planDropSilent(id);                    // out of whichever day held it, and off the rack
       if(DB.custom)delete DB.custom[id];
       saveDB();mergeCustom();renderHome();
     },'Delete this day','DELETE');
@@ -4142,15 +4169,11 @@ function mkSave(){
 function mkCommit(){
   var id=MK.id||('cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36));
   DB.custom[id]=mkBuild();
-  DB.plan=DB.plan||[];DB.extra=DB.extra||[];
-  if(MK.slot){
-    DB.extra=DB.extra.filter(function(x){return x!==id;});
-    if(DB.plan.indexOf(id)<0)DB.plan.push(id);
-  }else{
-    DB.plan=DB.plan.filter(function(x){return x!==id;});
-    if(DB.extra.indexOf(id)<0)DB.extra.push(id);
-  }
-  mergeCustom();saveDB();
+  mergeCustom();
+  // Already on a day: leave it where it is rather than moving it for having been edited.
+  if(MK.slot){ if(!onPlan(id))planAdd(id); }
+  else{ planDropSilent(id);DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id); }
+  saveDB();
   try{sfxLog();}catch(e){}
   closeMake();renderHome();
 }
@@ -6877,11 +6900,14 @@ function exAddWrite(id,keep){
   renderSession();renderHome();
   try{sfxLog();}catch(e){}
 }
-// ---- reordering the plan ----
-// Grab the grip on a card and the plan reorders under it. Same held press as the exercise
-// handle - 520ms and 8px - because the home screen scrolls too, and a brush past a grip on the
-// way down the page must not count as a grab. The cards are uniform, so instead of a drop line
-// the others slide aside and the gap itself shows where it lands.
+// ---- dragging a workout between days ----
+// Rewritten for containers, and simpler for it. The old version computed a target INDEX from the
+// midpoints of every other card while they slid around underneath - which is where the finicky
+// feel came from: the index could flip back and forth over a single pixel of travel, and the
+// cards animating made the thing you were aiming at move as you aimed.
+// Now there is nothing to compute. The pointer is inside a day or it is not. That day lights up,
+// and the card lands in it. A day already holding two refuses and says so rather than silently
+// bouncing back.
 var CDRAG=null;
 function cardBind(){
   [].forEach.call(document.querySelectorAll('#weekCards .carddrag,#extraCards .carddrag'),function(hd){
@@ -6904,74 +6930,62 @@ function cardBind(){
       document.addEventListener('pointermove',moved);
       document.addEventListener('pointerup',cancel);
       document.addEventListener('pointercancel',cancel);
-      hd._dt=setTimeout(function(){hd._dt=null;off();cardStart(el,sy);},520);
+      hd._dt=setTimeout(function(){hd._dt=null;off();cardStart(el,ev.clientX,sy);},420);
     });
   });
 }
-// Dragging past the end of the plan drops a day into the bank, and dragging one out of the bank
-// puts it back. Both lists are grabbed at drag-start so a card can cross between them, and which
-// list the finger is over is decided by the bank heading's position rather than by hit-testing
-// cards - the bank may be empty, and an empty list has nothing to hit.
-function bankZone(){
-  var l=document.getElementById('extraLabel');
-  if(!l)return Infinity;
-  var r=l.getBoundingClientRect();
-  return r.top;
+// Every place a card can land, measured once at grab time.
+function dropZones(){
+  var z=[];
+  [].forEach.call(document.querySelectorAll('#weekCards .daybox'),function(b){
+    z.push({el:b,key:b.getAttribute('data-day'),bank:false,r:b.getBoundingClientRect()});
+  });
+  var lbl=document.getElementById('extraLabel'),cards=document.getElementById('extraCards');
+  if(lbl){
+    var a=lbl.getBoundingClientRect(),b2=cards?cards.getBoundingClientRect():a;
+    z.push({el:cards||lbl,key:null,bank:true,
+            r:{top:a.top,bottom:Math.max(b2.bottom,a.bottom+60),left:a.left,right:a.right}});
+  }
+  return z;
 }
-function cardStart(el,sy){
+function cardStart(el,sx,sy){
   var id=el.getAttribute('data-base')||el.getAttribute('data-extra');
-  var fromBank=!el.getAttribute('data-base');
-  // Reordering renames the weekday under a session that is already running, which is the one
-  // thing moving a day must never do.
   if(openHere(id)){mkNote(MOVE_BUSY);return;}
-  var cards=[].slice.call(document.querySelectorAll('#weekCards .card[data-base]'));
-  if(fromBank)cards=[el].concat(cards);      // it is not on the plan yet, but it can land there
-  var i=cards.indexOf(el);
-  if(i<0)return;
-  var rects=cards.map(function(c){return c.getBoundingClientRect();});
-  var gap=cards.length>1?Math.max(4,Math.round(rects[1].top-rects[0].bottom)):12;
-  var sc=document.getElementById('home');
-  CDRAG={el:el,i:i,to:i,y0:sy,cy:sy,cards:cards,rects:rects,h:rects[i].height+gap,
-         sc:sc,sc0:sc?sc.scrollTop:0,mv:false,fromBank:fromBank,id:id,toBank:fromBank};
+  dayMap();
+  var r=el.getBoundingClientRect();
+  CDRAG={el:el,id:id,from:dayKeyOf(id),x0:sx,y0:sy,cx:sx,cy:sy,
+         zones:dropZones(),sc:document.getElementById('home'),
+         sc0:document.getElementById('home')?document.getElementById('home').scrollTop:0,
+         zone:null,mv:false,w:r.width,h:r.height};
   el.classList.add('cdrag');
-  cards.forEach(function(c){if(c!==el)c.classList.add('cslide');});
   try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
   cardApply();
   document.addEventListener('pointermove',cardMove);
   document.addEventListener('pointerup',cardEnd);
   document.addEventListener('pointercancel',cardEnd);
 }
-// Rects are cached from drag-start, so every read is corrected by how far the page has scrolled
-// since - otherwise the target index oscillates the moment the list moves under the finger.
 function cardApply(){
   var d=CDRAG;if(!d)return;
   var sd=d.sc?d.sc.scrollTop-d.sc0:0;
-  var dy=(d.cy-d.y0)+sd;
-  d.el.style.transform='translateY('+dy+'px)';
-  var mid=d.rects[d.i].top+d.rects[d.i].height/2+dy-sd,j=d.i;
-  d.rects.forEach(function(r,n){
-    if(n===d.i)return;
-    var m=r.top+r.height/2-sd;
-    if(n<d.i&&mid<m)j=Math.min(j,n);
-    if(n>d.i&&mid>m)j=Math.max(j,n);
+  d.el.style.transform='translate('+(d.cx-d.x0)+'px,'+((d.cy-d.y0)+sd)+'px)';
+  var y=d.cy,hit=null;
+  d.zones.forEach(function(z){
+    if(y>=z.r.top-sd&&y<=z.r.bottom-sd)hit=z;
   });
-  d.to=j;
-  // Below the bank heading means the bank. The card is tinted rather than moved, because there is
-  // no position to preview down there - the bank is a shelf, not an order.
-  d.toBank=(d.cy>bankZone());
-  d.el.classList.toggle('tobank',!!d.toBank);
-  d.cards.forEach(function(c,n){
-    if(n===d.i)return;
-    var shift=0;
-    if(d.to>d.i&&n>d.i&&n<=d.to)shift=-d.h;
-    else if(d.to<d.i&&n<d.i&&n>=d.to)shift=d.h;
-    c.style.transform=shift?'translateY('+shift+'px)':'';
-  });
+  if(hit!==d.zone){
+    d.zones.forEach(function(z){z.el.classList.remove('dropok','dropfull');});
+    if(hit){
+      var full=hit.bank?((DB.extra||[]).length>=BANK_MAX&&d.from)
+                       :(dayFull(hit.key)&&hit.key!==d.from);
+      hit.el.classList.add(full?'dropfull':'dropok');
+    }
+    d.zone=hit;
+  }
 }
 function cardMove(ev){
   if(!CDRAG)return;
-  CDRAG.cy=ev.clientY;
-  if(Math.abs(ev.clientY-CDRAG.y0)>6)CDRAG.mv=true;
+  CDRAG.cx=ev.clientX;CDRAG.cy=ev.clientY;
+  if(Math.abs(ev.clientY-CDRAG.y0)>6||Math.abs(ev.clientX-CDRAG.x0)>6)CDRAG.mv=true;
   cardApply();
 }
 function cardEnd(){
@@ -6979,30 +6993,30 @@ function cardEnd(){
   document.removeEventListener('pointerup',cardEnd);
   document.removeEventListener('pointercancel',cardEnd);
   var d=CDRAG;if(!d)return;CDRAG=null;
-  d.cards.forEach(function(c){c.style.transform='';c.classList.remove('cslide');});
-  d.el.classList.remove('cdrag');d.el.classList.remove('tobank');
-  if(d.mv){
-    var id=d.id;
-    if(d.toBank&&!d.fromBank){
-      planDrop(id);                                   // off the plan, onto the shelf
-      saveDB();mergeCustom();
-      try{sfxLog();}catch(e){}
-    }else if(!d.toBank){
-      var ids=(DB.plan||[]).slice(),from=ids.indexOf(id);
-      if(from>-1)ids.splice(from,1);
-      DB.extra=(DB.extra||[]).filter(function(x){return x!==id;});
-      // d.to indexes the rendered list, so it is translated through the id sitting there:
-      // dragging down lands after that card, dragging up lands before it.
-      var tc=d.cards[d.to];
-      var tid=tc?(tc.getAttribute('data-base')||tc.getAttribute('data-extra')):null;
-      var to=(tid&&tid!==id)?ids.indexOf(tid):-1;
-      if(to<0)to=ids.length;else if(d.to>d.i)to+=1;
-      ids.splice(to,0,id);
-      DB.plan=ids;saveDB();mergeCustom();
-      try{sfxLog();}catch(e){}
+  d.zones.forEach(function(z){z.el.classList.remove('dropok','dropfull');});
+  d.el.style.transform='';d.el.classList.remove('cdrag');
+  var z=d.zone;
+  if(d.mv&&z){
+    if(z.bank){
+      if(z.key!==d.from||d.from){
+        if(!planDrop(d.id)){renderHome();return;}
+        saveDB();mergeCustom();try{sfxLog();}catch(e){}
+      }
+    }else if(z.key===d.from){
+      // dropped back where it came from - nothing to do, and nothing to complain about
+    }else if(dayFull(z.key)){
+      mkNote(daysName(z.key)+' already holds '+DAY_MAX+' workouts.');
+    }else{
+      planDropSilent(d.id);
+      DB.days[z.key].push(d.id);
+      saveDB();mergeCustom();try{sfxLog();}catch(e){}
     }
   }
   renderHome();
+}
+function daysName(k){
+  for(var i=0;i<DAYS.length;i++)if(DAYS[i].k===k)return DAYS[i].n;
+  return 'That day';
 }
 // ---- reordering exercises ----
 // The dragged block is the only thing that moves; a line marks where it will land. Live
