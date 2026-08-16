@@ -2414,7 +2414,35 @@ var THEME_IC={
 var THEME_BAR={dark:'#08090c',light:'#eef1f4',forge:'#0a0605',moon:'#0b0812'};
 // Copy that changes with the theme. Arcanum seals a finished day shut; a smith quenches
 // a finished piece and puts it back in the fire to work it again.
+// Plain words while the app is being got working. Four voices is four ways to be unsure whether
+// a button did what you expected - "Work this day again" opening an editor is the example that
+// prompted this. The themed copy below is untouched and comes back by setting this to 0.
+var GENERIC=1;
+var GEN_TXT={
+  done:      'Completed',
+  unsealBtn: 'Reopen the week',
+  unsealMsg: 'Every completed day opens again so you can repeat it. Nothing is deleted — all of it stays in your history.',
+  unsealTtl: 'Reopen the week?',
+  unsealYes: 'REOPEN',
+  sealTtl1:  'Complete the open session?',
+  sealTtlN:  'Complete the open sessions?',
+  sealYes:   'COMPLETE & CONTINUE',
+  sealLine:  ' Opening this one will complete your current session',
+  sealAlt:   'BACK TO SESSION',
+  sealMore:  ' Or go back to it and pick up where you left off.',
+  restingTtl:'Resting',
+  restingBody:'Next set at',
+  skipAct:   'Skip rest',
+  week:      'Your Week',
+  ready:     'Start',
+  splashTag: 'Loading',
+  restTtl:   'Rest over',
+  restBody:  'Next set is ready.',
+  closeTtl:  'Close Arcanum?',
+  closeMsg:  'Arcanum closes. Your session stays exactly where it is — nothing is lost.'
+};
 function TXT(k){
+  if(GENERIC)return GEN_TXT[k];
   var f=FG(),m=MW(),l=LT();
   if(m)return ({
     done:      'Kept',
@@ -2559,7 +2587,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.36';
+var APPV='v4.37';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2933,8 +2961,7 @@ var DAYS=[
   {k:'wed',n:'Wednesday',js:3},{k:'thu',n:'Thursday',js:4},{k:'fri',n:'Friday',js:5},
   {k:'sat',n:'Saturday',js:6}
 ];
-// Two a day because nobody should be doing three. Ten on the rack because somebody might.
-var DAY_MAX=2,BANK_MAX=10;
+var DAY_MAX=3,BANK_MAX=10;
 function dayKeyOf(id){
   var m=DB.days||{},k;
   for(k in m)if((m[k]||[]).indexOf(id)>-1)return k;
@@ -3017,8 +3044,9 @@ function planCard(id,i,nx){
 function dayBox(d,nx,n0){
   var ids=(DB.days[d.k]||[]),isToday=(new Date().getDay()===d.js);
   var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">';
-  h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span>'+
-     '<span class="daycount">'+(ids.length?ids.length+' of '+DAY_MAX:'rest')+'</span></div>';
+  // No count. How many a day can hold is not something to be reminded of on every day you own -
+  // it only matters at the moment you try to exceed it, and it says so then.
+  h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span></div>';
   if(!ids.length)h+='<div class="dayempty">Drag a workout here</div>';
   else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
   return h+'</div>';
@@ -3783,6 +3811,10 @@ var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',blocks:[]};
 var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','2-3 min'];
 function MKTXT(){
+  // "Work this day again" was the offender: it opens the day EDITOR, and nothing in those three
+  // words says so. Plain verbs until the app is settled.
+  if(GENERIC)return {t:'New day',save:'SAVE THIS DAY',hint:'Hold a day to edit it',
+    act:'Edit this day',mk:'NEW DAY',xl:'Saved days',xa:'Take it off the week',xc:'SAVED'};
   if(LT())return {t:'Stake a day',save:'STAKE THIS DAY',hint:'Hold a day to stake your own',act:'Stake this day again',mk:'STAKE A NEW DAY',xl:'Cached days',xa:'Cache it off the plan',xc:'CACHED'};
   if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again',mk:'DRAW A NEW DAY',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
   if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again',mk:'FORGE A NEW DAY',xl:'On the rack',xa:'Rack it off the plan',xc:'RACKED'};
@@ -6950,7 +6982,11 @@ function dropZones(){
 }
 function cardStart(el,sx,sy){
   var id=el.getAttribute('data-base')||el.getAttribute('data-extra');
-  if(openHere(id)){mkNote(MOVE_BUSY);return;}
+  // Any day can move, in progress or finished. The old block existed because moving used to
+  // RENAME which weekday a workout was, and a running session was anchored to that name. Days are
+  // containers now: the session belongs to the workout, the workout keeps its identity wherever
+  // it sits, and moving a half-finished Wednesday to Thursday costs nothing. Refusing to move a
+  // day you had already worked was the rule outliving its reason.
   dayMap();
   var r=el.getBoundingClientRect();
   CDRAG={el:el,id:id,from:dayKeyOf(id),x0:sx,y0:sy,cx:sx,cy:sy,
