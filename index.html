@@ -74,6 +74,9 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .brandtxt{min-width:0;flex:1;}
 @media(max-width:400px){.wordmark{font-size:23px;}}
 .wordmark{font-family:'Bricolage Grotesque',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.035em;color:var(--txt);line-height:1;}
+/* Temporary build tag. Small, quiet, and never inheriting the theme's display face. */
+.vtag{font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:.06em;color:var(--txt3);
+  vertical-align:super;margin-left:7px;opacity:.7;}
 .tagline{font-size:12px;color:var(--txt3);margin-top:5px;letter-spacing:-.005em;}
 .storenote{font-size:11px;color:var(--txt3);margin:16px 0 0;}
 .sec-label{font-family:'Bricolage Grotesque',sans-serif;font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--txt2);margin:26px 0 12px;}
@@ -666,6 +669,8 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .preset{padding:17px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
 .preset:hover{border-color:var(--go);color:var(--go);}
 .preset.sm{padding:12px 6px;font-size:12px;font-family:inherit;letter-spacing:.02em;}
+.preset.mk-del{border-color:color-mix(in srgb,#c2554a 55%,var(--line));color:#c2554a;}
+.preset.mk-del:hover{border-color:#c2554a;color:#c2554a;}
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
 .sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
 .sfx-tog:hover{border-color:var(--go);color:var(--go);}
@@ -2587,7 +2592,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.37';
+var APPV='v4.38';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3136,6 +3141,7 @@ var bootT0=Date.now(),homeReady=false;
 function markHomeReady(){
   if(homeReady)return;homeReady=true;
   try{initAudio();}catch(e){}
+  if(!SPLASH_ON){dismissSplash();return;}    // straight into the week
   setTimeout(dismissSplash,Math.max(0,1700-(Date.now()-bootT0)));
 }
 // hard ceiling: storage can never trap the user behind the splash
@@ -3172,11 +3178,21 @@ lockSplash();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
+// Temporary while the app is being built: the launch animation is lovely and it costs a couple of
+// seconds on every single reload, which is the wrong trade when the loop is reload-look-reload.
+// Set to 0 to have it back.
+var SPLASH_ON=0;
 function dismissSplash(){
   if(splashGone)return;splashGone=true;
   initAudio();
   var s=document.getElementById('splash');
   if(!s)return;
+  if(!SPLASH_ON){
+    s.style.display='none';
+    s.style.width='';s.style.height='';
+    document.body.classList.remove('held');
+    return;
+  }
   document.body.classList.add('held');
   s.classList.add('turning');          // promote the layers...
   void s.offsetWidth;                  // ...let that raster land...
@@ -3311,7 +3327,9 @@ function renderBg(){
 function APPNAME(){return MW()?'MOONWELL':FG()?'FORGE':LT()?'TUNDRA':'ARCANUM';}
 function renderName(){
   var w=document.querySelector('.wordmark');
-  if(w)w.textContent=APPNAME();
+  // Temporary: the build number sits beside the title so it can be read at a glance instead of
+  // scrolled to. It goes when the app stops changing several times an hour.
+  if(w)w.innerHTML=mkEsc(APPNAME())+'<span class="vtag">'+mkEsc(APPV)+'</span>';
   var sp=document.querySelector('.sp-word');
   if(sp)sp.textContent=MW()?'Moonwell':FG()?'Forge':LT()?'Tundra':'Arcanum';
   var wl=document.getElementById('weekLabel');
@@ -3920,26 +3938,17 @@ function planDrop(id){
 }
 // A day with a session open cannot move: the workout is anchored to the day it was started on.
 var MOVE_BUSY='That day has a session open, so it cannot move. Seal it or finish it first, then move it.';
+// The hold menu is gone. It had six entries and every one of them had somewhere better to be:
+// taking a day off the week is a drag now, building from scratch is the + NEW DAY button, and
+// delete and optional belong with the rest of the day's settings rather than behind a long press
+// on the home screen. What was left was a menu whose only real entry was "edit" - so holding a
+// day opens the editor, and the menu with it.
 function mkActions(id){
-  var w=W[id];if(!w)return;
   var mine=!!(DB.custom&&DB.custom[id]);
-  document.getElementById('mkActTtl').textContent=w.name.replace('Optional: ','');
-  document.getElementById('mkActSub').textContent=(onPlan(id)?'On the plan':'In the bank')+' \u2014 '+totalSets(id)+' sets';
-  // Six entries was already a scroll on a folded phone, and two of them did the same thing: taking
-  // a day off the week and putting the original back are one action, not two. Labels are cut to
-  // the verb - the sheet is titled with the day, so "THIS DAY" on every row said nothing.
-  var h='';
-  h+='<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',\''+(mine?id:'')+'\')">EDIT</div>';
-  h+='<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',null,true)">BUILD FROM SCRATCH</div>';
-  // Every day can come off the plan now, made or stock - there is no slot underneath one that
-  // has to keep holding something, so nothing is displaced and nothing needs putting back.
-  h+='<div class="btn" onclick="mkRestore(\''+id+'\')">'+MKTXT().xa.toUpperCase()+'</div>';
-  if(mine)h+='<div class="btn btn-bad" onclick="mkDelete(\''+id+'\')">DELETE</div>';
-  var e=wkDefault(id),cv=wkVar(id),back=(e&&e.v==='rest')?'rest':'';
-  h+='<div class="btn" onclick="setWkVar(\''+id+'\',\''+(cv==='opt'?back:'opt')+'\')">'+
-     (cv==='opt'?'MAKE IT A REQUIRED DAY':'MAKE IT OPTIONAL')+'</div>';
-  document.getElementById('mkActBody').innerHTML=h;
-  openHeld('mkActOvl');
+  openMake(id,mine?id:'');
+}
+function mkActionsX(id){
+  openMake(null,id);
 }
 // opened from a long press: its buttons stay dead until the finger that opened it is up
 function openHeld(id){
@@ -3950,16 +3959,6 @@ function openHeld(id){
   ['pointerup','touchend','mouseup'].forEach(function(n){
     document.addEventListener(n,function h(){document.removeEventListener(n,h);setTimeout(clear,60);});
   });
-}
-function mkActionsX(id){
-  var w=W[id];if(!w)return;
-  document.getElementById('mkActTtl').textContent=w.name.replace('Optional: ','');
-  document.getElementById('mkActSub').textContent='In the bank \u2014 '+totalSets(id)+' sets';
-  document.getElementById('mkActBody').innerHTML=
-    '<div class="btn btn-go" onclick="closeOvl(\'mkActOvl\');openMake(null,\''+id+'\')">'+MKTXT().act.toUpperCase()+'</div>'+
-    '<div class="btn" onclick="planAdd(\''+id+'\')">PUT IT ON THE PLAN</div>'+
-    '<div class="btn btn-bad" onclick="mkDeleteX(\''+id+'\')">DELETE</div>';
-  openHeld('mkActOvl');
 }
 function mkDeleteX(id){
   if(openHere(id)){closeOvl('mkActOvl');mkNote('There is an open session on this day. Finish or seal it first.');return;}
@@ -3989,15 +3988,26 @@ function openHere(wk){var a=DB.active[wk];return !!(a&&Object.keys(a.entries||{}
 // Putting the original back leaves the custom day in store, so it can be dropped onto a slot
 // again later. Deleting is the one that discards it. Logged history is never touched - those
 // sessions happened, whatever the day was called.
+// Set from inside the editor, so it redraws the editor rather than the sheet it used to live in.
+function mkSetVar(v){
+  var id=MK.open;if(!id)return;
+  DB.vOvr=DB.vOvr||{};
+  var e=wkDefault(id),def=e?(e.v||''):'';
+  if((v||'')===def)delete DB.vOvr[id];else DB.vOvr[id]=v||'';
+  saveDB();mkRender();renderHome();
+  try{sfxLog();}catch(err){}
+}
 function mkDelete(id){
-  if(openHere(id)){closeOvl('mkActOvl');mkNote(MOVE_BUSY);return;}
+  if(openHere(id)){mkNote('There is an open session on this day. Finish it first.');return;}
   var nm=(W[id]&&W[id].name.replace('Optional: ',''))||'this day';
   closeOvl('mkActOvl');
   ask('Delete '+nm+'? Sessions you already logged stay in your history.',
     function(){
       planDropSilent(id);                    // out of whichever day held it, and off the rack
       if(DB.custom)delete DB.custom[id];
-      saveDB();mergeCustom();renderHome();
+      saveDB();mergeCustom();
+      try{closeMake();}catch(e){}            // deleted from inside the editor - do not leave it open
+      renderHome();
     },'Delete this day','DELETE');
 }
 // Reshaping a day starts from the day that is already there. Building from nothing is still
@@ -4008,7 +4018,7 @@ function openMake(base,editId,blank){
   if(src){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
-        color:w.color||MK_COLS[0],slot:(editId?(onPlan(editId)?'plan':null):'plan'),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+        color:w.color||MK_COLS[0],slot:(editId?(onPlan(editId)?'plan':null):'plan'),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
       blocks:w.sections.map(function(s){
         return {title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
           var id=typeof row==='string'?row:row[0];
@@ -4019,7 +4029,7 @@ function openMake(base,editId,blank){
         })};
       })};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:(editId?(onPlan(editId)?'plan':null):'plan'),tag:'Yours',time:'~9:00 PM',
+    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:(editId?(onPlan(editId)?'plan':null):'plan'),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',
       blocks:[{title:'',ss:false,rows:[]}]};
   }
   document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
@@ -4081,6 +4091,20 @@ function mkRender(){
   });
   h+='<div class="mk-add" onclick="mkAddBlock()">+ Block</div>';
   h+='<button class="finishbtn" style="margin-top:20px" onclick="mkSave()">'+(MK.id?'SAVE THIS DAY':T.save)+'</button>';
+  // Everything the hold menu used to carry lives down here now, with the rest of the day's
+  // settings, where you can see what you are changing. Only for a day that already exists - there
+  // is nothing to mark optional or delete about one you have not saved yet.
+  if(MK.open){
+    var cv=wkVar(MK.open),e0=wkDefault(MK.open),back=(e0&&e0.v==='rest')?'rest':'';
+    h+='<div class="mk-lbl" style="margin-top:24px">This day</div>';
+    h+='<div class="presets" style="grid-template-columns:1fr">'+
+       '<button class="preset sm" onclick="mkSetVar(\''+(cv==='opt'?back:'opt')+'\')">'+
+       (cv==='opt'?'MAKE IT REQUIRED':'MAKE IT OPTIONAL')+'</button></div>';
+    if(DB.custom&&DB.custom[MK.open]){
+      h+='<div class="presets" style="grid-template-columns:1fr;margin-top:8px">'+
+         '<button class="preset sm mk-del" onclick="mkDelete(\''+MK.open+'\')">DELETE THIS DAY</button></div>';
+    }
+  }
   document.getElementById('mkBody').innerHTML=h;
 }
 function mkSet(i,j,k,v){
