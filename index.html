@@ -104,31 +104,6 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
   box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 14%,transparent),0 6px 22px -16px var(--c);}
 .card.today::before{width:5px;}
 .card.today .card-day{text-shadow:0 0 11px color-mix(in srgb,var(--c) 60%,transparent);}
-/* The accent bar carries a light that runs down it, so on a screen of seven near-identical rows
-   the day you are on is the only thing moving. The old todaybar keyframe animated box-shadow -
-   a paint property, on a full-height element, on every card - which is precisely the shape the
-   flicker work spent four builds taking out. This is a transform on a clipped child instead:
-   composited, and it costs the same on one card as on seven. */
-.card.today > .tdb{position:absolute;left:0;top:0;bottom:0;width:5px;overflow:hidden;
-  pointer-events:none;border-radius:var(--r) 0 0 var(--r);}
-.card.today > .tdb::after{content:'';position:absolute;left:-2px;right:-2px;top:-60%;height:60%;
-  background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--c) 70%,#fff) 42%,#fff 55%,color-mix(in srgb,var(--c) 70%,#fff) 68%,transparent);
-  animation:tdrun 4.4s ease-in-out infinite;}
-@keyframes tdrun{from{transform:translateY(0);}to{transform:translateY(270%);}}
-/* Forge runs molten: the light is heat rather than shine, so it is slower, hotter in the core,
-   and drags an ember trail behind it instead of fading symmetrically. */
-body.forge .card.today > .tdb::after{height:76%;top:-76%;
-  background:linear-gradient(180deg,transparent,rgba(255,90,10,.5) 26%,#ff8a1f 46%,#fff0cd 57%,#ff6a12 70%,rgba(196,62,10,.35) 86%,transparent);
-  animation-duration:3.1s;animation-timing-function:cubic-bezier(.5,0,.6,1);}
-body.forge .card.today{border-color:color-mix(in srgb,#ff8a1f 55%,var(--line));}
-/* Moonwell is light passing over, not a strike - slow, cool, and never fully bright. */
-body.moon .card.today > .tdb::after{
-  background:linear-gradient(180deg,transparent,rgba(214,206,255,.55) 44%,rgba(245,242,255,.9) 55%,rgba(214,206,255,.5) 66%,transparent);
-  animation-duration:6.2s;}
-/* Tundra is a glint on ice: short, quick, and a long wait between. */
-body.light .card.today > .tdb::after{height:34%;top:-34%;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,.95) 50%,transparent);
-  animation-duration:5.4s;animation-timing-function:cubic-bezier(.85,0,.9,1);}
 .pill{font-size:10.5px;font-weight:600;padding:4px 9px;border-radius:7px;letter-spacing:.04em;white-space:nowrap;}
 .pill-today{background:var(--c);color:#0b0c0e;}
 .pill-live{background:var(--go);color:#0b0c0e;}
@@ -230,6 +205,35 @@ body.light .card.today > .tdb::after{height:34%;top:-34%;
   font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--txt3);padding:2px 4px 9px;}
 .daybox.today .dayhead{color:var(--go);}
+/* Today is the DAY, not the workout. A day can hold two, and lighting one of them said the wrong
+   thing about the other; the box they sit in is what you are looking for anyway.
+   The light travels the whole border - a conic gradient rotating behind the box, showing only in
+   the pixel and a half it sticks out past the edge. The box paints its own background over the
+   middle, so what is left is a ring. Rotation is a transform on a layer painted once, so it
+   composites; the box-shadow pulse this replaces was a paint property on every card. */
+.daybox.today{position:relative;
+  background:linear-gradient(color-mix(in srgb,var(--surface) 45%,transparent),color-mix(in srgb,var(--surface) 45%,transparent)),var(--bg);
+  border-color:color-mix(in srgb,var(--go) 30%,var(--line));}
+.daybox.today > .dayglow{position:absolute;inset:-1.5px;border-radius:15px;overflow:hidden;
+  pointer-events:none;z-index:-1;}
+.daybox.today > .dayglow::before{content:'';position:absolute;left:50%;top:50%;
+  width:170%;aspect-ratio:1;transform-origin:0 0;
+  background:conic-gradient(from 0turn,transparent 0 .04turn,color-mix(in srgb,var(--go) 55%,transparent) .11turn,#fff .155turn,color-mix(in srgb,var(--go) 55%,transparent) .2turn,transparent .28turn 1turn);
+  animation:dayspin 6.4s linear infinite;}
+@keyframes dayspin{from{transform:translate(-50%,-50%) rotate(0turn);}to{transform:translate(-50%,-50%) rotate(1turn);}}
+/* Forge runs molten - slower, hotter in the core, and trailing ember behind the head of it. */
+body.forge .daybox.today > .dayglow::before{
+  background:conic-gradient(from 0turn,transparent 0 .02turn,rgba(196,62,10,.45) .06turn,#ff6a12 .11turn,#ff8a1f .14turn,#fff0cd .165turn,#ff8a1f .19turn,rgba(255,90,10,.4) .25turn,transparent .34turn 1turn);
+  animation-duration:4.6s;}
+body.forge .daybox.today{border-color:color-mix(in srgb,#ff8a1f 42%,var(--line));}
+/* Moonwell is light passing over: long, cool, never fully bright. */
+body.moon .daybox.today > .dayglow::before{
+  background:conic-gradient(from 0turn,transparent 0 .05turn,rgba(214,206,255,.5) .13turn,rgba(245,242,255,.92) .17turn,rgba(214,206,255,.45) .21turn,transparent .3turn 1turn);
+  animation-duration:9s;}
+/* Tundra is a glint on ice: a short hard flash and a long wait between. */
+body.light .daybox.today > .dayglow::before{
+  background:conic-gradient(from 0turn,transparent 0 .1turn,rgba(255,255,255,.95) .15turn,transparent .2turn 1turn);
+  animation-duration:7.5s;}
 .daycount{font-size:10px;letter-spacing:.1em;opacity:.75;}
 .dayempty{font-size:12.5px;color:var(--txt3);padding:6px 4px 4px;opacity:.75;}
 /* Where it will land, and whether it can. */
@@ -395,6 +399,12 @@ body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bot
 .ex-links{margin-top:10px;display:flex;gap:7px;}
 .ex-links a{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--txt3);text-decoration:none;padding:5px 10px;border:1px solid var(--line);border-radius:8px;transition:.15s;}
 .ex-links a:hover{color:var(--txt);border-color:#33373d;}
+.ex-links a.unote-btn{cursor:pointer;}
+.ex-links a.unote-btn.has{color:var(--go);border-color:color-mix(in srgb,var(--go) 40%,var(--line));}
+/* Your own note reads as a margin annotation, not as more of the app's voice: indented behind a
+   rule, in the accent colour, so it is clearly the thing you wrote. */
+.ex-unote{font-size:12.5px;line-height:1.5;margin-top:6px;padding:5px 0 5px 9px;white-space:pre-wrap;
+  border-left:2px solid color-mix(in srgb,var(--go) 45%,transparent);color:var(--txt2);}
 
 /* set rows */
 .sets{padding:0 10px 10px;}
@@ -605,7 +615,7 @@ body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
    while a sheet is open costs nothing visible and stops the invalidations underneath */
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
 body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
-body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .card.today > .tdb::after{animation-play-state:paused;}
+body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .dayglow::before{animation-play-state:paused;}
 /* A day and the builder are full-screen and painted on an opaque var(--bg), exactly like a
    sheet - but they are not .ovl, so none of the above ever applied to them and the entire
    ground went on painting and animating at full size behind a screen that completely covers
@@ -616,10 +626,10 @@ body:has(#session.on) #bg,body:has(#make.on) #bg,
 body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
 body:has(#session.on) .bg-light,body:has(#session.on) .bg-motes i,body:has(#session.on) .bg-ripple i,
 body:has(#session.on) .bg-rules,body:has(#session.on) .bg-rules > i,body:has(#session.on) .bg-wm svg,
-body:has(#session.on) .card-day::after,body:has(#session.on) .card.today > .tdb::after,
+body:has(#session.on) .card-day::after,body:has(#session.on) .dayglow::before,
 body:has(#make.on) .bg-light,body:has(#make.on) .bg-motes i,body:has(#make.on) .bg-ripple i,
 body:has(#make.on) .bg-rules,body:has(#make.on) .bg-rules > i,body:has(#make.on) .bg-wm svg,
-body:has(#make.on) .card-day::after,body:has(#make.on) .card.today > .tdb::after{animation-play-state:paused;}
+body:has(#make.on) .card-day::after,body:has(#make.on) .dayglow::before{animation-play-state:paused;}
 /* The tour is a scrim over the whole screen, so it gets the same treatment as an open
    sheet: the ground behind it is not visible and does not need to keep moving. */
 body.tut .bg-light,body.tut .bg-motes i,body.tut .bg-ripple i,
@@ -1301,7 +1311,7 @@ body.moon .card-day::after{animation-duration:7.8s;}
    and scaled deck already on the bill there is not, which is why the cards flickered from
    the step that opens a day onward and not before it. Off for the tour too. */
 .card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after,
-body.tut .card-day::after,body.tut .card.today > .tdb{display:none;}
+body.tut .card-day::after,body.tut .dayglow{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
 body.booting .card-day,body.tut .card-day,body.tut .srow.ispr .inp{animation:none;}
 /* the mark keeps the same breath as the runes */
@@ -1797,6 +1807,17 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
 </div>
 
+<div class="ovl" id="exNoteOvl">
+  <div class="sheet" style="max-width:420px">
+    <h3 id="exNoteName">Note</h3>
+    <div class="footnote" style="margin:0 2px 8px">Yours, not the app's. Seat heights, pin numbers, a cue that keeps your form honest. It stays on this exercise every time it comes round.</div>
+    <textarea id="exNoteBox" rows="5" placeholder="Seat 4, back pad 2. Keep elbows tucked."></textarea>
+    <div class="sheet-btns">
+      <div class="btn" onclick="closeOvl('exNoteOvl')">CANCEL</div>
+      <div class="btn btn-go" onclick="saveExNote()">SAVE</div>
+    </div>
+  </div>
+</div>
 <div class="ovl" id="exEditOvl">
   <div class="sheet" style="max-width:420px">
     <h3 id="exEdName">Exercise</h3>
@@ -2623,7 +2644,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.42';
+var APPV='v4.44';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2663,6 +2684,29 @@ var DW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function today(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function pretty(iso){var p=iso.split('-');var d=new Date(+p[0],+p[1]-1,+p[2]);return DW[d.getDay()]+' '+MO[d.getMonth()]+' '+d.getDate();}
 
+// Anything the user typed goes through this before it is put into innerHTML. Their own exercise
+// notes are the first free text in the app that gets rendered rather than sat in a textarea.
+var exNoteFor=null;
+function openExNote(exId){
+  exNoteFor=exId;
+  var nm=(EX[exId]&&EX[exId].name)||'Note';
+  document.getElementById('exNoteName').textContent=nm;
+  document.getElementById('exNoteBox').value=(DB.exNotes||{})[exId]||'';
+  document.getElementById('exNoteOvl').classList.add('on');
+}
+function saveExNote(){
+  if(!exNoteFor)return;
+  var v=document.getElementById('exNoteBox').value.trim();
+  if(!DB.exNotes)DB.exNotes={};
+  if(v)DB.exNotes[exNoteFor]=v; else delete DB.exNotes[exNoteFor];  // empty clears it
+  saveDB();
+  closeOvl('exNoteOvl');exNoteFor=null;
+  renderSession();
+}
+function esc(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 // Parse one target line: "145x8" | "20 sec" | "30+ min" | "200 cal" | "90 sec each"
 function parseTarget(s){
   s=String(s).trim();
@@ -2710,8 +2754,8 @@ var EXRX={
   // be outside the paywall. AsPullupOpen is free; AsPullupKneeling is not.
   pullup:"LatissimusDorsi/AsPullupOpen",
   vbar:"Triceps/CBPushdownVBar",
-  rope:"Triceps/CBPushdownRope",
-  p_rope:"Triceps/CBPushdownRope",
+  rope:"Triceps/CBPushdown",
+  p_rope:"Triceps/CBPushdown",
   skull:"Triceps/BBLyingTriExtSC",
   preacher:"Brachialis/LVPreacherCurlH",
   wcurl:"WristFlexors/BBWristCurl",
@@ -2720,8 +2764,8 @@ var EXRX={
   lpress:"Quadriceps/SL45LegPress",
   goblet:"Kettlebell/KBGobletSquat",
   abmach:"RectusAbdominis/LVSeatedCrunch",
-  dblat:"DeltoidLateral/DBSeatedLateralRaise",
-  p_lat:"DeltoidLateral/DBSeatedLateralRaise",
+  dblat:"DeltoidLateral/DBLateralRaise",
+  p_lat:"DeltoidLateral/DBLateralRaise",
   clat:"DeltoidLateral/CBLateralRaise",
   mbench:"PectoralSternal/LVBenchPress",
   lvchest:"PectoralSternal/LVChestPress",
@@ -3071,13 +3115,7 @@ function planCard(id,i,nx){
   // the size of the day. The ADD-ON tag went because the meta already says Optional, and YOURS
   // because whose day it is has never been something you needed telling twice.
   var meta=v==='rest'?((e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
-  // Which row is today. The card has been styled for this the whole time - tint, border, a wider
-  // accent bar, a per-theme override each - but nothing ever put the class on, so on the week
-  // screen it had never once appeared. e is this slot's WEEK entry, so e.js is its weekday even
-  // when the workout standing in the slot has been moved.
-  var isTd=!!(e&&e.js===new Date().getDay());
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+(isTd?' today':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
-    (isTd?'<i class="tdb"></i>':'')+
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
     '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
       '<span class="card-r">'+pills+CARDGRIP+'</span></div>'+
@@ -3087,7 +3125,7 @@ function planCard(id,i,nx){
 // draws its header and a place to drop into rather than vanishing.
 function dayBox(d,nx,n0){
   var ids=(DB.days[d.k]||[]),isToday=(new Date().getDay()===d.js);
-  var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">';
+  var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">'+(isToday?'<i class="dayglow"></i>':'');
   // No count. How many a day can hold is not something to be reminded of on every day you own -
   // it only matters at the moment you try to exceed it, and it says so then.
   h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span></div>';
@@ -3641,14 +3679,22 @@ function renderSession(){
       html+='<div class="ex-h"><div class="ex-nrow">'+DRAGSVG+'<div class="ex-n">'+r.name+(rf.swapId?' <span style="color:var(--gold);font-size:11px;font-weight:500">SWAPPED</span>':'')+'</div>'+
             '<div class="ex-tools">'+(ready&&canRaise[rf.exId]?'<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(CUR)">'+ARROW+'</span>':'')+'<div class="ex-swap" onclick="openSwap(\''+rf.baseId+'\')" title="Swap exercise"><svg viewBox="0 0 20 20"><path d="M3 7h11l-2.6-2.6M17 13H6l2.6 2.6"/></svg></div></div></div>';
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
+      if(un)html+='<div class="ex-unote">'+esc(un)+'</div>';
       html+='<div class="ex-stats">'+
             '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
             (L?'<span class="ex-stat st-last">Last <b>'+fmtSets(L.sets)+'</b></span>':'')+
             (bst?'<span class="ex-stat st-best">Best <b>'+(bst.w?bst.w+'\u00d7'+bst.r:bst.r+(bst.unit?' '+bst.unit:''))+'</b></span>':'')+
             '</div>';
+      // Your own note on the exercise, beside the instructions because that is where you already
+      // look for "how do I do this one". Keyed on exId, so it follows the lift through a swap and
+      // survives every session - machine seat height, a grip, a cue that only matters to you.
+      // Separate from r.note, which is the app's own coaching line and is not yours to edit.
+      var un=(DB.exNotes||{})[rf.exId]||'';
       var rl=refLink(rf.swapId||id,r.name);
-      if(rl)html+='<div class="ex-links">'+
-            '<a href="'+rl+'" target="_blank" rel="noopener"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.2v.1"/></svg> Instructions</a>'+
+      html+='<div class="ex-links">'+
+            (rl?'<a href="'+rl+'" target="_blank" rel="noopener"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.2v.1"/></svg> Instructions</a>':'')+
+            '<a class="unote-btn'+(un?' has':'')+'" onclick="event.stopPropagation();openExNote(\''+rf.exId+'\')">'+
+              '<svg viewBox="0 0 20 20"><path d="M4 3.5h9l3 3v10h-12z"/><path d="M7 8.5h6M7 12h4"/></svg> '+(un?'Note':'Add note')+'</a>'+
             '</div>';
       html+='</div><div class="sets">';
       tg.forEach(function(t,i){
@@ -3890,6 +3936,7 @@ function mergeCustom(){
   if(!DB.custom)DB.custom={};
   if(!DB.slots)DB.slots={};
   if(!DB.cex)DB.cex={};
+  if(!DB.exNotes)DB.exNotes={};   // your own notes, keyed by exercise, kept across sessions
   for(var k in DB.cex){EX[k]=DB.cex[k];NOREF[k]=1;if(!GRP[k])GRP[k]='other';}
   for(var d in DB.custom)W[d]=DB.custom[d];
 }
@@ -5002,7 +5049,14 @@ function closeOvl(id){
 // The stack is kept at [home, guard]. Back pops the guard and lands here, we act on it
 // and push a fresh guard. Only from the home screen, with nothing open, is the app
 // allowed to close - and then only after you confirm.
-function backGuard(){try{history.pushState({arc:'guard'},'');}catch(e){}}
+// The guard is a spare history entry so the browser's back has something to consume instead of
+// leaving the page. The native back button does not travel through history at all, so pushing
+// one there just piles up entries that nothing will ever pop.
+function capApp(){
+  try{var C=window.Capacitor;if(C&&C.Plugins&&C.Plugins.App)return C.Plugins.App;}catch(e){}
+  return null;
+}
+function backGuard(){if(capApp())return;try{history.pushState({arc:'guard'},'');}catch(e){}}
 function topOvl(){
   var o=document.querySelectorAll('.ovl.on');
   return o.length?o[o.length-1]:null;
@@ -5031,13 +5085,28 @@ function onBackButton(){
   }
   if(sessionOpen()){leaveSession();backGuard();return;}
   backGuard();                             // hold our place while the question is up
-  ask(TXT('closeMsg'),function(){try{history.go(-2);}catch(e){}},TXT('closeTtl'),'CLOSE');
+  // history.go(-2) is how a browser tab leaves. The APK has no history to walk out through, so
+  // closing there is the plugin's job.
+  ask(TXT('closeMsg'),function(){
+    var A=capApp();
+    if(A&&A.exitApp){try{A.exitApp();return;}catch(e){}}
+    try{history.go(-2);}catch(e){}
+  },TXT('closeTtl'),'CLOSE');
 }
 function initBack(){
   try{
     history.replaceState({arc:'home'},'');
     backGuard();
     window.addEventListener('popstate',onBackButton);
+  }catch(e){}
+  // In the APK the hardware back button never reaches popstate. Capacitor decides what it does,
+  // and with no listener registered it finishes the activity - which is why back on the week
+  // closed the app outright, and why back inside a day closed it instead of returning to the
+  // week. The App plugin is the supported way to claim it. Registering the listener is what
+  // stops Capacitor handling it natively, so all the logic below stays in one place.
+  try{
+    var C=window.Capacitor,A=C&&C.Plugins&&C.Plugins.App;
+    if(A&&A.addListener)A.addListener('backButton',function(){onBackButton();});
   }catch(e){}
 }
 
@@ -7656,7 +7725,7 @@ function tutAdvance(){
 }
 // A tap where a hold was meant used to open a sheet the step knew nothing about, and the
 // fence then locked every button on it. Anything the step did not ask for is closed.
-var TUT_STRAY=['editOvl','exEditOvl','exAddOvl','exJoinOvl','swapOvl','settingsOvl','themeOvl','timerOvl',
+var TUT_STRAY=['editOvl','exEditOvl','exNoteOvl','exAddOvl','exJoinOvl','swapOvl','settingsOvl','themeOvl','timerOvl',
   'pumpOvl','walkOvl','lvlOvl','mkActOvl','mkSlotOvl','mkPickOvl','progOvl','histOvl','backupOvl','askOvl'];
 function tutStray(i){
   var keep=TUT_STEPS[i==null?TUTI:i].ovl||'';
