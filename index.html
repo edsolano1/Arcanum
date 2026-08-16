@@ -2701,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.52';
+var APPV='v4.53';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3906,7 +3906,9 @@ function toggleSet(id,i,rest,unit){
     if(gr)row.classList.add(isTop(gr)?'ispr':gr==='match'?'ismatch':'isunder');
     // rest starts the moment the set lands, before any effects
     var secs=parseRest(rest);
-    if(secs>0)startTimer(secs);
+    // exId, not id: after a swap the slot keeps its name and the lift standing in it is the one
+    // you actually just did, which is the one worth reading in the shade.
+    if(secs>0)startTimer(secs,(EX[exId]||{}).name);
     try{
       if(isTop(gr)){sfxPR();vib([40,60,40,60,140]);}
       else{sfxLog();vib(35);}
@@ -6287,10 +6289,14 @@ function nativeSound(secs){
 function nativeSoundCancel(){var ra=RA();if(ra)try{ra.cancel();}catch(e){}}
 // The rest, live in the shade. Android draws the countdown itself from the target time, so this
 // is posted once per rest rather than ticking - and re-posted only when you move the clock.
+// The line under the clock is the lift you are resting FROM, not the day it sits on. "Chest,
+// Triceps and Core" was the same words on every rest of the session and told you nothing you did
+// not already know; the exercise is the thing you have to remember when you pick the phone back
+// up. Falls back to the day for the quick timer, which belongs to no exercise.
 function nativeTimer(secs){
   var ra=RA();if(!ra)return;
-  try{ra.showTimer({seconds:secs,title:TXT('restingTtl'),
-    body:(CUR&&W[CUR])?W[CUR].name.replace('Optional: ',''):''});}catch(e){}
+  var sub=restExName||((CUR&&W[CUR])?W[CUR].name.replace('Optional: ',''):'');
+  try{ra.showTimer({seconds:secs,title:TXT('restingTtl'),body:sub});}catch(e){}
 }
 function nativeTimerHide(){var ra=RA();if(ra)try{ra.hideTimer();}catch(e){}}
 function nativeAsk(){var ln=LN();if(ln)try{ln.requestPermissions();}catch(e){}}
@@ -6310,6 +6316,10 @@ function nativeSchedule(secs){
       id:NATIVE_REST_ID,
       title:TXT('restTtl'),
       body:TXT('restBody'),
+      // Without this the alert arrives under Capacitor's stock information "i". The countdown
+      // notice never had that problem because it names the drawable itself, so the two notices
+      // from the same rest wore different icons. Same anvil for both now.
+      smallIcon:'ic_stat_arcanum',
       // One channel per theme, because a channel carries exactly one sound and each world has
       // its own alert. The -v2 suffix is version, not decoration: a channel's settings are frozen
       // once Android has seen it, so changing a sound or a pattern means a NEW id. If a tweak
@@ -6492,6 +6502,8 @@ function parseRest(t){
   return /min/i.test(t)?Math.round(n*60):Math.round(n);
 }
 var timerEnd=0,restStartedAt=0,skipQuiet=false;
+// The lift the running rest belongs to, for the line under the countdown in the shade.
+var restExName='';
 function fmtT(ms){var l=Math.max(0,Math.round(ms/1000)),m=Math.floor(l/60),x=l%60;return m+':'+(x<10?'0':'')+x;}
 // ---------- lava pour: forge's wipe ----------
 // Flame and lava move nothing alike, so this is its own renderer rather than the fire
@@ -6762,8 +6774,11 @@ function pageTurn(back,cb){
   setTimeout(function(){if(cb)cb();},back?120:300);
   setTimeout(function(){t.className='';},back?620:1120);
 }
-function startTimer(secs){
+// exName is the lift the rest belongs to, carried so the notification can name it. Optional:
+// the quick timer off the home board has no exercise behind it.
+function startTimer(secs,exName){
   stopTimer();
+  restExName=exName||'';
   var pill=document.getElementById('timerPill'),lbl=document.getElementById('tTime');
   timerEnd=Date.now()+secs*1000;
   restStartedAt=Date.now();
@@ -7866,7 +7881,7 @@ function tutDay(){
 function tutRest(){
   var p=document.getElementById('timerPill');
   if(p&&p.classList.contains('on'))return;
-  startTimer(parseRest(EX.bench.rest));
+  startTimer(parseRest(EX.bench.rest),EX.bench.name);
 }
 // past the finish the week is what you look at, and the day stays sealed
 function tutWeek(){
