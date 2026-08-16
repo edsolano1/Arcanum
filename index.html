@@ -2010,7 +2010,7 @@ var EX = {
   vbar:     {name:"V-Bar Cable Pushdown",note:"V-bar attachment - elbows pinned to sides, no swinging",sets:"72.5x12\n72.5x12\n72.5x12",rest:"60 sec"},
   rope:     {name:"Rope Pushdown",note:"Pulley high - elbows pinned, split the rope at the bottom",sets:"42.5x15\n42.5x14\n42.5x12",rest:""},
   ohext:    {name:"Cable Rope Overhead Extension",wraps:1,note:"Same rope, pulley stays high, face away from stack, press up and split at top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
-  bike:     {name:"Bicycle Crunch",note:"FULL reps - both twists = 1 rep. Slow and controlled, full rotation",sets:"0x20\n0x20\n0x20",rest:""},
+  bike:     {bw:1,name:"Bicycle Crunch",note:"FULL reps - both twists = 1 rep. Slow and controlled, full rotation",sets:"0x20\n0x20\n0x20",rest:""},
   hollow:   {name:"Hollow Body Hold",note:"Arms overhead, lower back pressed to floor, legs raised",sets:"20 sec\n20 sec\n20 sec",rest:"45 sec after round"},
   pullup:   {name:"Assisted Pull-Up",note:"Wide overhand grip - lower the assistance number as you get stronger",sets:"45x9\n45x10\n45x8",rest:"90 sec"},
   latpd:    {name:"Lat Pulldown",note:"Wide straight bar, overhand grip - pull to upper chest",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
@@ -2020,7 +2020,7 @@ var EX = {
   sdbcurl:  {name:"Seated DB Curl",note:"Two dumbbells, seated - squeeze at the top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
   hammer:   {name:"Hammer Curl",note:"Palms facing each other throughout - no rotation",sets:"22.5x12\n22.5x12\n22.5x12",rest:""},
   cbcurl:   {name:"Cable Bicep Curl",note:"Straight bar attachment on lowest pulley",sets:"42.5x13\n42.5x13\n42.5x13",rest:"60 sec"},
-  legraise: {name:"Leg Raise",note:"Flat bench - hands under lower back, legs straight, slow descent",sets:"0x15\n0x15\n0x15",rest:"45 sec"},
+  legraise: {bw:1,name:"Leg Raise",note:"Flat bench - hands under lower back, legs straight, slow descent",sets:"0x15\n0x15\n0x15",rest:"45 sec"},
   wcurl:    {name:"Wrist Curl",note:"Seated, forearms on thighs, palms up",sets:"20x20\n20x20\n20x20",rest:"30 sec"},
   rwcurl:   {name:"Reverse Wrist Curl",note:"Palms down - curl the wrist up against gravity",sets:"15x15\n15x15\n15x15",rest:"30 sec"},
   hang:     {name:"Dead Hang",note:"Full grip on the pull-up bar, body relaxed",sets:"30 sec\n30 sec\n30 sec",rest:"45 sec"},
@@ -2034,7 +2034,7 @@ var EX = {
   lunge:    {name:"Walking Lunge",note:"One DB in each hand - 12 steps each leg",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
   dcalfr:   {name:"Diagonal/Slanted Calf Raise",note:"Heels off edge, full range of motion, slow descent",sets:"80x15\n80x15\n80x15\n80x15",rest:"45 sec"},
   scalfr:   {name:"Machine Seated Calf Raise",note:"Pads on thighs, heels hanging off platform edge",sets:"60x20\n60x20\n60x20\n60x20",rest:"45 sec"},
-  hipraise: {name:"Parallel Bar Hip Raise",note:"Captain's chair - lift knees to chest, slow descent",sets:"0x15\n0x15\n0x15",rest:""},
+  hipraise: {bw:1,name:"Parallel Bar Hip Raise",note:"Captain's chair - lift knees to chest, slow descent",sets:"0x15\n0x15\n0x15",rest:""},
   plank:    {name:"Plank",note:"Forearms on floor - brace abs hard before starting",sets:"60 sec\n60 sec\n60 sec",rest:"45 sec after round"},
   dblat:    {name:"DB Lateral Raise",note:"Slight elbow bend, raise to shoulder height, lead with elbows",sets:"17.5x15\n17.5x15\n17.5x15\n17.5x15",rest:"60 sec"},
   clat:     {name:"Cable Lateral Raise",note:"Single arm, LOWER pulley position (machine lowered - felt way better in the shoulder). All reps one side then switch",sets:"7x12\n7x12\n7x12",rest:"60 sec"},
@@ -2075,7 +2075,7 @@ var ALT={
   lvchest:  {name:"Leverage Chest Press",note:"Plate-loaded press - your gym's stand-in when the pin machine is down",sets:"120x10\n120x12\n120x12",rest:"90 sec"},
   dbbench:  {name:"Dumbbell Bench Press",note:"Flat bench, two dumbbells - more stabilizer work than the barbell",sets:"55x10\n55x10\n55x10",rest:"2 min"},
   smbench:  {name:"Smith Machine Bench Press",note:"Fixed bar path - safe to push close to failure without a spotter",sets:"135x8\n135x8\n135x8",rest:"2 min"},
-  pushup:   {name:"Push-Up (weighted if needed)",note:"Zero equipment fallback - add a plate on the back if too easy",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
+  pushup:   {bw:1,name:"Push-Up (weighted if needed)",note:"Zero equipment fallback - add a plate on the back if too easy",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
   dbfly:    {name:"Dumbbell Fly",note:"Flat or slight incline - soft elbows, wide arc, stretch at the bottom",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
   machrow:  {name:"Machine Seated Row",note:"Chest on pad - takes the lower back out of it entirely",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
   dbrow:    {name:"One-Arm Dumbbell Row",note:"Knee and hand on bench - pull to the hip, not the shoulder",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
@@ -2083,7 +2083,7 @@ var ALT={
   bbcurl:   {name:"Barbell Curl",note:"Straight or EZ bar - elbows pinned, no swinging",sets:"55x12\n55x12\n55x10",rest:"60 sec"},
   inccurl:  {name:"Incline Dumbbell Curl",note:"Bench at 45-60 degrees, arms hanging back - big biceps stretch",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
   dip:      {name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"48x10\n48x10\n48x10",rest:"90 sec"},
-  bdip:     {name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
+  bdip:     {bw:1,name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
   machlat:  {name:"Machine Lateral Raise",note:"Fixed path - good when the shoulder feels off on free weight versions",sets:"50x15\n50x15\n50x15",rest:"60 sec"},
   facepull: {name:"Cable Rope Face Pull",note:"Rope at face height - pull to the forehead, elbows high. Rear delt work",sets:"40x15\n40x15\n40x15",rest:"60 sec"},
   goblet:   {name:"Goblet Squat",note:"One dumbbell at the chest - upright torso, easy on the knees",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
@@ -2091,7 +2091,7 @@ var ALT={
   bbthrust: {name:"Barbell Hip Thrust",note:"Upper back on bench, bar across hips with a pad - machine substitute",sets:"135x12\n135x12\n135x12",rest:"90 sec"},
   stepup:   {name:"Dumbbell Step-Up",note:"Knee-height box, drive through the top foot - unilateral glute work",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
   stcalf:   {name:"Standing Calf Raise Machine",note:"Knees straight - hits the gastrocnemius like the diagonal machine",sets:"90x15\n90x15\n90x15\n90x15",rest:"45 sec"},
-  kneeraise:{name:"Hanging Knee Raise",note:"From the pull-up bar - knees to chest, no swinging",sets:"0x12\n0x12\n0x12",rest:"45 sec"},
+  kneeraise:{bw:1,name:"Hanging Knee Raise",note:"From the pull-up bar - knees to chest, no swinging",sets:"0x12\n0x12\n0x12",rest:"45 sec"},
   abmach:   {name:"Ab Crunch Machine",note:"Seated machine crunch - loadable core work",sets:"50x15\n50x15\n50x15",rest:"45 sec"},
   bike:null
 };
@@ -2107,8 +2107,8 @@ var PUMP={
   p_curl: {name:"Cable Bicep Curl",note:"Constant tension - do not let the stack rest at the bottom",sets:"30x18\n30x18\n30x18",rest:""},
   p_hammer:{name:"Hammer Curl",note:"Palms facing in - builds the outer arm thickness",sets:"15x18\n15x18",rest:""},
   p_rope: {name:"Rope Pushdown",note:"Split the rope hard at the bottom, full lockout - do this one right after curls, then rest",sets:"30x18\n30x18\n30x18",rest:"30 sec"},
-  p_dip:  {name:"Bench Dip",note:"Bodyweight - burn out the back of the arm - right after hammer curls, then rest",sets:"0x18\n0x18",rest:"30 sec"},
-  p_bike: {name:"Bicycle Crunch",note:"Slow and controlled, full rotation. Both twists = one rep",sets:"0x20\n0x20\n0x20",rest:""},
+  p_dip:  {bw:1,name:"Bench Dip",note:"Bodyweight - burn out the back of the arm - right after hammer curls, then rest",sets:"0x18\n0x18",rest:"30 sec"},
+  p_bike: {bw:1,name:"Bicycle Crunch",note:"Slow and controlled, full rotation. Both twists = one rep",sets:"0x20\n0x20\n0x20",rest:""},
   p_hollow:{name:"Hollow Body Hold",note:"Lower back pressed flat - hold until it shakes - right after crunches, then rest",sets:"25 sec\n25 sec\n25 sec",rest:"30 sec"}
 };
 for(var __p in PUMP){EX[__p]=PUMP[__p];}
@@ -2600,7 +2600,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.40';
+var APPV='v4.41';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3627,13 +3627,20 @@ function renderSession(){
         var vw=e?e.w:(t.type==='wr'?t.w:0);
         var vr=e?e.r:t.r;
         html+='<div class="srow'+(e?' done':'')+gradeClass(e)+'" id="sr-'+id+'-'+i+'"><span class="sno num">'+(i+1)+'</span>';
-        if(t.type==='wr'){
+        // bw marks a lift that has no weight to give - a crunch, a plank, a hanging raise. The
+        // sets still parse as weight-by-reps because they are written 0x20, so without the flag
+        // they drew a weight box sitting at zero that opened a number pad for a load that does
+        // not exist. Flagged exercises render like the timed ones: one wide field, and the
+        // weight pinned to 0 in a hidden input so everything downstream still finds it.
+        // It is a property of the exercise, not of the number, which is why it is a flag and not
+        // inferred from the zero - Push-Up is programmed at 0 and is meant to take weight later.
+        if(t.type==='wr'&&!r.bw){
           html+='<input class="inp" id="w-'+id+'-'+i+'" readonly value="'+vw+'" onclick="openEdit(\''+id+'\','+i+',\'w\')">'+
                 '<span class="mul">&times;</span>'+
                 '<input class="inp" id="r-'+id+'-'+i+'" readonly value="'+vr+'" onclick="openEdit(\''+id+'\','+i+',\'r\')">';
         }else{
           html+='<input class="inp wide" id="r-'+id+'-'+i+'" readonly value="'+vr+'" onclick="openEdit(\''+id+'\','+i+',\'r\')">'+
-                '<span class="unit">'+(t.unit||'')+'</span><input type="hidden" id="w-'+id+'-'+i+'" value="0">';
+                '<span class="unit">'+(t.unit||(r.bw?'reps':''))+'</span><input type="hidden" id="w-'+id+'-'+i+'" value="0">';
           if(t.unit==='sec')html+='<button class="hold" id="hb-'+id+'-'+i+'" title="Time this hold" data-ic onclick="toggleHold(\''+id+'\','+i+','+(t.r||0)+',\''+(r.rest||'').replace(/'/g,'')+'\')"><svg viewBox="0 0 20 20"><path d="M6 3.5l10 6.5-10 6.5z"/></svg></button>';
         }
         html+='<button class="chk" onclick="toggleSet(\''+id+'\','+i+',\''+(r.rest||'').replace(/'/g,'')+'\',\''+(t.unit||'')+'\')">'+chkSvg()+'</button></div>';
