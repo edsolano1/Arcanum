@@ -83,11 +83,15 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .iconbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--txt2);flex-shrink:0;transition:.15s;}
 .iconbtn:hover{color:var(--txt);border-color:#33373d;}
 
-.card{position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:17px 18px;cursor:pointer;transition:transform .12s,border-color .15s,background .15s;margin-bottom:9px;user-select:none;overflow:hidden;}
+.card{position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;cursor:pointer;transition:transform .12s,border-color .15s,background .15s;margin-bottom:9px;user-select:none;overflow:hidden;}
 .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c);}
 .card:hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:var(--surface2);transform:translateY(-1px);}
 .card:active{transform:scale(.994);}
-.card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:0;}
+/* The name shares the top line with the grip now, so it must not wrap the row taller than the
+   grip - a long day name ellipses instead. */
+.card-top .card-name{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-r{display:flex;gap:0;align-items:center;flex:0 0 auto;}
 .card-day{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--c);}
 .card-name{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:600;letter-spacing:-.022em;color:var(--txt);line-height:1.2;}
 .card-meta{font-size:12.5px;color:var(--txt3);margin-top:6px;}
@@ -189,6 +193,10 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .carddrag:active{opacity:1;color:var(--go);}
 .carddrag svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;pointer-events:none;}
 .card.cdrag{z-index:60;opacity:.96;transition:none;box-shadow:0 20px 44px -14px rgba(0,0,0,.6);pointer-events:none;}
+/* The space the card will drop into. It is a real element in the list, so everything below it
+   moves down to make room - which is the animation, without animating anything. */
+.dropslot{border:1px dashed color-mix(in srgb,var(--go) 60%,var(--line));border-radius:var(--r);
+  background:color-mix(in srgb,var(--go) 12%,transparent);margin-bottom:9px;}
 /* A day is a container: header, then whatever is in it, growing and shrinking to fit. An empty
    one keeps its header and offers somewhere to drop, because empty is a real answer - it is a
    rest day - not an absence. */
@@ -2592,7 +2600,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.38';
+var APPV='v4.39';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3036,12 +3044,14 @@ function planCard(id,i,nx){
   if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(id)+'/'+totalSets(id)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
   else if(rdy)pills+='<span class="lvl" title="Level up" onclick="event.stopPropagation();openLevel(\''+id+'\')">'+ARROW+'</span>';
-  var meta=v==='rest'?((e&&e.label)||'Walk still happens'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets &middot; lift, walk, or rest':totalSets(id)+' sets');
-  var tag=up?'UP NEXT':(v==='opt'?'ADD-ON':(mine?'YOURS':''));
+  // Compressed: the name sits on the top line, level with the grip, and the second line is just
+  // the size of the day. The ADD-ON tag went because the meta already says Optional, and YOURS
+  // because whose day it is has never been something you needed telling twice.
+  var meta=v==='rest'?((e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
-    '<div class="card-top">'+(tag?dayLbl(tag):'<span></span>')+'<span style="display:flex;gap:0;align-items:center">'+pills+CARDGRIP+'</span></div>'+
-    '<div class="card-name">'+w.name.replace('Optional: ','')+'</div>'+
+    '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
+      '<span class="card-r">'+pills+CARDGRIP+'</span></div>'+
     '<div class="card-meta">'+meta+'</div></div>';
 }
 // A day and whatever is in it. Empty is a legitimate state - that is a rest day - so it still
@@ -6990,33 +7000,44 @@ function cardBind(){
     });
   });
 }
-// Every place a card can land, measured once at grab time.
-function dropZones(){
-  var z=[];
+// A real placeholder, because the old version could not answer "where within this day?" at all -
+// it only knew which day, so dragging the second workout above the first landed it back in second
+// and looked broken. The dragged card leaves the flow and follows the finger; a slot takes its
+// place and slides to wherever it would land. What you see is where it goes.
+function dragCards(box){
+  return [].slice.call(box.querySelectorAll('.card')).filter(function(c){return !c.classList.contains('cdrag');});
+}
+function zoneAt(y){
+  var z=null;
   [].forEach.call(document.querySelectorAll('#weekCards .daybox'),function(b){
-    z.push({el:b,key:b.getAttribute('data-day'),bank:false,r:b.getBoundingClientRect()});
+    var r=b.getBoundingClientRect();
+    if(y>=r.top&&y<=r.bottom)z={el:b,key:b.getAttribute('data-day'),bank:false};
   });
-  var lbl=document.getElementById('extraLabel'),cards=document.getElementById('extraCards');
-  if(lbl){
-    var a=lbl.getBoundingClientRect(),b2=cards?cards.getBoundingClientRect():a;
-    z.push({el:cards||lbl,key:null,bank:true,
-            r:{top:a.top,bottom:Math.max(b2.bottom,a.bottom+60),left:a.left,right:a.right}});
+  if(!z){
+    var lbl=document.getElementById('extraLabel'),cards=document.getElementById('extraCards');
+    if(lbl&&cards){
+      var a=lbl.getBoundingClientRect(),c=cards.getBoundingClientRect();
+      if(y>=a.top&&y<=Math.max(c.bottom,a.bottom+70))z={el:cards,key:null,bank:true};
+    }
   }
   return z;
 }
 function cardStart(el,sx,sy){
   var id=el.getAttribute('data-base')||el.getAttribute('data-extra');
-  // Any day can move, in progress or finished. The old block existed because moving used to
-  // RENAME which weekday a workout was, and a running session was anchored to that name. Days are
-  // containers now: the session belongs to the workout, the workout keeps its identity wherever
-  // it sits, and moving a half-finished Wednesday to Thursday costs nothing. Refusing to move a
-  // day you had already worked was the rule outliving its reason.
+  // Any day can move, in progress or finished. Moving used to RENAME which weekday a workout was,
+  // and a running session was anchored to that name; days are containers now, so the session
+  // belongs to the workout and travels with it.
   dayMap();
   var r=el.getBoundingClientRect();
-  CDRAG={el:el,id:id,from:dayKeyOf(id),x0:sx,y0:sy,cx:sx,cy:sy,
-         zones:dropZones(),sc:document.getElementById('home'),
-         sc0:document.getElementById('home')?document.getElementById('home').scrollTop:0,
-         zone:null,mv:false,w:r.width,h:r.height};
+  var slot=document.createElement('div');
+  slot.className='dropslot';
+  slot.style.height=r.height+'px';
+  el.parentNode.insertBefore(slot,el);
+  // Out of the flow, so the slot alone represents where it will land.
+  el.style.position='fixed';el.style.left=r.left+'px';el.style.top=r.top+'px';
+  el.style.width=r.width+'px';el.style.margin='0';
+  CDRAG={el:el,id:id,slot:slot,from:dayKeyOf(id),
+         dx:sx-r.left,dy:sy-r.top,cx:sx,cy:sy,mv:false,zone:null};
   el.classList.add('cdrag');
   try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
   cardApply();
@@ -7026,26 +7047,33 @@ function cardStart(el,sx,sy){
 }
 function cardApply(){
   var d=CDRAG;if(!d)return;
-  var sd=d.sc?d.sc.scrollTop-d.sc0:0;
-  d.el.style.transform='translate('+(d.cx-d.x0)+'px,'+((d.cy-d.y0)+sd)+'px)';
-  var y=d.cy,hit=null;
-  d.zones.forEach(function(z){
-    if(y>=z.r.top-sd&&y<=z.r.bottom-sd)hit=z;
-  });
-  if(hit!==d.zone){
-    d.zones.forEach(function(z){z.el.classList.remove('dropok','dropfull');});
-    if(hit){
-      var full=hit.bank?((DB.extra||[]).length>=BANK_MAX&&d.from)
-                       :(dayFull(hit.key)&&hit.key!==d.from);
-      hit.el.classList.add(full?'dropfull':'dropok');
-    }
-    d.zone=hit;
+  d.el.style.left=(d.cx-d.dx)+'px';
+  d.el.style.top=(d.cy-d.dy)+'px';
+  var z=zoneAt(d.cy);
+  if(d.zone&&(!z||z.el!==d.zone.el))d.zone.el.classList.remove('dropok','dropfull');
+  d.zone=z;
+  if(!z)return;
+  // Same day means no new occupant, so the cap does not apply to reordering within one.
+  var here=(z.key&&z.key===d.from);
+  var count=z.bank?(DB.extra||[]).length:((DB.days[z.key]||[]).length);
+  var full=!here&&(z.bank?count>=BANK_MAX:count>=DAY_MAX);
+  z.el.classList.toggle('dropfull',full);
+  z.el.classList.toggle('dropok',!full);
+  if(full)return;
+  // Where within the zone: above the midpoint of a card means before it.
+  var cards=dragCards(z.el),before=null;
+  for(var i=0;i<cards.length;i++){
+    var cr=cards[i].getBoundingClientRect();
+    if(d.cy<cr.top+cr.height/2){before=cards[i];break;}
   }
+  if(before){if(d.slot.nextSibling!==before)z.el.insertBefore(d.slot,before);}
+  else if(d.slot.parentNode!==z.el||d.slot.nextSibling)z.el.appendChild(d.slot);
 }
 function cardMove(ev){
   if(!CDRAG)return;
   CDRAG.cx=ev.clientX;CDRAG.cy=ev.clientY;
-  if(Math.abs(ev.clientY-CDRAG.y0)>6||Math.abs(ev.clientX-CDRAG.x0)>6)CDRAG.mv=true;
+  if(Math.abs(ev.clientY-CDRAG.cy0||0)>0)CDRAG.mv=true;
+  CDRAG.mv=true;
   cardApply();
 }
 function cardEnd(){
@@ -7053,22 +7081,40 @@ function cardEnd(){
   document.removeEventListener('pointerup',cardEnd);
   document.removeEventListener('pointercancel',cardEnd);
   var d=CDRAG;if(!d)return;CDRAG=null;
-  d.zones.forEach(function(z){z.el.classList.remove('dropok','dropfull');});
-  d.el.style.transform='';d.el.classList.remove('cdrag');
-  var z=d.zone;
-  if(d.mv&&z){
-    if(z.bank){
-      if(z.key!==d.from||d.from){
-        if(!planDrop(d.id)){renderHome();return;}
+  var box=d.slot.parentNode,key=null,bank=false;
+  if(box){
+    if(box.id==='extraCards')bank=true;
+    else key=box.getAttribute&&box.getAttribute('data-day');
+  }
+  // Index is read off the slot's own position, so it is exactly what was on screen.
+  var idx=0;
+  if(box){
+    var kids=[].slice.call(box.children);
+    for(var i=0;i<kids.length;i++){
+      if(kids[i]===d.slot)break;
+      if(kids[i].classList&&kids[i].classList.contains('card'))idx++;
+    }
+  }
+  [].forEach.call(document.querySelectorAll('.dropok,.dropfull'),function(x){x.classList.remove('dropok','dropfull');});
+  if(d.slot.parentNode)d.slot.parentNode.removeChild(d.slot);
+  d.el.classList.remove('cdrag');
+  d.el.style.position='';d.el.style.left='';d.el.style.top='';d.el.style.width='';d.el.style.margin='';
+  if(d.mv&&(key||bank)){
+    var here=(key&&key===d.from);
+    if(bank){
+      if((DB.extra||[]).length>=BANK_MAX&&(DB.extra||[]).indexOf(d.id)<0){
+        mkNote('The rack is full at '+BANK_MAX+'. Delete one first.');
+      }else{
+        planDropSilent(d.id);
+        DB.extra=DB.extra||[];DB.extra.splice(Math.min(idx,DB.extra.length),0,d.id);
         saveDB();mergeCustom();try{sfxLog();}catch(e){}
       }
-    }else if(z.key===d.from){
-      // dropped back where it came from - nothing to do, and nothing to complain about
-    }else if(dayFull(z.key)){
-      mkNote(daysName(z.key)+' already holds '+DAY_MAX+' workouts.');
+    }else if(!here&&(DB.days[key]||[]).length>=DAY_MAX){
+      mkNote(daysName(key)+' already holds '+DAY_MAX+' workouts.');
     }else{
       planDropSilent(d.id);
-      DB.days[z.key].push(d.id);
+      DB.days[key]=DB.days[key]||[];
+      DB.days[key].splice(Math.min(idx,DB.days[key].length),0,d.id);
       saveDB();mergeCustom();try{sfxLog();}catch(e){}
     }
   }
