@@ -634,7 +634,13 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
 .sum-c.pr .sum-l{color:var(--gold);opacity:.75;}
 
 /* sheets */
-.ovl{display:none;position:fixed;inset:0;background:rgba(6,7,9,.72);backdrop-filter:blur(3px);z-index:200;padding:26px 16px;overflow-y:auto;}
+/* The padding was a flat 26px top and bottom, which was right in a browser tab and wrong in the
+   app: the WebView draws edge to edge, so the bottom of the sheet - the CLOSE button, usually -
+   sat underneath Android's gesture bar with no way to reach it. The insets are what the system
+   bars actually measure, so the sheet ends above them instead of behind them. */
+.ovl{display:none;position:fixed;inset:0;background:rgba(6,7,9,.72);backdrop-filter:blur(3px);z-index:200;
+  padding:calc(26px + env(safe-area-inset-top,0px)) 16px calc(30px + env(safe-area-inset-bottom,0px));
+  overflow-y:auto;overscroll-behavior:contain;}
 .ovl.on{display:block;}
 /* The ground is behind the scrim and cannot be read through it, so while a sheet is open it
    is taken out of the picture entirely. visibility, not opacity - a hidden layer is not
@@ -1951,15 +1957,15 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 <div class="ovl" id="settingsOvl">
   <div class="sheet" style="max-width:400px">
     <h3>Settings</h3>
-    <div class="sfx-lbl" style="margin-top:4px"><span>Theme</span></div>
-    <div class="mk-acts" id="themeRow"></div>
-    <div class="sfx-lbl"><span>Sound check</span><span class="sfx-tog" id="sfxTog" onclick="toggleSfx()"></span></div>
-    <div class="presets">
-      <button class="preset sm" onclick="sfxLog()">Set logged</button>
-      <button class="preset sm" onclick="sfxPR()">Record</button>
-      <button class="preset sm" onclick="sfxRestTest()">Rest over</button>
+    <!-- One world for this release. The picker and all four themes are intact behind THEMES_ON;
+         nothing here is deleted, it is only off the sheet. -->
+    <div id="themeSet">
+      <div class="sfx-lbl" style="margin-top:4px"><span>Theme</span></div>
+      <div class="mk-acts" id="themeRow"></div>
     </div>
-    <div class="sfx-lbl"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
+    <!-- Sound check and the SOUND ON toggle are gone: Alert volume already says how loud the
+         alert is, and 0 on it is silence, so the toggle was a second switch onto the same thing. -->
+    <div class="sfx-lbl" style="margin-top:4px"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
     <div class="footnote" style="margin:0 2px 8px">The reliable way to be told a rest is over when you are in another app. Android sounds it, not Arcanum, so it plays whether or not this tab is allowed to make a noise - and it dips your music for a second or two rather than the whole rest. Shows the countdown in the shade while it runs.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
@@ -1967,17 +1973,12 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
         oninput="setAlertLvl(this.value,true)" onchange="setAlertLvl(this.value)">
       <span class="slider-num num" id="alertNum"></span>
     </div>
-    <div class="sfx-lbl"><span>Backup</span></div>
-    <div class="footnote" style="margin:0 2px 8px">Your history lives on this device only, and an installed app cannot see another app's storage. Back up before changing phones, and keep the file somewhere real.</div>
-    <div class="presets" style="grid-template-columns:1fr 1fr">
-      <button class="preset sm" onclick="doBackup()">SAVE A BACKUP</button>
-      <button class="preset sm" onclick="pickRestore()">RESTORE</button>
-    </div>
+    <!-- Backup is off the sheet for this release. doBackup/pickRestore/doRestore are untouched and
+         the file input stays, so the pair is two lines of markup away from coming back. -->
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Tutorial</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
-    <div class="footnote" style="margin-top:10px;opacity:.55" id="backDiag"></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -2508,6 +2509,12 @@ var THEME_BAR={dark:'#08090c',light:'#eef1f4',forge:'#0a0605',moon:'#0b0812'};
 // Plain words while the app is being got working. Four voices is four ways to be unsure whether
 // a button did what you expected - "Work this day again" opening an editor is the example that
 // prompted this. The themed copy below is untouched and comes back by setting this to 0.
+// One world ships this time. Nothing is deleted: all four themes, their palettes, their sounds
+// and the picker are exactly where they were, and this is the only thing standing between them
+// and the sheet. Turning it back on restores the picker AND whatever theme was last chosen,
+// because the stored choice is never overwritten while this is off - it is simply not read.
+var THEMES_ON=0;
+var ONE_THEME='forge';
 var GENERIC=1;
 var GEN_TXT={
   done:      'Completed',
@@ -2678,7 +2685,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.48';
+var APPV='v4.49';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5142,15 +5149,10 @@ function initBack(){
 // moment initBack runs window.Capacitor.Plugins is usually still empty - the notification code a
 // few lines down already knew that and waits. So this keeps asking for a few seconds instead of
 // deciding on the first look.
-// Temporary. Two rebuilds have gone by with the back button still exiting and no way to tell
-// whether the listener ever registered - which is the only thing that decides it.
-function drawBackDiag(){
-  var e=document.getElementById('backDiag');if(!e)return;
-  var C=window.Capacitor,P=C&&C.Plugins;
-  e.textContent='Back: '+(BACK_NATIVE?'claimed':'NOT claimed')+
-    ' - bridge '+(C?'yes':'no')+', App plugin '+(P&&P.App?'yes':'NO')+
-    ', plugins ['+(P?Object.keys(P).join(' '):'')+']';
-}
+// The readout that used to sit at the bottom of Settings printing whether this had registered is
+// gone. It was a probe put there because two rebuilds went by with back still exiting the app and
+// no way to see why; the answer turned out to be that the App plugin was not in the APK at all,
+// which is a build question and not something the sheet should be asking on every open.
 var BACK_NATIVE=0;
 function claimBack(n){
   try{
@@ -5251,7 +5253,10 @@ function audioMode(m){
 function FG(){return curTheme()==='forge';}
 function MW(){return curTheme()==='moon';}
 function LT(){return curTheme()==='light';}
-var SFX_ON=(function(){try{return localStorage.getItem('arc_sfx')==='0'?0:1;}catch(e){return 1;}})();
+// Forced on now that the SOUND ON/MUTED toggle is off the sheet. Reading the old stored value
+// would strand anyone who had muted it there permanently, with the only control that could undo
+// it gone. Alert volume is the one switch for this now, and 0 on that slider is silence.
+var SFX_ON=1;
 // 0 low, 1 normal, 2 high, 3 mute. Only the rest alert uses this - the rest of the
 // palette stays where it is so the room still sounds like a room. Mute silences the
 // alert only; the buzz still fires, which is the whole point of muting it.
@@ -6917,7 +6922,9 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawThemePick();drawNotifTog();drawBackDiag();
+  drawAlertLvl();drawThemePick();drawNotifTog();
+  var ts=document.getElementById('themeSet');
+  if(ts)ts.style.display=THEMES_ON?'':'none';
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
@@ -7991,7 +7998,9 @@ function tutOffer(){
   await loadDB();
   reconcileActive();
   var t=await Store.get(TKEY);
-  applyTheme(t||'dark');
+  // What is stored is read but not obeyed while there is only one world, so the choice survives
+  // untouched for whenever the other three come back.
+  applyTheme(THEMES_ON?(t||'dark'):ONE_THEME);
   renderHome();
   wkArm();                                 // a walk left running keeps counting across a cold start
   initBack();
