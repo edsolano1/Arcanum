@@ -346,9 +346,25 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
 .tut-g i{flex:0 0 13px;width:13px;height:13px;border-radius:4px;}
 .tut-g b{font-weight:500;color:var(--txt);}
 .tut-back{background:transparent!important;color:var(--txt2)!important;padding-left:9px!important;padding-right:9px!important;}
-/* The week is the one screen the tour has to show whole. At full size a phone shows three
-   cards; scaled down the seven fit above the card. */
-body.tut #weekCards{transform:scale(.76);transform-origin:50% 0;}
+/* The week is the one screen the tour has to show whole - and it grew. This was written when the
+   week was seven flat cards; it is seven day CONTAINERS now, each with a header and a card inside
+   it, and half again as tall. At .76 the last two days sat behind the tour card while the step
+   was telling you to take all seven in.
+   Shrinking the type further was the wrong answer - it was already at 13px. The week drops to an
+   OVERVIEW for the length of the tour instead: the size line goes, the padding tightens, and what
+   is left is a day and what is on it, which is all these steps are pointing at. That buys enough
+   back to sit at a scale where the names are still readable. */
+body.tut #weekCards{transform:scale(.8);transform-origin:50% 0;}
+body.tut #weekCards .daybox{padding:6px 8px 1px;margin-bottom:4px;}
+body.tut #weekCards .daybox.empty{padding-bottom:6px;}
+body.tut #weekCards .dayhead{font-size:10px;padding:1px 3px 5px;}
+body.tut #weekCards .card{padding:7px 11px;margin-bottom:5px;}
+body.tut #weekCards .card-name{font-size:15px;}
+body.tut #weekCards .card-meta{display:none;}
+body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
+/* the tagline is the first thing to go: it is the one line up there that says nothing the tour
+   has not already said, and it is holding the whole week down the screen */
+body.tut #tagline{display:none;}
 body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:30px;}
 .tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
   border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
@@ -1704,9 +1720,12 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   <div class="sec-label" id="weekLabel">Your Week</div>
   <div class="mk-hint" id="weekHint"></div>
   <div id="weekCards"></div>
-  <div class="sec-label" id="extraLabel" style="display:none;margin-top:26px">Kept days</div>
-  <div class="mk-hint" id="extraHint" style="display:none">Not part of the week &mdash; open one whenever you want it</div>
-  <div id="extraCards"></div>
+  <!-- label, hint and cards are one thing to look at, so the tour can light them as one -->
+  <div id="extraWrap">
+    <div class="sec-label" id="extraLabel" style="display:none;margin-top:26px">Kept days</div>
+    <div class="mk-hint" id="extraHint" style="display:none">Not part of the week &mdash; open one whenever you want it</div>
+    <div id="extraCards"></div>
+  </div>
   <div class="mk-new" id="mkNewBtn" onclick="openNewDay()"></div>
   <div class="sides" id="sides"></div>
   <div class="foot" id="foot"></div>
@@ -2659,7 +2678,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.46';
+var APPV='v4.47';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7468,7 +7487,15 @@ function tutSeed(){
       {day:'d2',date:d(15),entries:{latpd:S([[120,10],[120,10],[120,10]]),row:S([[105,12],[105,12],[105,11]]),preacher:S([[50,12],[50,11],[50,10]])},note:'',swaps:{}},
       {day:'d1',date:d(10),entries:{bench:S([[140,8],[140,8],[140,7],[140,7]]),incdb:S([[55,12],[55,12],[55,12]]),mbench:S([[150,11],[130,15],[130,15]])},note:'Felt strong off the chest.',swaps:{}}
     ],
-    active:{},custom:{},slots:{},cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null
+    // The week is stated outright. This used to carry only the old {slots:{}} shape and the week
+    // appeared at all because dayMap's migration happened to rebuild it from WEEK - and that
+    // migration exists to be deleted one day. When it goes, a seed carrying the old shape opens
+    // the tour on an empty week with no Tuesday to tap and no way to notice until it happens.
+    // Sunday is left empty and the optional day put on the rack on purpose: between them they
+    // put both things the arranging steps talk about on screen before those steps arrive.
+    days:{sun:[],mon:['opt6'],tue:['d1'],wed:['d2'],thu:['rest'],fri:['d3'],sat:['d4']},
+    extra:['opt5'],
+    active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},dayEdit:{},vOvr:{},exNotes:{},walks:[],walkRun:null
   };
 }
 
@@ -7514,11 +7541,43 @@ var TUT_STEPS=[
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
   {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
-  {sel:'#foot .unsealbtn',pad:6,last:true,endRest:1,nudge:'Tap DONE to close the tour.'}
+  {sel:'#foot .unsealbtn',pad:6,endRest:1,nudge:'Tap NEXT to carry on.'},
+  // The week itself - which the tour used to walk you past twice without ever saying it could be
+  // rearranged. Logging a set is close to self-evident; that a workout can be dragged onto another
+  // day, and that there is somewhere for the ones with no day at all, is not guessable from
+  // looking. Both quiet on purpose: they point at a GESTURE, and a tour that will not let you out
+  // until you land a drag is a tour that can strand you. The ring carries the eye to the grip.
+  {sel:'#weekCards',pad:6,quiet:true,ping:'#weekCards .card[data-base="d1"] .carddrag',
+   nudge:'Tap NEXT when you have had a look.'},
+  {sel:'#extraWrap',pad:8,quiet:true,last:true,ping:'#extraCards .card',
+   nudge:'Tap DONE to close the tour.'}
 ];
 function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
 function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e.value)||0:0;}
 
+// The tour kept its own private set of words, which is how it came to be saying "Forged" and
+// "the rack" while the app - running generic - said "Completed" and "Kept days" on the very
+// controls it was pointing at. It goes through the same gate as every other string now: this wins
+// while GENERIC is on, and the four worlds below are kept whole for when it comes off.
+// The grades are named by what they MEAN rather than by their colour, because the colour is the
+// one thing that genuinely changes per theme - the swatch already shows it.
+var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
+  msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
+  yes:'SHOW ME',steps:[
+  {t:'Your week',b:'Seven days, Sunday to Saturday, laid out as they come round. An empty day is a rest day. Take them in — then tap NEXT and we will open one together.'},
+  {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
+  {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
+  {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
+  {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
+  {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero — silent during this tour</li></ul>'},
+  {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
+  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is completed. Keep it and every Tuesday carries the change.</p>'},
+  {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
+  {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever</b> &mdash; beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched</b> &mdash; equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under</b> &mdash; a first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
+  {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
+  {t:'Completed',b:'Tuesday is completed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
+  {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a day, or straight onto a different one.<ul><li>A day holds three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
+  {t:'Days without a home',b:'Anything with no day on it waits here, under the week. Drag one up onto any day to put it back in the rotation, or drag a workout down here to take it out of the week without losing it — everything you have ever logged against it stays exactly where it is.'}]};
 function TUTC(){
   var t=curTheme();
   var C={
@@ -7536,7 +7595,9 @@ function TUTC(){
       {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Cyan</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
-      {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
+      {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
+      {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a day, or onto another day entirely.<ul><li>A day holds three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
+      {t:'Days without a home',b:'Anything with no day on it waits here, under the week. Drag one up onto any day to put it back in the rotation, or drag a workout down here to take it out of the week without losing it — everything you have logged against it stays in your history.'}]},
     forge:{btn:'Tutorial',ttl:'First time at the forge?',
       msg:'A short guided pass over the real screens, on sample stock. A few minutes at most, and your own work stays untouched.',
       yes:'SHOW ME',steps:[
@@ -7551,7 +7612,9 @@ function TUTC(){
       {t:'Your own notes',b:'Tap Add note on any lift for what only you need to know - a seat height, a pin, a cue that keeps the movement honest. It stays with the lift every time it comes back to the fire.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
-      {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
+      {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
+      {t:'Move the work about',b:'Every piece has a grip on its right-hand edge. Drag by the grip to set it down elsewhere — up and down inside a day, or onto another day of the week.<ul><li>A day takes three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
+      {t:'Off the rack',b:'Anything with no day to it waits on the rack, under the week. Drag one up onto any day to put it back in the rotation, or drag a piece down here to take it off the week without losing it — everything you have ever struck against it stays on record.'}]},
     moon:{btn:'Tutorial',ttl:'First time at the well?',
       msg:'A short guided pass over the real screens, on sample water. A few minutes at most, and your own record stays untouched.',
       yes:'SHOW ME',steps:[
@@ -7566,7 +7629,9 @@ function TUTC(){
       {t:'Your own notes',b:'Tap Add note on any exercise to keep what only matters to you - a seat height, a pin number, a cue that holds your form. It stays with the lift every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>White</b> &mdash; passes your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Moon-gold</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole night. Tap Finish when it is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
-      {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
+      {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'},
+      {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a night, or onto another night entirely.<ul><li>A night holds three at most</li><li>A full night turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
+      {t:'Nights without a home',b:'Anything with no night on it waits here, under the week. Drag one up onto any night to put it back in the rotation, or drag one down here to take it out of the week without losing it — everything you have kept against it stays in your record.'}]},
     light:{btn:'Tutorial',ttl:'First time out?',
       msg:'A short guided pass over the real screens, on sample data. A few minutes at most, and your own logs stay untouched.',
       yes:'SHOW ME',steps:[
@@ -7581,9 +7646,11 @@ function TUTC(){
       {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Blue</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same day written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
-      {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]}
+      {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
+      {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a day, or onto another day entirely.<ul><li>A day holds three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
+      {t:'Days without a home',b:'Anything with no day on it waits here, under the week. Drag one up onto any day to put it back in the rotation, or drag a workout down here to take it out of the week without losing it — everything you have logged against it stays in your logs.'}]}
   };
-  return C[t]||C.dark;
+  return GENERIC?GEN_TUT:(C[t]||C.dark);
 }
 
 /* ---- the fence ----
@@ -7713,7 +7780,9 @@ var TUT_SCENE=[
   function(){tutDay();},                                    // notes - the day, sheet closed
   function(){tutDay();},
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
-  function(){tutWeek();}
+  function(){tutWeek();},
+  function(){tutWeek();},                                   // rearranging - the week, sealed day and all
+  function(){tutWeek();}                                    // the rack
 ];
 function tutHome(){
   tutUnseal();
