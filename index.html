@@ -1958,6 +1958,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="sfx-lbl"><span>Guided tour</span></div>
     <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Tutorial</button></div>
     <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
+    <div class="footnote" style="margin-top:10px;opacity:.55" id="backDiag"></div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -2658,7 +2659,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.45';
+var APPV='v4.46';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5113,15 +5114,35 @@ function initBack(){
     backGuard();
     window.addEventListener('popstate',onBackButton);
   }catch(e){}
-  // In the APK the hardware back button never reaches popstate. Capacitor decides what it does,
-  // and with no listener registered it finishes the activity - which is why back on the week
-  // closed the app outright, and why back inside a day closed it instead of returning to the
-  // week. The App plugin is the supported way to claim it. Registering the listener is what
-  // stops Capacitor handling it natively, so all the logic below stays in one place.
+  claimBack(0);
+}
+// In the APK the hardware back button never reaches popstate. Capacitor decides what it does,
+// and with no listener registered it finishes the activity - which is why back on the week closed
+// the app outright, and why back inside a day closed it instead of returning to the week.
+// This looked once, at boot, and gave up. The bridge is injected AROUND page load, so at the
+// moment initBack runs window.Capacitor.Plugins is usually still empty - the notification code a
+// few lines down already knew that and waits. So this keeps asking for a few seconds instead of
+// deciding on the first look.
+// Temporary. Two rebuilds have gone by with the back button still exiting and no way to tell
+// whether the listener ever registered - which is the only thing that decides it.
+function drawBackDiag(){
+  var e=document.getElementById('backDiag');if(!e)return;
+  var C=window.Capacitor,P=C&&C.Plugins;
+  e.textContent='Back: '+(BACK_NATIVE?'claimed':'NOT claimed')+
+    ' - bridge '+(C?'yes':'no')+', App plugin '+(P&&P.App?'yes':'NO')+
+    ', plugins ['+(P?Object.keys(P).join(' '):'')+']';
+}
+var BACK_NATIVE=0;
+function claimBack(n){
   try{
     var C=window.Capacitor,A=C&&C.Plugins&&C.Plugins.App;
-    if(A&&A.addListener)A.addListener('backButton',function(){onBackButton();});
+    if(A&&A.addListener){
+      A.addListener('backButton',function(){onBackButton();});
+      BACK_NATIVE=1;
+      return;
+    }
   }catch(e){}
+  if(n<40)setTimeout(function(){claimBack(n+1);},150);   // ~6s, then it is genuinely not there
 }
 
 // ---------- rest timer ----------
@@ -6877,7 +6898,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawSfxTog();drawAlertLvl();drawThemePick();drawNotifTog();
+  drawSfxTog();drawAlertLvl();drawThemePick();drawNotifTog();drawBackDiag();
   var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
   document.getElementById('settingsOvl').classList.add('on');
 }
