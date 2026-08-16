@@ -2685,7 +2685,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.49';
+var APPV='v4.50';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7475,6 +7475,8 @@ function bindExHold(){
 // blocks every write (see persistNow). Nothing tapped in here can reach storage, which
 // is what lets the tour run over the real screens instead of a mock-up of them.
 var TUTON=false,TUTI=0,TUTMAX=0,TUTDB=null,TUTPOLL=null,TUTRAF=0,TUTARM=true;
+// Whether the one action a step asks for has already been taken. See the latch in tutGuard.
+var TUTHIT=false;
 // A step already walked is a step already done, so going back cannot re-trigger it: below
 // the furthest point reached the tour is a read-only replay - no gates, no reopening
 // sheets, NEXT always available - and normal gating resumes at the frontier.
@@ -7517,16 +7519,16 @@ var TUT_STEPS=[
   // taking the week in used to shake the card and tell you off before you had been given
   // anything to do. It is swallowed all the same - the next step is the one that opens a day.
   {sel:'#weekCards',pad:6,quiet:true,nudge:'Read this one, then tap NEXT. End tour leaves at any point.'},
-  {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',sweep:true,
+  {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',sweep:true,once:true,
    w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card inside the highlight.',
    when:function(){return document.getElementById('session').classList.contains('on');}},
-  {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',
+  {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',once:true,
    w:'Waiting for a tap on the weight',nudge:'Tap the weight itself, inside the highlight.',
    when:function(){return tutOn('editOvl');}},
   {sel:'#editOvl .edsheet',pad:10,ovl:'editOvl',hit:'#editOvl .edsheet|#w-bench-0',ping:'#editOvl .btn-go',
    reopen:true,w:'Waiting for 150 or more, then DONE',nudge:'It has to reach 150 before DONE will take it.',
    when:function(){return !tutOn('editOvl')&&tutW()>=150;}},
-  {sel:'#sr-bench-0',hit:'#sr-bench-0 .chk',ping:'#sr-bench-0 .chk',
+  {sel:'#sr-bench-0',hit:'#sr-bench-0 .chk',ping:'#sr-bench-0 .chk',once:true,
    w:'Waiting for the sigil',nudge:'Tap the sigil at the end of the highlighted row.',
    when:function(){var e=document.getElementById('sr-bench-0');return !!(e&&e.classList.contains('done'));}},
   // The only step whose subject can leave on its own: the rest runs out, the pill hides itself
@@ -7542,7 +7544,7 @@ var TUT_STEPS=[
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
   // on screen with the links row visible and nothing else competing for the highlight.
   {sel:'#exc-bench .ex-links',pad:8,ping:'#exc-bench .unote-btn',nudge:'Tap NEXT to carry on.'},
-  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',
+  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,
    w:'Waiting for Finish',nudge:'Tap Finish inside the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
@@ -7680,7 +7682,21 @@ function tutGuard(e){
   // block names what stays fenced off inside that opening, so the card can still be held while
   // its contents stay dead. It is the same set bindExHold already refuses to start a hold on.
   if(tutEls(st.hit).some(function(el){return el===t||el.contains(t);})
-     &&!(st.block&&t.closest(st.block)))return;
+     &&!(st.block&&t.closest(st.block))){
+    // A step that completes in ONE tap latches after that tap. Opening a day runs a 300ms page
+    // turn before the session is up, and the step only advances on the next 180ms tick - so for
+    // a third of a second the card is still live and still armed. Tapping Tuesday three times
+    // queued three page turns behind each other, and the last of them landed on a step that had
+    // already moved on, which is what broke the tour and left BACK with nowhere sensible to go.
+    // The latch is on click, not pointerdown: click is the event that actually fires the action,
+    // and latching on the first event of the gesture would have swallowed the tap meant to work.
+    // Silent - tapping again is not a mistake worth shaking the card over.
+    if(st.once){
+      if(TUTHIT){e.preventDefault();e.stopPropagation();return;}
+      if(e.type==='click')TUTHIT=true;
+    }
+    return;
+  }
   e.preventDefault();e.stopPropagation();
   // A quiet step is not waiting on anything, so a tap is not a mistake. Still swallowed -
   // the day is opened by the next step - but without the shake and the correction.
@@ -7734,6 +7750,7 @@ function tutEnd(){
 }
 function tutGo(i){
   TUTI=i;if(i>TUTMAX)TUTMAX=i;
+  TUTHIT=false;                    // each step gets its one action back
   // The demo rest is a prop for one step, not a clock to sit through. This was "i>8", which tied
   // it to a step NUMBER - so inserting a step anywhere before the export silently moved which
   // step killed the timer. The steps that end it say so themselves now.
