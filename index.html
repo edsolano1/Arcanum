@@ -2600,7 +2600,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.39';
+var APPV='v4.40';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6095,6 +6095,14 @@ function nativeSound(secs){
   try{ra.schedule({seconds:secs,theme:curTheme()});return true;}catch(e){return false;}
 }
 function nativeSoundCancel(){var ra=RA();if(ra)try{ra.cancel();}catch(e){}}
+// The rest, live in the shade. Android draws the countdown itself from the target time, so this
+// is posted once per rest rather than ticking - and re-posted only when you move the clock.
+function nativeTimer(secs){
+  var ra=RA();if(!ra)return;
+  try{ra.showTimer({seconds:secs,title:TXT('restingTtl'),
+    body:(CUR&&W[CUR])?W[CUR].name.replace('Optional: ',''):''});}catch(e){}
+}
+function nativeTimerHide(){var ra=RA();if(ra)try{ra.hideTimer();}catch(e){}}
 function nativeAsk(){var ln=LN();if(ln)try{ln.requestPermissions();}catch(e){}}
 function nativeSchedule(secs){
   var ln=LN();if(!ln)return false;
@@ -6577,6 +6585,7 @@ function startTimer(secs){
   // The buzz and the notice come from the channel; the sound comes from ours. Two alarms for one
   // rest, because Android will not let one thing do both.
   if(SFX_ON&&!alertMuted())nativeSound(secs);
+  nativeTimer(secs);
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
@@ -6610,6 +6619,7 @@ function adjustTimer(d){
   var left=Math.max(0,(timerEnd-Date.now())/1000);
   if(NOTIF_ON)nativeSchedule(left);
   if(SFX_ON&&!alertMuted())nativeSound(left);
+  nativeTimer(left);
   sfxTick(d>0);
 }
 function stopTimer(){
@@ -6618,6 +6628,7 @@ function stopTimer(){
   // reach into Android and take it back - otherwise it buzzes later for a rest that is long over.
   nativeCancel();
   nativeSoundCancel();
+  nativeTimerHide();
   stopRestAlert();
   clearRestNotif();
   stopFlame();
