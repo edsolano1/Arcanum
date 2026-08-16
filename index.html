@@ -214,26 +214,40 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .daybox.today{position:relative;
   background:linear-gradient(color-mix(in srgb,var(--surface) 45%,transparent),color-mix(in srgb,var(--surface) 45%,transparent)),var(--bg);
   border-color:color-mix(in srgb,var(--go) 30%,var(--line));}
-.daybox.today > .dayglow{position:absolute;inset:-1.5px;border-radius:15px;overflow:hidden;
+/* 1.5px of ring at half strength was invisible on the phone. Three and a half, at full strength,
+   with a second arc chasing the first so some edge is always lit and the movement reads even
+   when you catch it out of the corner of your eye. */
+.daybox.today > .dayglow{position:absolute;inset:-3.5px;border-radius:17px;overflow:hidden;
   pointer-events:none;z-index:-1;}
-.daybox.today > .dayglow::before{content:'';position:absolute;left:50%;top:50%;
-  width:170%;aspect-ratio:1;transform-origin:0 0;
-  background:conic-gradient(from 0turn,transparent 0 .04turn,color-mix(in srgb,var(--go) 55%,transparent) .11turn,#fff .155turn,color-mix(in srgb,var(--go) 55%,transparent) .2turn,transparent .28turn 1turn);
-  animation:dayspin 6.4s linear infinite;}
+.daybox.today > .dayglow::before,.daybox.today > .dayglow::after{content:'';position:absolute;
+  left:50%;top:50%;width:180%;aspect-ratio:1;transform-origin:0 0;}
+.daybox.today > .dayglow::before{
+  background:conic-gradient(from 0turn,transparent 0 .02turn,color-mix(in srgb,var(--go) 70%,transparent) .09turn,#fff .15turn,color-mix(in srgb,var(--go) 70%,transparent) .21turn,transparent .3turn 1turn);
+  animation:dayspin 4.2s linear infinite;}
+/* the chase: dimmer, half a turn behind, so the ring is never fully dark anywhere */
+.daybox.today > .dayglow::after{opacity:.5;
+  background:conic-gradient(from .5turn,transparent 0 .04turn,color-mix(in srgb,var(--go) 45%,transparent) .12turn,color-mix(in srgb,var(--go) 90%,#fff) .16turn,color-mix(in srgb,var(--go) 45%,transparent) .2turn,transparent .28turn 1turn);
+  animation:dayspin 4.2s linear infinite;}
 @keyframes dayspin{from{transform:translate(-50%,-50%) rotate(0turn);}to{transform:translate(-50%,-50%) rotate(1turn);}}
 /* Forge runs molten - slower, hotter in the core, and trailing ember behind the head of it. */
 body.forge .daybox.today > .dayglow::before{
   background:conic-gradient(from 0turn,transparent 0 .02turn,rgba(196,62,10,.45) .06turn,#ff6a12 .11turn,#ff8a1f .14turn,#fff0cd .165turn,#ff8a1f .19turn,rgba(255,90,10,.4) .25turn,transparent .34turn 1turn);
-  animation-duration:4.6s;}
+  animation-duration:3.4s;}
+body.forge .daybox.today > .dayglow::after{animation-duration:3.4s;opacity:.45;}
+
 body.forge .daybox.today{border-color:color-mix(in srgb,#ff8a1f 42%,var(--line));}
 /* Moonwell is light passing over: long, cool, never fully bright. */
 body.moon .daybox.today > .dayglow::before{
   background:conic-gradient(from 0turn,transparent 0 .05turn,rgba(214,206,255,.5) .13turn,rgba(245,242,255,.92) .17turn,rgba(214,206,255,.45) .21turn,transparent .3turn 1turn);
-  animation-duration:9s;}
+  animation-duration:5.6s;}
+body.moon .daybox.today > .dayglow::after{animation-duration:5.6s;opacity:.45;}
+
 /* Tundra is a glint on ice: a short hard flash and a long wait between. */
 body.light .daybox.today > .dayglow::before{
   background:conic-gradient(from 0turn,transparent 0 .1turn,rgba(255,255,255,.95) .15turn,transparent .2turn 1turn);
-  animation-duration:7.5s;}
+  animation-duration:4.8s;}
+body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
+
 .daycount{font-size:10px;letter-spacing:.1em;opacity:.75;}
 .dayempty{font-size:12.5px;color:var(--txt3);padding:6px 4px 4px;opacity:.75;}
 /* Where it will land, and whether it can. */
@@ -615,7 +629,7 @@ body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
    while a sheet is open costs nothing visible and stops the invalidations underneath */
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
 body:has(.ovl.on) .bg-rules,body:has(.ovl.on) .bg-rules > i,body:has(.ovl.on) .bg-wm svg,
-body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .dayglow::before{animation-play-state:paused;}
+body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .dayglow::before,body:has(.ovl.on) .dayglow::after{animation-play-state:paused;}
 /* A day and the builder are full-screen and painted on an opaque var(--bg), exactly like a
    sheet - but they are not .ovl, so none of the above ever applied to them and the entire
    ground went on painting and animating at full size behind a screen that completely covers
@@ -626,10 +640,10 @@ body:has(#session.on) #bg,body:has(#make.on) #bg,
 body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
 body:has(#session.on) .bg-light,body:has(#session.on) .bg-motes i,body:has(#session.on) .bg-ripple i,
 body:has(#session.on) .bg-rules,body:has(#session.on) .bg-rules > i,body:has(#session.on) .bg-wm svg,
-body:has(#session.on) .card-day::after,body:has(#session.on) .dayglow::before,
+body:has(#session.on) .card-day::after,body:has(#session.on) .dayglow::before,body:has(#session.on) .dayglow::after,
 body:has(#make.on) .bg-light,body:has(#make.on) .bg-motes i,body:has(#make.on) .bg-ripple i,
 body:has(#make.on) .bg-rules,body:has(#make.on) .bg-rules > i,body:has(#make.on) .bg-wm svg,
-body:has(#make.on) .card-day::after,body:has(#make.on) .dayglow::before{animation-play-state:paused;}
+body:has(#make.on) .card-day::after,body:has(#make.on) .dayglow::before,body:has(#make.on) .dayglow::after{animation-play-state:paused;}
 /* The tour is a scrim over the whole screen, so it gets the same treatment as an open
    sheet: the ground behind it is not visible and does not need to keep moving. */
 body.tut .bg-light,body.tut .bg-motes i,body.tut .bg-ripple i,
@@ -2644,7 +2658,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.44';
+var APPV='v4.45';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2746,7 +2760,7 @@ var EXRX={
   lext:"Quadriceps/LVLegExtension",
   plegcurl:"Hamstrings/LVLyingLegCurl",
   bbthrust:"GluteusMaximus/BBHipThrust",
-  hthrust:"GluteusMaximus/LVHipThrust",
+  hthrust:"GluteusMaximus/BBHipThrust",
   // Verified against exrx's own pages. Two traps here: their slugs are irregular enough
   // that guessing produces 404s (AsPullupKneeling, AsChinupSelf and ASPullupBand are all
   // real and all different), AND about half their library is now behind a subscription -
@@ -2774,7 +2788,7 @@ var EXRX={
   row:"BackGeneral/CBSeatedRow",
   machrow:"BackGeneral/LVSeatedRow",
   dbrow:"BackGeneral/DBBentOverRow",
-  sdbcurl:"Biceps/DBSeatedCurl",
+  sdbcurl:"Biceps/DBCurl",
   inccurl:"Biceps/DBInclineCurl",
   cbcurl:"Biceps/CBCurl",
   p_curl:"Biceps/CBCurl",
@@ -2782,10 +2796,10 @@ var EXRX={
   plank:"RectusAbdominis/BWFrontPlank",
   kneeraise:"HipFlexors/BWHangingLegRaise",
   hipraise:"RectusAbdominis/BWVerticalLegHipRaisePB",
-  legraise:"RectusAbdominis/BWLyingLegHipRaise",
+  legraise:"HipFlexors/BWLyingLegRaise",
   scalfr:"Soleus/LVSeatedCalfRaise",
   stcalf:"Gastrocnemius/LVStandingCalfRaise",
-  lowchest:"PectoralSternal/CBDeclineFly",
+  lowchest:"PectoralSternal/CBStandingFly",
   machpd:"LatissimusDorsi/LVFrontPulldown",
   ohext:"Triceps/CBStandingTricepsExtensionRope",
   bdip:"Triceps/WtBenchDip",
@@ -2806,7 +2820,7 @@ var EXRX={
   dcalfr:"Gastrocnemius/LV45CalfRaise"
 };
 // exrx has no page for these - a link would only dump you on a category index
-var NOPAGE={hang:1,hollow:1,p_hollow:1,stepup:1,chestdr:1,pigeon:1};
+var NOPAGE={hipraise:1,hang:1,hollow:1,p_hollow:1,stepup:1,chestdr:1,pigeon:1};
 // Everything without a looked-up page goes to the matching exrx category list instead
 // of a web search - a real page on the real site, one tap from the exercise.
 // Shrinking list - every entry here is an exercise still awaiting a looked-up page.
@@ -7470,13 +7484,16 @@ var TUT_STEPS=[
    w:'Waiting for a long press',nudge:'Press and hold the exercise until the sheet opens.',
    when:function(){return tutOn('exEditOvl');}},
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
+  // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
+  // on screen with the links row visible and nothing else competing for the highlight.
+  {sel:'#exc-bench .ex-links',pad:8,ping:'#exc-bench .unote-btn',nudge:'Tap NEXT to carry on.'},
   {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',
    w:'Waiting for Finish',nudge:'Tap Finish inside the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
-  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
-  {sel:'#foot .unsealbtn',pad:6,last:true,nudge:'Tap DONE to close the tour.'}
+  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
+  {sel:'#foot .unsealbtn',pad:6,last:true,endRest:1,nudge:'Tap DONE to close the tour.'}
 ];
 function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
 function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e.value)||0:0;}
@@ -7495,6 +7512,7 @@ function TUTC(){
       {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is sealed. Keep it and every Tuesday carries the change.</p>'},
+      {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Cyan</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same session written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Sealed',b:'Tuesday is sealed, which only means done for this week. Everything you logged stays in your history and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
@@ -7509,6 +7527,7 @@ function TUTC(){
       {t:'The cooling timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the piece is quenched. Keep it and every Tuesday carries the change.</p>'},
+      {t:'Your own notes',b:'Tap Add note on any lift for what only you need to know - a seat height, a pin, a cue that keeps the movement honest. It stays with the lift every time it comes back to the fire.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]},
@@ -7523,6 +7542,7 @@ function TUTC(){
       {t:'The rest',b:'It begins when a set is kept.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen dark</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the night at all</li></ul><p>Save it for tonight only and it clears when the night is kept. Keep it and every Tuesday carries the change.</p>'},
+      {t:'Your own notes',b:'Tap Add note on any exercise to keep what only matters to you - a seat height, a pin number, a cue that holds your form. It stays with the lift every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>White</b> &mdash; passes your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Moon-gold</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole night. Tap Finish when it is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same night written out as plain text. Keep it as a note, send it to whoever guides your training, or paste it into a chat for a reading. Closing it changes nothing.'},
       {t:'Kept',b:'Tuesday is kept, which only means done for this week. Everything you logged stays in your record and the night comes back around next week. When you want to restart the week early, this button reopens every night at once.'}]},
@@ -7537,6 +7557,7 @@ function TUTC(){
       {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is marked. Keep it and every Tuesday carries the change.</p>'},
+      {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
       {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Blue</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
       {t:'The export',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same day written out as plain text. Save it as a note, send it to whoever writes your programme, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Marked',b:'Tuesday is marked, which only means done for this week. Everything you logged stays in your logs and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'}]}
@@ -7618,7 +7639,10 @@ function tutEnd(){
 }
 function tutGo(i){
   TUTI=i;if(i>TUTMAX)TUTMAX=i;
-  if(i>8)stopTimer();   // the demo rest is a prop for one step, not a clock to sit through
+  // The demo rest is a prop for one step, not a clock to sit through. This was "i>8", which tied
+  // it to a step NUMBER - so inserting a step anywhere before the export silently moved which
+  // step killed the timer. The steps that end it say so themselves now.
+  if(TUT_STEPS[i].endRest)stopTimer();
   var st=TUT_STEPS[i],c=TUTC().steps[i];
   // A step must not fire on a condition that was ALREADY true when it arrived, or stepping
   // BACK would bounce straight forward again. Arriving satisfied disarms the step until the
@@ -7665,6 +7689,7 @@ var TUT_SCENE=[
   function(){tutDay();tutRest();},
   function(){tutDay();},
   function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},
+  function(){tutDay();},                                    // notes - the day, sheet closed
   function(){tutDay();},
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
   function(){tutWeek();}
