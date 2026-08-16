@@ -322,8 +322,15 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
   50%{transform:scale(1.07);opacity:.2;}}
 /* The card must not read as another layer of the surface it is explaining, so it takes a
    tint of the live colour and a brighter rim than any sheet in the app. */
+/* The card is capped and scrolls inside itself. A step whose card is pinned to the top of the
+   screen to clear the sheet it is describing - the exercise sheet is the tall one - could grow
+   past the top of the viewport and lose its first lines with no way to get them back. It can be
+   as long as it likes now; past this it scrolls, and the insets keep it clear of the system bars
+   at both ends rather than only the notch. */
 #tutCard{position:fixed;z-index:401;left:50%;transform:translateX(-50%);top:40vh;
   width:min(430px,calc(100vw - 26px));border-radius:var(--r);padding:16px 17px 14px;display:none;
+  max-height:calc(100vh - 28px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  overflow-y:auto;overscroll-behavior:contain;
   background:linear-gradient(180deg,color-mix(in srgb,var(--go) 15%,var(--surface2)),color-mix(in srgb,var(--go) 7%,var(--surface2)));
   border:1px solid color-mix(in srgb,var(--go) 45%,var(--line));
   box-shadow:0 22px 50px -14px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.35);}
@@ -371,9 +378,18 @@ body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bot
 .tut-nudge.on{display:block;}
 .tut-btns{display:flex;gap:9px;margin-top:15px;align-items:center;}
 .tut-btns .btn{padding:10px 13px;background:var(--surface);white-space:nowrap;}
-.tut-skip{margin-right:auto;font-size:11.5px;color:var(--txt2);cursor:pointer;letter-spacing:.03em;white-space:nowrap;
-  text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in srgb,var(--txt2) 45%,transparent);}
-.tut-skip:hover{color:var(--txt);}
+/* The way out. It was grey underlined text sitting next to a lit NEXT button, which made leaving
+   look like a footnote - and someone who wants out of a tour wants to SEE the way out. It takes
+   the same red the app already uses for anything that undoes or removes, per theme, so it reads
+   as the exit without shouting over NEXT. Each world's value is the one its own .btn-bad uses. */
+.tut-skip{margin-right:auto;font-size:11.5px;cursor:pointer;letter-spacing:.04em;white-space:nowrap;
+  --bad:#e0736b;color:var(--bad);
+  border:1px solid color-mix(in srgb,var(--bad) 42%,var(--line));border-radius:8px;
+  padding:8px 11px;background:color-mix(in srgb,var(--bad) 8%,transparent);}
+.tut-skip:hover{color:var(--bad);background:color-mix(in srgb,var(--bad) 15%,var(--surface));
+  border-color:color-mix(in srgb,var(--bad) 72%,var(--line));}
+body.forge .tut-skip{--bad:#f0645a;}
+body.light .tut-skip{--bad:#b1332c;}
 .tut-wait{font-size:11.5px;color:var(--go);letter-spacing:.04em;display:flex;align-items:center;gap:8px;}
 .tut-wait::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--go);animation:tutp 1.25s infinite;}
 @keyframes tutp{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
@@ -2685,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.50';
+var APPV='v4.51';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7536,9 +7552,12 @@ var TUT_STEPS=[
   // Nothing rebuilds it, because a pill is not an overlay - hence keep rather than ovl.
   {sel:'#timerPill',pad:10,sample:true,keep:function(){tutRest();},
    nudge:'Tap NEXT when you have had a look.'},
-  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench',
+  // The ring was around the whole exercise block, which reads as "hold anywhere in here" - and
+  // holding a weight or a rep count is fenced off and does nothing, so the step looked broken to
+  // anyone who tried it there. It sits on the NAME now, which is the one place the hold works.
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-n',
    block:'input,button,textarea,.chk,.hold,.ex-swap,.lvl,.exdrag',
-   w:'Waiting for a long press',nudge:'Press and hold the exercise until the sheet opens.',
+   w:'Waiting for a long press',nudge:'Hold the exercise NAME - the ringed line. Holding a weight or a rep count does something else.',
    when:function(){return tutOn('exEditOvl');}},
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
@@ -7579,7 +7598,7 @@ var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
   {t:'Log it',b:'Tap the sigil at the end of the row. The set saves the instant you tap it, and the rest timer starts on its own.'},
   {t:'The rest timer',b:'It starts itself when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen off</li><li>Sounds at zero — silent during this tour</li></ul>'},
-  {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
+  {t:'Change it on the spot',b:'Press and hold an exercise by its <b>name</b> — the ringed line on the bench. Holding a weight or a rep count does something else, so the hold has to land on the name.'},
   {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the day is completed. Keep it and every Tuesday carries the change.</p>'},
   {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need - a seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
   {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever</b> &mdash; beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched</b> &mdash; equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under</b> &mdash; a first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
@@ -7965,12 +7984,29 @@ function tutShift(ov,px){
   TUTSHIFT=ov;
   if(ov&&ov.style.paddingTop!==px)ov.style.paddingTop=px;
 }
+// What the system bars actually take, measured rather than assumed. env() only works in CSS, so a
+// hidden probe wears the insets as padding and JS reads them back off it. The card was placed with
+// flat pixel numbers - 14 from the top, 12 from the bottom - which is right in a browser tab and
+// wrong in the app, where the WebView draws behind the status bar and the gesture bar.
+var SAFEPROBE=null;
+function safeIns(){
+  if(!SAFEPROBE){
+    SAFEPROBE=document.createElement('div');
+    SAFEPROBE.style.cssText='position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;'+
+      'pointer-events:none;padding-top:env(safe-area-inset-top,0px);'+
+      'padding-bottom:env(safe-area-inset-bottom,0px);';
+    document.body.appendChild(SAFEPROBE);
+  }
+  var cs=getComputedStyle(SAFEPROBE);
+  return {t:parseFloat(cs.paddingTop)||0,b:parseFloat(cs.paddingBottom)||0};
+}
 function tutPlace(){
   var st=TUT_STEPS[TUTI],hole=document.getElementById('tutHole'),card=document.getElementById('tutCard');
   var ping=document.getElementById('tutPing');
   if(st.hide&&st.hide()){hole.classList.remove('on');ping.classList.remove('on');card.style.opacity='0';tutShift(null);return;}
   card.style.opacity='';
-  var el=tutEls(st.sel)[0],ch=card.offsetHeight,vh=window.innerHeight;
+  var si=safeIns();
+  var el=tutEls(st.sel)[0],ch=card.offsetHeight,vh=window.innerHeight-si.b;
   // Before anything is measured: a sheet that has to move must move first, or the spotlight
   // is cut around where it used to be and the hole sits above the sheet by the same gap.
   tutShift(st.top&&st.ovl?document.getElementById(st.ovl):null,(ch+26)+'px');
@@ -7978,14 +8014,14 @@ function tutPlace(){
   if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
   if(!el||!el.offsetHeight){
     hole.classList.remove('on');
-    tutTop(card,Math.max(14,(vh-ch)/2)+'px');
+    tutTop(card,Math.max(14+si.t,(vh-ch)/2)+'px');
     return;
   }
   tutBox(el,hole,st.pad==null?8:st.pad);
   var r=el.getBoundingClientRect(),p=st.pad==null?8:st.pad;
-  if(st.top){tutTop(card,'14px');return;}   // instructions first, then the thing itself
+  if(st.top){tutTop(card,(14+si.t)+'px');return;}   // instructions first, then the thing itself
   var below=r.bottom+p+14,above=r.top-p-14-ch;
-  tutTop(card,(below+ch<vh-12?below:(above>12?above:Math.max(12,vh-ch-14)))+'px');
+  tutTop(card,(below+ch<vh-12?below:(above>12+si.t?above:Math.max(12+si.t,vh-ch-14)))+'px');
 }
 // scrollIntoView drags whatever ancestor it likes; walk to the real scroller instead.
 function tutScroll(){
