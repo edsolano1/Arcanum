@@ -390,6 +390,10 @@ body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
 /* the tagline is the first thing to go: it is the one line up there that says nothing the tour
    has not already said, and it is holding the whole week down the screen */
 body.tut #tagline{display:none;}
+/* The embers were never gone. Forty four of them, rising, measured mid-climb at 0.28 opacity -
+   which on a phone held at arm's length in a lit room is nothing at all. Lifted rather than
+   rebuilt: same count, same motion, just bright enough to see. */
+body.forge .bg-motes i{filter:brightness(1.5) saturate(1.15);}
 /* The rest pill belongs to a session. On the week board it was a clock floating over a screen
    with nothing to time, and leaving a day mid-rest is not a reason to keep it hovering there.
    The countdown is in the notification shade the whole time, so nothing is lost by it going. */
@@ -2169,7 +2173,7 @@ var EX = {
   ohext:    {name:"Cable Rope Overhead Extension",wraps:1,note:"Same rope, pulley stays high, face away from stack, press up and split at top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
   bike:     {bw:1,name:"Bicycle Crunch",note:"FULL reps - both twists = 1 rep. Slow and controlled, full rotation",sets:"0x20\n0x20\n0x20",rest:""},
   hollow:   {name:"Hollow Body Hold",note:"Arms overhead, lower back pressed to floor, legs raised",sets:"20 sec\n20 sec\n20 sec",rest:"45 sec after round"},
-  pullup:   {name:"Assisted Pull-Up",note:"Wide overhand grip - lower the assistance number as you get stronger",sets:"45x9\n45x10\n45x8",rest:"90 sec"},
+  pullup:   {inv:1,name:"Assisted Pull-Up",note:"Wide overhand grip - lower the assistance number as you get stronger",sets:"45x9\n45x10\n45x8",rest:"90 sec"},
   latpd:    {name:"Lat Pulldown",note:"Wide straight bar, overhand grip - pull to upper chest",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
   row:      {name:"Cable Seated Row",note:"Close-grip V-bar - pull to lower chest, squeeze shoulder blades",sets:"95x12\n95x12\n100x9",rest:"90 sec"},
   sapd:     {name:"Straight Arm Pulldown",note:"Slight bend in elbows only - hinge at shoulder, arms do not curl",sets:"45x15\n45x15\n45x15",rest:"90 sec"},
@@ -2239,7 +2243,7 @@ var ALT={
   machpd:   {name:"Machine Lat Pulldown (neutral grip)",note:"Neutral grip is easier on the shoulder than wide overhand",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
   bbcurl:   {name:"Barbell Curl",note:"Straight or EZ bar - elbows pinned, no swinging",sets:"55x12\n55x12\n55x10",rest:"60 sec"},
   inccurl:  {name:"Incline Dumbbell Curl",note:"Bench at 45-60 degrees, arms hanging back - big biceps stretch",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
-  dip:      {name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"48x10\n48x10\n48x10",rest:"90 sec"},
+  dip:      {inv:1,name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"48x10\n48x10\n48x10",rest:"90 sec"},
   bdip:     {bw:1,name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
   machlat:  {name:"Machine Lateral Raise",note:"Fixed path - good when the shoulder feels off on free weight versions",sets:"50x15\n50x15\n50x15",rest:"60 sec"},
   facepull: {name:"Cable Rope Face Pull",note:"Rope at face height - pull to the forehead, elbows high. Rear delt work",sets:"40x15\n40x15\n40x15",rest:"60 sec"},
@@ -2763,7 +2767,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.63';
+var APPV='v4.64';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2967,12 +2971,19 @@ function isPR(exId,set){return setGrade(exId,set)==='pr';}
 // How this set stands against your best ever for the lift:
 // 'pr' beat it, 'match' equalled it, 'under' came in below it,
 // 'first' is the opening entry on a lift - a baseline to beat, so it reads grey.
+// On an assisted machine the number is how much of you the machine is HOLDING UP, so the whole
+// scale runs backwards: 40 is harder than 45, and getting stronger means asking for less. Graded
+// and levelled the same way as everything else, a good session on one of these read as going
+// backwards and the app offered to make it easier still. inv is the flag; there are two of them
+// in the library, and any assisted machine added later wants it too.
+function invEx(exId){return !!(EX[exId]&&EX[exId].inv);}
 function setGrade(exId,set){
   if(!set||(!set.w&&!set.r))return null;
   var b=bestEver(exId);
   if(!b)return 'first';                    // nothing to beat yet - set the baseline
   var w=set.w||0,r=set.r||0,bw=b.w||0,br=b.r||0;
-  if(w>bw||(w===bw&&r>br))return 'pr';
+  var better=invEx(exId)?(w<bw):(w>bw);
+  if(better||(w===bw&&r>br))return 'pr';
   if(w===bw&&r===br)return 'match';
   return 'under';
 }
@@ -2992,7 +3003,8 @@ function isReady(exId,tgts){
   for(var i=0;i<tgts.length;i++){
     var t=tgts[i],s=L.sets[i];
     if(!s)return false;
-    if(t.type==='wr'){if(s.w<t.w||s.r<t.r)return false;}
+    // On an assisted machine, meeting the target means using no MORE help than it asked for.
+    if(t.type==='wr'){if((invEx(exId)?(s.w>t.w):(s.w<t.w))||s.r<t.r)return false;}
     else{if(s.r<t.r)return false;}
   }
   return true;
@@ -3025,7 +3037,9 @@ function levelPlan(wk){
     var next=lines.map(function(s){
       var t=parseTarget(s);
       if(t.type!=='wr')return s;         // timed and rep-only work has no weight to add
-      var nw=t.w+stepFor(t.w);
+      // Assisted work levels DOWN, and never past zero - no assistance at all is the end of the
+      // progression, and the lift becomes an unassisted one at that point.
+      var nw=invEx(id)?Math.max(0,t.w-stepFor(t.w)):t.w+stepFor(t.w);
       return (nw%1?nw.toFixed(1):nw)+'x'+t.r;
     });
     if(next.join('\n')===lines.join('\n'))return;
@@ -3309,23 +3323,31 @@ function doUnseal(){
 function markDayDone(id){
   if(!id||!W[id])return;
   if(loggedThisWeek()[id])return;              // already done this week, nothing to do
-  var nm=W[id].name.replace('Optional: ','');
-  ask('Marks '+nm+' as done for this week without logging any sets. Your history keeps it as a day marked done, not a session.',
-    function(){
-      DB.logs.push({day:id,date:today(),entries:{},note:'',swaps:{},sealed:1,marked:1});
-      delete DB.active[id];
-      saveDB();
-      if(typeof closeMake==='function'&&document.getElementById('make').classList.contains('on'))closeMake();
-      renderHome();
-    },'Mark '+nm+' done?','MARK IT DONE');
+  // No confirm. It is a tick you can press again, and asking first put a dialog in front of a
+  // decision that undoes itself.
+  DB.logs.push({day:id,date:today(),entries:{},note:'',swaps:{},sealed:1,marked:1});
+  delete DB.active[id];
+  saveDB();renderHome();
+  if(typeof mkRender==='function'&&document.getElementById('make').classList.contains('on'))mkRender();
 }
-// Unticking Required is the one direction worth a word: an optional day stops counting towards
-// the week being finished, which is not obvious from a tick going out. Ticking it back on needs
-// no ceremony, so it does not get any.
-function mkReqToggle(v){
-  if(v!=='opt'){mkSetVar(v);return;}
-  ask('An optional day is one you can take or leave. It stops counting towards the week being finished, and the week can complete without it.',
-    function(){mkSetVar('opt');},'Make it optional?','MAKE IT OPTIONAL');
+// Ticks toggle. Both of these were asking before they would change, which for a control you can
+// simply press again is a dialog in the way of a decision you have not made yet.
+function mkReqToggle(v){mkSetVar(v);}
+// Untick "Done this week". A day marked done carried no sets, so it is simply lifted off - there
+// is nothing in it to lose. A day that was actually WORKED is reopened rather than erased: the
+// sets stay exactly where they are in your history and the day comes back to be run again.
+function unmarkDayDone(id){
+  if(!id)return;
+  var ws=weekStartTs(),touched=false;
+  for(var i=DB.logs.length-1;i>=0;i--){
+    var l=DB.logs[i];
+    if(l.day!==id||l.unsealed||!l.sealed)continue;
+    var t=new Date(l.date).getTime();
+    if(isNaN(t)||t<ws)continue;
+    if(l.marked)DB.logs.splice(i,1); else l.unsealed=1;
+    touched=true;
+  }
+  if(touched){saveDB();renderHome();if(typeof mkRender==='function'&&document.getElementById('make').classList.contains('on'))mkRender();}
 }
 // Every day on the week done, with something actually on the week to have done.
 function weekAllDone(){
@@ -4403,9 +4425,11 @@ function mkRender(){
     var mine=!!(DB.custom&&DB.custom[MK.open]);
     h+='<div class="mk-lbl">This day</div><div class="dayacts">';
     // Done without logging it. The week should not sit open because the app has no proof.
-    h+='<button class="dayact'+(mdone?' on':'')+'" onclick="'+(mdone?'':'markDayDone(\''+MK.open+'\')')+'">'+
-       '<svg viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></svg>'+
-       (mdone?'Done this week':'Mark done')+'</button>';
+    h+='<button class="dayact'+(mdone?' on':'')+'" onclick="'+(mdone?'unmarkDayDone':'markDayDone')+'(\''+MK.open+'\')">'+
+       '<svg viewBox="0 0 20 20">'+(mdone
+         ?'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M6.5 10.2l2.6 2.6 4.4-5"/>'
+         :'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/>')+
+       '</svg>'+(mdone?'Done this week':'Mark done')+'</button>';
     // A tick rather than a verb. The day IS required or it is not, which is a state to read at a
     // glance; "MAKE IT OPTIONAL" made you work out which way round you currently were.
     h+='<button class="dayact'+(cv==='opt'?'':' on')+'" onclick="mkReqToggle(\''+(cv==='opt'?back:'opt')+'\')">'+
