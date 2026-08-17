@@ -390,6 +390,10 @@ body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
 /* the tagline is the first thing to go: it is the one line up there that says nothing the tour
    has not already said, and it is holding the whole week down the screen */
 body.tut #tagline{display:none;}
+/* The rest pill belongs to a session. On the week board it was a clock floating over a screen
+   with nothing to time, and leaving a day mid-rest is not a reason to keep it hovering there.
+   The countdown is in the notification shade the whole time, so nothing is lost by it going. */
+body:not(:has(#session.on)) #timerPill{display:none;}
 /* The export is the tallest thing the tour stops on: tiles, then the whole session written out.
    At full size the step was a scroll rather than a look, and a step you have to scroll through
    is one you skim. Scaled down for the length of the tour it fits in a screen, which is all this
@@ -1758,8 +1762,10 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
       <div class="wordmark">ARCANUM</div>
       <div class="tagline" id="tagline"></div>
     </div>
-    <div class="iconbtn" onclick="openTimerSheet()" title="Quick timer" style="margin-left:auto"><svg viewBox="0 0 20 20"><circle cx="10" cy="11" r="6.5"/><path d="M10 8v3.2l2.2 1.6M7 2.5h6"/></svg></div>
-    <div class="iconbtn" onclick="openSettings()" title="Settings"><svg viewBox="0 0 20 20"><path d="M3 6h5.5M13.5 6H17M3 14h3.5M11.5 14H17"/><circle cx="11" cy="6" r="2.5"/><circle cx="9" cy="14" r="2.5"/></svg></div>
+    <!-- The quick timer lives in a session, not out here. A rest belongs to a set, and the week
+         board is where you choose a day rather than where you time one. The same button is still
+         in the session header, which is the only place it had anything to time. -->
+    <div class="iconbtn" onclick="openSettings()" title="Settings" style="margin-left:auto"><svg viewBox="0 0 20 20"><path d="M3 6h5.5M13.5 6H17M3 14h3.5M11.5 14H17"/><circle cx="11" cy="6" r="2.5"/><circle cx="9" cy="14" r="2.5"/></svg></div>
   </div>
   <div class="storenote" id="storeNote"></div>
 
@@ -1915,8 +1921,10 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     </div>
     <div class="sheet-btns">
       <div class="btn" onclick="closeOvl('exEditOvl')">CANCEL</div>
+      <!-- "KEEP IT" never said what it kept it FOR. The pair reads as a question about scope now,
+           and matches the words the add and remove dialogs already use. -->
       <div class="btn" onclick="exEdSave(false)">JUST TODAY</div>
-      <div class="btn btn-go" onclick="exEdSave(true)">KEEP IT</div>
+      <div class="btn btn-go" onclick="exEdSave(true)">EVERY WEEK</div>
     </div>
   </div>
 </div>
@@ -2006,7 +2014,11 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <!-- Sound check and the SOUND ON toggle are gone: Alert volume already says how loud the
          alert is, and 0 on it is silence, so the toggle was a second switch onto the same thing. -->
     <div class="sfx-lbl" style="margin-top:4px"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
-    <div class="footnote" style="margin:0 2px 8px">The reliable way to be told a rest is over when you are in another app. Android sounds it, not Arcanum, so it plays whether or not this tab is allowed to make a noise - and it dips your music for a second or two rather than the whole rest. Shows the countdown in the shade while it runs.</div>
+    <!-- Rewritten. It still said "this tab", from when this was a web page rather than an app, and
+         it claimed the alert dips your music - which was the plan at the time and is not what
+         happens. It never asks for audio focus, so it plays over whatever you are listening to and
+         nothing pauses or ducks. -->
+    <div class="footnote" style="margin:0 2px 8px">How you are told a rest is over while you are in another app. Android delivers it, so it lands whether or not Arcanum is on screen, and it plays over your music without pausing or lowering it. The countdown sits in the notification shade while the rest runs.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2017,8 +2029,13 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
          the file input stays, so the pair is two lines of markup away from coming back. -->
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
     <div class="sfx-lbl"><span>Guided tour</span></div>
-    <div class="presets" style="grid-template-columns:1fr"><button class="preset sm" id="tutBtn" onclick="tutStart()">Tutorial</button></div>
-    <div class="footnote" style="margin-top:8px">Runs on sample data. Nothing you tap during the tour touches your own logs.</div>
+    <!-- Both lengths, chosen rather than assigned. The short one is what a first run offers; the
+         full one is the same tour with the exercise sheet and notes left in. -->
+    <div class="presets" style="grid-template-columns:1fr 1fr">
+      <button class="preset sm" id="tutBtnShort" onclick="tutStart(1)">Short tour</button>
+      <button class="preset sm" id="tutBtn" onclick="tutStart()">Full tour</button>
+    </div>
+    <div class="footnote" style="margin-top:8px">The short one covers a day start to finish. The full one adds changing an exercise and keeping your own notes. Both run on sample data and never touch your own logs.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -2725,7 +2742,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.60';
+var APPV='v4.61';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5270,6 +5287,10 @@ function onBackButton(){
     ov.classList.remove('on');backGuard();return;
   }
   if(sessionOpen()){leaveSession();backGuard();return;}
+  // The day editor is a full screen like a session, but it is not .ovl and not #session, so back
+  // fell straight past it to "close the app?" - held a day to edit it, pressed back, and were
+  // asked whether to quit. It goes back to the week, which is where it was opened from.
+  if(document.getElementById('make').classList.contains('on')){closeMake();backGuard();return;}
   backGuard();                             // hold our place while the question is up
   // history.go(-2) is how a browser tab leaves. The APK has no history to walk out through, so
   // closing there is the plugin's job.
@@ -7090,7 +7111,8 @@ function openSettings(){
   drawAlertLvl();drawThemePick();drawNotifTog();
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
-  var tb=document.getElementById('tutBtn');if(tb)tb.textContent=TUTC().btn;
+  // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
+  // overwrites them - it was turning "Full tour" back into "Tutorial" on every open.
   document.getElementById('settingsOvl').classList.add('on');
 }
 
@@ -7158,7 +7180,10 @@ function drawExEdit(){
   }
   grp.innerHTML=gh;
   var logged=exLogged(e.wk,e.id),rm=document.getElementById('exEdRm');
-  rm.textContent=logged?'Sets logged here \u00b7 cannot remove':'Remove this exercise';
+  // Said "Sets logged here, cannot remove", which reads as a rule about the app rather than a
+  // fact about today. It is saying you have already done work on this exercise, so taking it off
+  // the day would throw that away.
+  rm.textContent=logged?'Already logged today, cannot remove':'Remove this exercise';
   rm.className='preset sm'+(logged?' exed-off':'');
 }
 function exEdRest(v){EXED.rest=v;drawExEdit();}
@@ -7742,7 +7767,11 @@ var TUT_ALL=[
    nudge:'Tap NEXT to carry on.'},
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEditOvl .exed-n',
    nudge:'Tap NEXT to carry on.'},
-  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEdRm',
+  // The ring was on Remove, which by this point in the tour is DISABLED: a set was logged on the
+  // bench four steps ago, so the button reads "already logged today" and does nothing. Ringing a
+  // dead control and asking someone to take it in is the wrong lesson. It sits on the two save
+  // buttons instead, which is the thing about this sheet worth knowing.
+  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEditOvl .sheet-btns',
    nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
   // on screen with the links row visible and nothing else competing for the highlight.
@@ -7759,12 +7788,18 @@ var TUT_ALL=[
   // The grading step is gone. Three colours explained once during a tour is three colours nobody
   // remembers an hour later, so the key lives at the top of the day now, where it is there to be
   // glanced at on the tenth session as much as the first.
-  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,sweep:true,
+  // pad 12, not 6. Reset this session sits at the very bottom of this block and the tighter
+  // padding cut the highlight across it rather than around it.
+  {sel:'.finish-inline',pad:12,hit:'.finishbtn',ping:'.finishbtn',once:true,sweep:true,
    w:'Waiting for Finish',nudge:'Tap Finish in the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
   {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
+  // Two steps, not one. What a completed day LOOKS like and what reopening the week DOES are
+  // different facts, and the second only makes sense once you have seen the first.
+  {sel:'#weekCards .card[data-base="d1"]',pad:6,endRest:1,sweep:true,
+   nudge:'Tap NEXT to carry on.'},
   // Ends here. Dragging a workout between days and the rack underneath were both steps once, and
   // both came out: a grip you drag is close enough to self-evident that spending two of sixteen
   // steps on it costs more attention than it buys.
@@ -7802,12 +7837,13 @@ var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   {t:'Change an exercise',b:'Press and hold the bench, anywhere inside the ring. The grip, the arrows and the links do other things.'},
   {t:'Rest between sets',b:'How long the timer runs after each set of this exercise.'},
   {t:'How many sets',b:'Add or drop a set. The targets underneath follow.'},
-  {t:'On the day, or not',b:'Take the exercise off today entirely.<p>JUST TODAY clears when the day is done. KEEP IT means every Tuesday carries the change.</p>'},
+  {t:'Saving a change',b:'<ul><li>JUST TODAY clears when the day is done</li><li>EVERY WEEK means Tuesday carries it from now on</li></ul><p>Remove this exercise takes it off the day. It greys out once you have logged a set on it, so a change here never throws away work you have already done.</p>'},
   {t:'Your own notes',b:'Tap Add note on the bench.'},
   {t:'What a note is for',b:'Yours, not the app&rsquo;s. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
   {t:'Finish the day',b:'Tap Finish when the last set is in.'},
   {t:'The export',b:'What you just did, as tiles and as plain text underneath. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
-  {t:'Completed',b:'A finished day stays completed for the rest of the week.<ul><li>Everything you logged stays in your history</li><li>It comes back around next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'}]};
+  {t:'Completed',b:'Tuesday is done. It stays that way until the week turns over, so you work through the others rather than repeating one.<p>Everything you logged is already in your history.</p>'},
+  {t:'Going round again',b:'This reopens every completed day at once, if you want another round before the week is out. Nothing is deleted either way.'}]};
 function TUTC(){
   var t=curTheme();
   var C={
@@ -7965,7 +8001,7 @@ function tutEnd(){
   TUTON=false;
   document.body.classList.remove('tut');
   tutShift(null);   // put back any sheet the tour pushed down
-  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);cancelAnimationFrame(TUTPAN);
   document.getElementById('tutHole').classList.remove('sweep');
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
@@ -8011,9 +8047,14 @@ function tutGo(i){
   // going dark and something new appearing somewhere else. The wait is what makes it a journey
   // rather than a cut.
   if(st.sweep){
-    tutScroll();
+    // The sheet the last step was explaining is shut FIRST, so the screen is settled before the
+    // journey starts. Panning down while a sheet is still closing over the top of it is what made
+    // the move hard to follow, and the pan itself now runs at half the pace it did.
+    tutStray(i);
+    var PAN=900;
+    tutScroll(false,PAN);
     clearTimeout(TUTSW2);
-    TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},380);
+    TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
   }else tutScroll();
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
@@ -8059,7 +8100,8 @@ var TUT_SCENE_ALL=[
   function(){tutDay();if(!tutOn('exNoteOvl'))openExNote('bench');},   // the note sheet itself
   function(){tutDay();},                                    // Finish
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
-  function(){tutWeek();}                                    // completed
+  function(){tutWeek();},                                   // what a completed day looks like
+  function(){tutWeek();}                                    // reopening the week
 ];
 function tutHome(){
   tutUnseal();
@@ -8263,12 +8305,31 @@ function tutPlace(){
   tutTop(card,(below+ch<vh-12?below:(above>12+si.t?above:Math.max(12+si.t,vh-ch-14)))+'px');
 }
 // scrollIntoView drags whatever ancestor it likes; walk to the real scroller instead.
-function tutScroll(instant){
+// A pan we time ourselves. behavior:'smooth' is whatever pace the browser feels like, which on
+// the long trip down to Finish was a blur - you saw the screen change without seeing it travel.
+// Driving it by hand means the duration is a number we can set, and eased at both ends so it
+// reads as a camera move rather than a jump.
+var TUTPAN=0;
+function tutPan(sc,delta,ms){
+  var from=sc?sc.scrollTop:window.scrollY,t0=null;
+  cancelAnimationFrame(TUTPAN);
+  function step(now){
+    if(t0===null)t0=now;
+    var p=Math.min(1,(now-t0)/ms);
+    var e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;      // ease in and out
+    var y=from+delta*e;
+    if(sc)sc.scrollTop=y;else window.scrollTo(0,y);
+    if(p<1)TUTPAN=requestAnimationFrame(step);
+  }
+  TUTPAN=requestAnimationFrame(step);
+}
+function tutScroll(instant,ms){
   var el=tutEls(TUT_STEPS[TUTI].sel)[0];
   if(!el)return;
   var r=el.getBoundingClientRect(),want=r.top-window.innerHeight*0.30;
   if(Math.abs(want)<50)return;
   var sc=el.closest('.ovl')||el.closest('#session')||el.closest('#make');
+  if(ms){tutPan(sc,want,ms);return;}
   var beh=instant?'auto':'smooth';
   try{
     if(sc)sc.scrollTo({top:sc.scrollTop+want,behavior:beh});
