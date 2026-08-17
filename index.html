@@ -2100,8 +2100,8 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 var EX = {
   bench:    {name:"Barbell Bench Press",wraps:1,note:"Flat bench, grip just outside shoulder-width, controlled descent",sets:"145x8\n145x8\n145x8\n145x8",rest:"2-3 min"},
   incdb:    {name:"Incline DB Press",wraps:1,note:"30-45 degree incline, slow 3 second lower",sets:"55x12\n55x12\n55x12",rest:"2 min"},
-  mbench:   {name:"Machine Bench Press",wraps:1,note:"Machine jumps in 20 lb increments - 130 or 150 only. Heavy first.",sets:"150x10\n130x15\n130x15",rest:"90 sec"},
-  xover:    {name:"Cable Crossover",note:"Handles at shoulder height - horizontal setting 5, vertical setting 4",sets:"23x13\n23x13\n23x13",rest:""},
+  mbench:   {name:"Machine Bench Press",wraps:1,note:"Seat set so the handles sit level with mid chest, full lockout without flaring",sets:"150x10\n130x15\n130x15",rest:"90 sec"},
+  xover:    {name:"Cable Crossover",note:"Handles at shoulder height, slight stagger, squeeze at the middle rather than swinging",sets:"23x13\n23x13\n23x13",rest:""},
   vbar:     {name:"V-Bar Cable Pushdown",note:"V-bar attachment - elbows pinned to sides, no swinging",sets:"72.5x12\n72.5x12\n72.5x12",rest:"60 sec"},
   rope:     {name:"Rope Pushdown",note:"Pulley high - elbows pinned, split the rope at the bottom",sets:"42.5x15\n42.5x14\n42.5x12",rest:""},
   ohext:    {name:"Cable Rope Overhead Extension",wraps:1,note:"Same rope, pulley stays high, face away from stack, press up and split at top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
@@ -2701,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.53';
+var APPV='v4.54';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3077,7 +3077,7 @@ var WEEK=[
   {wk:"opt6",day:"Monday",js:1,v:"opt"},
   {wk:"d1",  day:"Tuesday",js:2},
   {wk:"d2",  day:"Wednesday",js:3},
-  {wk:"rest",day:"Thursday",js:4,v:"rest",label:"Office day - no gym + optional 200-300 cal cardio"},
+  {wk:"rest",day:"Thursday",js:4,v:"rest",label:"Rest day"},
   {wk:"d3",  day:"Friday",js:5},
   {wk:"d4",  day:"Saturday",js:6}
 ];
@@ -3171,7 +3171,8 @@ function planCard(id,i,nx){
   // Compressed: the name sits on the top line, level with the grip, and the second line is just
   // the size of the day. The ADD-ON tag went because the meta already says Optional, and YOURS
   // because whose day it is has never been something you needed telling twice.
-  var meta=v==='rest'?((e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
+  // DB.restLabel first: what the rest day is FOR is the user's own, not the app's to state.
+  var meta=v==='rest'?(DB.restLabel||(e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
     '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
@@ -4008,6 +4009,58 @@ function mergeCustom(){
   if(!DB.exNotes)DB.exNotes={};   // your own notes, keyed by exercise, kept across sessions
   for(var k in DB.cex){EX[k]=DB.cex[k];NOREF[k]=1;if(!GRP[k])GRP[k]='other';}
   for(var d in DB.custom)W[d]=DB.custom[d];
+}
+// ============================================================
+// YOUR PROGRAM, AS DATA
+// ============================================================
+// Everything the app shipped with was one particular person's training week: their split, on
+// their weekdays, with their working weights and their gym's machine settings. A new install
+// opened inside it, and grading scored a stranger's first session against those numbers.
+//
+// This is the first half of taking it apart. The week stops being CODE and becomes the user's
+// own data: the days are copied into DB.custom with their targets and rests written into the
+// rows, so from here on what the app ships with cannot move a single number already on a phone.
+// The second half - shipping neutral defaults and a starting point to choose - can only be done
+// safely once this has run, which is why it is a separate change.
+//
+// The personal notes go where personal notes belong: DB.exNotes, the same place a note typed on
+// an exercise lands. The shipped library keeps a generic form cue instead.
+var PERSONAL_NOTES={
+  mbench:'Machine jumps in 20 lb increments - 130 or 150 only. Heavy first.',
+  xover:'Handles at shoulder height - horizontal setting 5, vertical setting 4'
+};
+var PERSONAL_REST_LABEL='Office day - no gym + optional 200-300 cal cardio';
+var STOCK_DAYS=['rest','d1','d2','d3','d4','pump','opt5','opt6'];
+var OWNKEY='arc_ownprogram';
+function ownProgram(){
+  var done=false;try{done=localStorage.getItem(OWNKEY)==='1';}catch(e){}
+  if(done)return;
+  DB.custom=DB.custom||{};DB.exNotes=DB.exNotes||{};
+  STOCK_DAYS.forEach(function(id){
+    if(DB.custom[id])return;              // already edited into their own; leave it alone
+    var w=W[id];if(!w)return;
+    DB.custom[id]={name:w.name,tag:w.tag,color:w.color,time:w.time,made:w.made,
+      sections:w.sections.map(function(s){
+        // Every row is written out long-hand. A bare 'bench' reads its target from the shipped
+        // library at render time, which is exactly the dependency being cut here; the pair
+        // carries the numbers, so the row keeps meaning what it means today no matter what the
+        // library says tomorrow.
+        var o={title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
+          var rid=typeof row==='string'?row:row[0];
+          var ov=(typeof row==='string'?{}:(row[1]||{}));
+          var base=EX[rid]||{};
+          return [rid,{sets:(ov.sets!==undefined?ov.sets:base.sets),
+                       rest:(ov.rest!==undefined?ov.rest:base.rest)}];
+        })};
+        if(s.tip)o.tip=s.tip;
+        return o;
+      })};
+  });
+  for(var k in PERSONAL_NOTES)if(!DB.exNotes[k])DB.exNotes[k]=PERSONAL_NOTES[k];
+  if(!DB.restLabel)DB.restLabel=PERSONAL_REST_LABEL;
+  try{localStorage.setItem(OWNKEY,'1');}catch(e){}
+  mergeCustom();
+  try{saveDB();}catch(e){}
 }
 function mkEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function mkLine(r){return r.hold?((r.r||30)+' sec'):((r.w||0)+'x'+(r.r||0));}
@@ -8091,6 +8144,8 @@ function tutOffer(){
   await Store.init();
   await loadDB();
   reconcileActive();
+  // Before anything renders: the week becomes the user's own data rather than the app's default.
+  ownProgram();
   var t=await Store.get(TKEY);
   // What is stored is read but not obeyed while there is only one world, so the choice survives
   // untouched for whenever the other three come back.
