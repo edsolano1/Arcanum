@@ -2725,7 +2725,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.59';
+var APPV='v4.60';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3260,6 +3260,36 @@ function unsealAll(){
 function doUnseal(){
   DB.logs.forEach(function(l){l.unsealed=1;});
   saveDB();renderHome();
+}
+// Every day on the week done, with something actually on the week to have done.
+function weekAllDone(){
+  var lw=loggedThisWeek(),any=false;
+  var ids=[];
+  DAYS.forEach(function(d){(DB.days[d.k]||[]).forEach(function(id){ids.push(id);});});
+  for(var i=0;i<ids.length;i++){
+    if(wkVar(ids[i])==='rest')continue;      // a rest day is not something you finish
+    any=true;
+    if(!lw[ids[i]])return false;
+  }
+  return any;
+}
+// Offered once per week, and only after the last day is done. Finishing the week left you with
+// nothing to do and a button you had to know about; this says the round is over and offers the
+// next one. Deliberately not a blocker and deliberately not repeated - anyone who says no wanted
+// the week to stay finished, and asking again on the next launch would be nagging. The stamp is
+// the week itself, so next week's finish asks again.
+var REOPENKEY='arc_reopenasked';
+function offerReopen(){
+  if(TUTON)return;
+  if(document.querySelector('.ovl.on'))return;   // never on top of something already open
+  if(!weekAllDone())return;
+  var wk=String(weekStartTs()),seen='';
+  try{seen=localStorage.getItem(REOPENKEY)||'';}catch(e){}
+  if(seen===wk)return;
+  try{localStorage.setItem(REOPENKEY,wk);}catch(e){}
+  ask('Every day on your week is done. Reopen them all to go round again, or leave it and the week starts fresh on its own.',
+      function(){sfxUnseal();runWipe(doUnseal);},
+      'That is the week',TXT('unsealYes'));
 }
 // Service worker - what makes Chrome on Android and Edge on Windows offer "Install app".
 // Only registers on your own host, in a top-level window. Anywhere else (design previews,
@@ -7649,7 +7679,31 @@ function tutSeed(){
 // ping  - the one control the pulsing ring sits on
 // quiet - a step that asks for nothing: taps are still swallowed, but in silence
 // sweep - the highlight arrives around the whole week and closes onto this step's target
-var TUT_STEPS=[
+// Two tours out of one set of steps. A fifteen step tour asked for more attention than a new
+// user has before their first set, and completion of a linear tour falls away fast past about
+// six. So the first run offers the CORE: see the week, open a day, log a set, watch the rest,
+// finish, read the export, done. Everything else - the exercise sheet, notes - is still there
+// under Tutorial in Settings for anyone who wants the whole thing.
+// The subset is built at start rather than threaded through the engine as an indirection,
+// because every part of the tour indexes TUT_STEPS directly and one shared index is one thing
+// to get wrong. Filter once, and the rest of the code cannot tell the difference.
+var TUT_CORE=[0,1,4,5,12,13,14];
+var TUT_STEPS,TUT_SCENE,TUT_COPY;
+function tutBuild(core){
+  var copy=TUTC().steps;
+  if(core){
+    TUT_STEPS=TUT_CORE.map(function(i){return TUT_ALL[i];});
+    TUT_SCENE=TUT_CORE.map(function(i){return TUT_SCENE_ALL[i];});
+    TUT_COPY =TUT_CORE.map(function(i){return copy[i];});
+  }else{
+    TUT_STEPS=TUT_ALL;TUT_SCENE=TUT_SCENE_ALL;TUT_COPY=copy;
+  }
+}
+// Whichever sequence is running, the end of it is the end. Read from the length rather than a
+// flag on one particular step, or the core tour would run off the end looking for a DONE that
+// only the full tour's last step carries.
+function tutLast(){return TUTI===TUT_STEPS.length-1;}
+var TUT_ALL=[
   // Nothing is being asked for yet, so nothing here is wrong: a tap while you are still
   // taking the week in used to shake the card and tell you off before you had been given
   // anything to do. It is swallowed all the same - the next step is the one that opens a day.
@@ -7891,10 +7945,11 @@ function tutNudge(){
   clearTimeout(tutNT);tutNT=setTimeout(function(){n.classList.remove('on');},3200);
 }
 
-function tutStart(){
+function tutStart(core){
   if(TUTON)return;
   closeOvl('settingsOvl');closeOvl('askOvl');
   tutSeen();
+  tutBuild(core);                  // core on first run, the whole thing from Settings
   TUTDB=DB;DB=tutSeed();TUTON=true;TUTMAX=0;
   document.body.classList.add('tut');
   if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
@@ -7931,7 +7986,7 @@ function tutGo(i){
   // it to a step NUMBER - so inserting a step anywhere before the export silently moved which
   // step killed the timer. The steps that end it say so themselves now.
   if(TUT_STEPS[i].endRest)stopTimer();
-  var st=TUT_STEPS[i],c=TUTC().steps[i];
+  var st=TUT_STEPS[i],c=TUT_COPY[i];
   // A step must not fire on a condition that was ALREADY true when it arrived, or stepping
   // BACK would bounce straight forward again. Arriving satisfied disarms the step until the
   // condition goes false; then doing the thing advances it, exactly as on the first pass.
@@ -7945,10 +8000,10 @@ function tutGo(i){
   document.getElementById('tutNudge').classList.remove('on');
   var nx=document.getElementById('tutNext'),wt=document.getElementById('tutWait');
   if(st.when&&!tutRev()){nx.style.display='none';wt.style.display='';wt.textContent=st.w||'Waiting for you';}
-  else{nx.style.display='';wt.style.display='none';nx.textContent=st.last?'DONE':'NEXT';}
+  else{nx.style.display='';wt.style.display='none';nx.textContent=tutLast()?'DONE':'NEXT';}
   document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
-  document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
+  document.getElementById('tutSkip').textContent=tutLast()?'Close':'End tour';
   // A sweep step TRAVELS to its target and then closes on it. The page scrolls smoothly, the hole
   // rides along with it because placement runs every frame, and only once it has arrived does the
   // highlight sweep shut. Jumping there instantly and sweeping in the same breath told you where
@@ -7989,7 +8044,7 @@ function tutBack(){
 // whose subject IS a sheet - the number pad, the exercise sheet, the export - came back
 // against a screen that had already closed, and the spotlight landed on whatever was
 // underneath it. Each step now states the scene it belongs to and BACK rebuilds it.
-var TUT_SCENE=[
+var TUT_SCENE_ALL=[
   function(){tutHome();},
   function(){tutHome();},
   function(){tutDay();},
@@ -8046,7 +8101,7 @@ function tutSample(){
 function tutAdvance(){
   var st=TUT_STEPS[TUTI];
   if(st.act)st.act();
-  if(st.last){tutEnd();return;}
+  if(tutLast()){tutEnd();return;}
   var n=TUTI+1;
   // BACK rebuilds the scene it lands on; NEXT never did, because on a first pass it does not
   // have to - you got here by doing the thing, so the screen the next step wants is already
@@ -8227,7 +8282,7 @@ function tutOffer(){
   if(DB.logs.length||Object.keys(DB.active||{}).length)return;
   tutSeen();
   var C=TUTC();
-  ask(C.msg,tutStart,C.ttl,C.yes);
+  ask(C.msg,function(){tutStart(1);},C.ttl,C.yes);   // first run gets the short one
 }
 
 // ---------- boot ----------
@@ -8257,6 +8312,9 @@ function tutOffer(){
     }catch(e){}
   },1200);
   setTimeout(tutOffer,1600);               // after the launch animation has cleared
+  // And, if the week is finished, the offer to run it again. After the tour offer, and it stands
+  // down if that one is up: two questions on one launch is one too many.
+  setTimeout(offerReopen,2400);
 })();
 </script>
 </body>
