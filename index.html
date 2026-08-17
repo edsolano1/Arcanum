@@ -2701,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.54';
+var APPV='v4.55';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6839,11 +6839,18 @@ function startTimer(secs,exName){
   var span=secs*1000;
   // Handed to Android now rather than fired by the page later. If the app is killed mid-rest the
   // alert still lands, which the web path could never promise.
-  if(NOTIF_ON)nativeSchedule(secs);
-  // The buzz and the notice come from the channel; the sound comes from ours. Two alarms for one
-  // rest, because Android will not let one thing do both.
-  if(SFX_ON&&!alertMuted())nativeSound(secs);
-  nativeTimer(secs);
+  // Nothing is handed to Android while the tour is running. The tour starts a REAL rest so the
+  // pill can be watched counting down, and these three give the alert to the OS at the moment it
+  // starts. restAlert() refusing to fire covers the page, but it cannot recall an alarm already
+  // handed over - so two minutes after a tour that promised silence, the phone buzzed for a rest
+  // that had never existed.
+  if(!TUTON){
+    if(NOTIF_ON)nativeSchedule(secs);
+    // The buzz and the notice come from the channel; the sound comes from ours. Two alarms for one
+    // rest, because Android will not let one thing do both.
+    if(SFX_ON&&!alertMuted())nativeSound(secs);
+    nativeTimer(secs);
+  }
   startFlame();
   function tick(){
     flFrac=Math.max(0,(timerEnd-Date.now())/span);
@@ -7646,14 +7653,25 @@ var TUT_STEPS=[
   // The spotlight was on the links row alone, which showed a pair of buttons floating with no
   // sign of what they belonged to. The whole exercise is lit now and the ring picks out the
   // button inside it, so you can see where Add note actually sits.
-  {sel:'#exc-bench',pad:6,ping:'#exc-bench .unote-btn',nudge:'Tap NEXT to carry on.'},
-  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,
+  // Ringed and tappable. A ring around a button that does nothing when you press it teaches the
+  // wrong thing about every other ring in the tour, so this one opens for real.
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench .unote-btn',ping:'#exc-bench .unote-btn',once:true,
+   w:'Waiting for Add note',nudge:'Tap Add note inside the ring.',
+   when:function(){return tutOn('exNoteOvl');}},
+  {sel:'#exNoteOvl .sheet',pad:10,ovl:'exNoteOvl',top:true,nudge:'Tap NEXT to carry on.',
+   act:function(){closeOvl('exNoteOvl');}},
+  // Grading and Finish used to be one step: the card explained gold, matched and under while the
+  // spotlight sat on the Finish button three thousand pixels down the page. Two subjects, one
+  // light, and the light was on neither of them. The grade is shown on the set you actually just
+  // logged, which is carrying it.
+  {sel:'#sr-bench-0',pad:8,quiet:true,nudge:'Tap NEXT when you have had a look.'},
+  {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,sweep:true,
    w:'Waiting for Finish',nudge:'Tap Finish in the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
   {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
-  {sel:'#foot .unsealbtn',pad:6,endRest:1,nudge:'Tap NEXT to carry on.'},
+  {sel:'#foot .unsealbtn',pad:6,endRest:1,sweep:true,nudge:'Tap NEXT to carry on.'},
   // The week itself - which the tour used to walk you past twice without ever saying it could be
   // rearranged. Logging a set is close to self-evident; that a workout can be dragged onto another
   // day, and that there is somewhere for the ones with no day at all, is not guessable from
@@ -7661,7 +7679,11 @@ var TUT_STEPS=[
   // until you land a drag is a tour that can strand you. The ring carries the eye to the grip.
   {sel:'#weekCards',pad:6,quiet:true,ping:'#weekCards .card[data-base="d1"] .carddrag',
    nudge:'Tap NEXT when you have had a look.'},
-  {sel:'#extraWrap',pad:8,quiet:true,last:true,ping:'#extraCards .card',
+  // The rack sits under the week and the tour used to arrive at it instantly, which on a dimmed
+  // screen reads as everything going black rather than as the light moving somewhere. The sweep
+  // opens the highlight around the whole screen and closes it onto the rack, so the eye is
+  // carried down to where it is instead of having to find it again.
+  {sel:'#extraWrap',pad:8,quiet:true,last:true,sweep:true,ping:'#extraCards .card',
    nudge:'Tap DONE to close the tour.'}
 ];
 function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
@@ -7689,10 +7711,12 @@ var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   {t:'The rest timer',b:'It starts when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
   {t:'Change it on the spot',b:'Press and hold anywhere inside the ring. That covers the name and the target, last and best below it.<ul><li>The grip on the left reorders</li><li>The arrows on the right swap the exercise</li><li>The links underneath open their own things</li></ul>'},
   {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today and it clears when the day is done. Keep it and every Tuesday carries the change.</p>'},
-  {t:'Your own notes',b:'Tap Add note on any exercise for the things only you need. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
-  {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever.</b> Beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched.</b> Equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under.</b> A first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day. Tap Finish when you are done.</p>'},
+  {t:'Your own notes',b:'Tap Add note on the bench.'},
+  {t:'What a note is for',b:'The things only you need. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
+  {t:'How a set is graded',b:'The set you just logged is carrying its grade.<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever.</b> Beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched.</b> Equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under.</b> A first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day.</p>'},
+  {t:'Finish the day',b:'Tap Finish when the last set is in.'},
   {t:'The export',b:'The tiles are what you just did: sets, weight moved, reps, time and any records. Below them is the same session as plain text. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
-  {t:'Completed',b:'Tuesday is done for this week. Everything you logged stays in your history and the day comes back next week. This button reopens every day at once.'},
+  {t:'Completed',b:'A finished day is marked completed and stays that way for the rest of the week. Work through the others, and the week starts again on its own.<ul><li>Everything you logged stays in your history</li><li>A completed day comes back next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'},
   {t:'Move things around',b:'Every workout has a grip on its right edge. Drag by the grip to move it, either inside a day or onto another one.<ul><li>A day holds three at most</li><li>A full day turns you away</li><li>Tapping a card opens it, so drag by the grip</li></ul>'},
   {t:'Days without a home',b:'Workouts with no day wait here. Drag one up onto a day to put it in the rotation, or drag one down here to take it out of the week. Everything you logged against it stays.'}]};
 function TUTC(){
@@ -7767,7 +7791,16 @@ function TUTC(){
       {t:'Move things around',b:'Every workout has a grip on its right-hand edge. Drag by the grip to move it — up and down inside a day, or onto another day entirely.<ul><li>A day holds three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
       {t:'Days without a home',b:'Anything with no day on it waits here, under the week. Drag one up onto any day to put it back in the rotation, or drag a workout down here to take it out of the week without losing it — everything you have logged against it stays in your logs.'}]}
   };
-  return GENERIC?GEN_TUT:(C[t]||C.dark);
+  if(GENERIC)return GEN_TUT;
+  var c=C[t]||C.dark;
+  // The four worlds keep their own words, but only while those words still line up with the
+  // steps. Restructuring the tour shifts every index after the change, and a themed line
+  // describing the step BEFORE the one you are looking at is worse than a plain one describing
+  // the right step - and one index past the end takes the whole tour down. When the counts
+  // disagree the generic wording carries it, and the themed copy gets re-cut when themes return.
+  if(!c.steps||c.steps.length!==GEN_TUT.steps.length)
+    return {btn:c.btn,ttl:c.ttl,msg:c.msg,yes:c.yes,steps:GEN_TUT.steps};
+  return c;
 }
 
 /* ---- the fence ----
@@ -7842,7 +7875,7 @@ function tutEnd(){
   TUTON=false;
   document.body.classList.remove('tut');
   tutShift(null);   // put back any sheet the tour pushed down
-  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);
   document.getElementById('tutHole').classList.remove('sweep');
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
@@ -7881,10 +7914,27 @@ function tutGo(i){
   document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
   document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
-  // A sweep step does not scroll. Its whole premise is that everything is already in view -
-  // that is what the deck is scaled to .76 for - and a smooth scroll running underneath would
-  // drag the target while the highlight is easing onto it, so the hole would trail the card.
-  if(st.sweep)tutSweep();else tutScroll();
+  // A sweep step scrolls INSTANTLY and then sweeps. It used not to scroll at all, on the premise
+  // that everything a sweep points at is already in view - true of the week, and not true of
+  // Finish at the bottom of a long day or the rack under the board. Those swept onto a target
+  // that was still off screen, which on a dimmed display reads as the whole screen going black.
+  // The scroll has to be instant rather than smooth: a smooth one running underneath drags the
+  // target while the highlight is easing onto it, and the hole trails behind it the whole way.
+  if(st.sweep){tutScroll(true);tutSweep();}else tutScroll();
+  // And again once the layout has settled. The board is rebuilt underneath several of these
+  // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
+  // down - and a scroll worked out before that happened lands nowhere near the target. The
+  // spotlight then sits on empty space with the real thing off screen, which reads as the screen
+  // having gone black rather than as a highlight in the wrong place. Only moves if the target is
+  // actually out of view, so it never fights a scroll already in the right spot.
+  clearTimeout(TUTSC);
+  TUTSC=setTimeout(function(){
+    if(!TUTON||TUTI!==i)return;
+    var el=tutEls(TUT_STEPS[i].sel)[0];if(!el||!el.offsetHeight)return;
+    var r=el.getBoundingClientRect();
+    if(r.top>=0&&r.bottom<=window.innerHeight)return;
+    tutScroll(true);
+  },420);
 }
 function tutBack(){
   if(!TUTON||TUTI<=0)return;
@@ -7909,8 +7959,10 @@ var TUT_SCENE=[
   function(){tutDay();tutRest();},
   function(){tutDay();},
   function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},
-  function(){tutDay();},                                    // notes - the day, sheet closed
-  function(){tutDay();},
+  function(){tutDay();},                                    // tap Add note - the day, sheets closed
+  function(){tutDay();if(!tutOn('exNoteOvl'))openExNote('bench');},   // the note sheet itself
+  function(){tutDay();},                                    // the graded set
+  function(){tutDay();},                                    // Finish
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
   function(){tutWeek();},
   function(){tutWeek();},                                   // rearranging - the week, sealed day and all
@@ -8035,7 +8087,7 @@ function tutBox(el,box,p){
 // full-viewport box is planted with transitions off and the placement cache cleared, so the
 // very next frame writes the step's real target with transitions armed and CSS carries it in.
 // Nothing here chooses the target - tutPlace does that, exactly as it always has.
-var TUTSW=null;
+var TUTSW=null,TUTSC=null;
 function tutSweep(){
   var hole=document.getElementById('tutHole'),vw=window.innerWidth,vh=window.innerHeight;
   hole.classList.remove('sweep');
@@ -8118,15 +8170,16 @@ function tutPlace(){
   tutTop(card,(below+ch<vh-12?below:(above>12+si.t?above:Math.max(12+si.t,vh-ch-14)))+'px');
 }
 // scrollIntoView drags whatever ancestor it likes; walk to the real scroller instead.
-function tutScroll(){
+function tutScroll(instant){
   var el=tutEls(TUT_STEPS[TUTI].sel)[0];
   if(!el)return;
   var r=el.getBoundingClientRect(),want=r.top-window.innerHeight*0.30;
   if(Math.abs(want)<50)return;
   var sc=el.closest('.ovl')||el.closest('#session')||el.closest('#make');
+  var beh=instant?'auto':'smooth';
   try{
-    if(sc)sc.scrollTo({top:sc.scrollTop+want,behavior:'smooth'});
-    else window.scrollTo({top:window.scrollY+want,behavior:'smooth'});
+    if(sc)sc.scrollTo({top:sc.scrollTop+want,behavior:beh});
+    else window.scrollTo({top:window.scrollY+want,behavior:beh});
   }catch(e){}
 }
 function tutSeen(){try{localStorage.setItem(KEY+':tut','1');}catch(e){}}
