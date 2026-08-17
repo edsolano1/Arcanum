@@ -2701,7 +2701,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.55';
+var APPV='v4.56';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7695,30 +7695,36 @@ function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e
 // while GENERIC is on, and the four worlds below are kept whole for when it comes off.
 // The grades are named by what they MEAN rather than by their colour, because the colour is the
 // one thing that genuinely changes per theme - the swatch already shows it.
-// House style for every line below, because they had drifted into four different voices:
-// say what to do, then stop. No dashes standing in for punctuation, no sentence explaining the
-// sentence before it, no telling you how something feels. A step is one instruction and at most
-// one thing worth knowing. Lists carry anything longer, because a list is read and a paragraph
-// on a phone is skipped.
+// HOUSE STYLE. Four rules, and every line below obeys them.
+//   1. One step, one job. If a line needs "and", it wants to be two steps. Short steps do not
+//      overwhelm anybody; one step carrying a wall of text does.
+//   2. The instruction comes FIRST, then at most two things worth knowing. Anything more becomes
+//      a list, because a list gets read and a paragraph on a phone gets skipped.
+//   3. Name what is on the screen, not the concept behind it. "Tap Add note on the bench" beats
+//      "notes can be attached to exercises".
+//   4. A step that asks for a tap gets almost no words. You are doing it, not reading about it -
+//      the explanation belongs on the NEXT step, where the result is in front of you.
+// No dashes standing in for punctuation, no sentence explaining the sentence before it, no
+// telling anyone how something feels.
 var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   msg:'A quick walk through the real screens, using sample data. Your own logs stay untouched.',
   yes:'SHOW ME',steps:[
-  {t:'Your week',b:'Seven days, Sunday to Saturday. An empty day is a rest day. Tap NEXT and we will open one.'},
-  {t:'Open a day',b:'Tap Tuesday. Chest, triceps and core.'},
-  {t:'The set grid',b:'Each row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
-  {t:'Set the number',b:'Type it straight in. Raise it to 150 or more, then tap DONE.'},
-  {t:'Log it',b:'Tap the sigil at the end of the row. The set saves straight away and the rest timer starts.'},
-  {t:'The rest timer',b:'It starts when a set lands.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
-  {t:'Change it on the spot',b:'Press and hold anywhere inside the ring. That covers the name and the target, last and best below it.<ul><li>The grip on the left reorders</li><li>The arrows on the right swap the exercise</li><li>The links underneath open their own things</li></ul>'},
-  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today and it clears when the day is done. Keep it and every Tuesday carries the change.</p>'},
+  {t:'Your week',b:'Seven days, Sunday to Saturday. An empty day is a rest day.'},
+  {t:'Open a day',b:'Tap Tuesday.'},
+  {t:'The set grid',b:'Tap the weight on the first bench set. Every row here is one set: weight, reps, and a sigil to mark it.'},
+  {t:'Set the number',b:'Raise it to 150 or more, then tap DONE.'},
+  {t:'Log it',b:'Tap the sigil at the end of the row.'},
+  {t:'The rest timer',b:'That set is saved, and the rest started on its own.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
+  {t:'Change an exercise',b:'Press and hold the bench, anywhere inside the ring. The grip, the arrows and the links do other things.'},
+  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only, or keep it so every Tuesday carries the change.</p>'},
   {t:'Your own notes',b:'Tap Add note on the bench.'},
-  {t:'What a note is for',b:'The things only you need. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
+  {t:'What a note is for',b:'Yours, not the app&rsquo;s. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
   {t:'How a set is graded',b:'The set you just logged is carrying its grade.<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever.</b> Beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched.</b> Equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under.</b> A first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day.</p>'},
   {t:'Finish the day',b:'Tap Finish when the last set is in.'},
-  {t:'The export',b:'The tiles are what you just did: sets, weight moved, reps, time and any records. Below them is the same session as plain text. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
-  {t:'Completed',b:'A finished day is marked completed and stays that way for the rest of the week. Work through the others, and the week starts again on its own.<ul><li>Everything you logged stays in your history</li><li>A completed day comes back next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'},
-  {t:'Move things around',b:'Every workout has a grip on its right edge. Drag by the grip to move it, either inside a day or onto another one.<ul><li>A day holds three at most</li><li>A full day turns you away</li><li>Tapping a card opens it, so drag by the grip</li></ul>'},
-  {t:'Days without a home',b:'Workouts with no day wait here. Drag one up onto a day to put it in the rotation, or drag one down here to take it out of the week. Everything you logged against it stays.'}]};
+  {t:'The export',b:'What you just did, as tiles and as plain text underneath. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
+  {t:'Completed',b:'A finished day stays completed for the rest of the week.<ul><li>Everything you logged stays in your history</li><li>It comes back around next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'},
+  {t:'Move things around',b:'Drag a workout by the grip on its right edge.<ul><li>Move it inside a day, or onto another one</li><li>A day holds three at most</li><li>Tapping a card opens it, so drag by the grip</li></ul>'},
+  {t:'Days without a home',b:'Workouts with no day wait here. Drag one up onto a day, or drag one down here to take it out of the week. Everything you logged against it stays.'}]};
 function TUTC(){
   var t=curTheme();
   var C={
