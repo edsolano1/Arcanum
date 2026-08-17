@@ -2111,6 +2111,15 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <input class="mk-in" id="mkCexName" placeholder="Exercise name" autocomplete="off">
     <input class="mk-in" id="mkCexNote" placeholder="Setup note (optional)" style="margin-top:9px" autocomplete="off">
     <input class="mk-in" id="mkCexLink" placeholder="Link to a demo (optional)" style="margin-top:9px" autocomplete="off" inputmode="url">
+    <!-- The one thing about an exercise the app cannot work out for itself. On an assisted
+         machine the number is how much it holds up for you, so progress runs down instead of up,
+         and grading and levelling both have to be told. -->
+    <div class="dayacts" style="margin-top:12px">
+      <button class="dayact" id="mkCexInv" onclick="mkCexInvToggle()">
+        <svg viewBox="0 0 20 20"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/></svg>
+        Lower number is better</button>
+    </div>
+    <div class="footnote" style="margin:8px 2px 0">For assisted machines, where less weight means you did more of the work yourself.</div>
     <div class="sheet-btns">
       <div class="btn" onclick="closeOvl('mkCexOvl')">CANCEL</div>
       <div class="btn btn-go" onclick="mkSaveCex()">ADD</div>
@@ -2767,7 +2776,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.64';
+var APPV='v4.65';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4557,6 +4566,7 @@ function mkNewEx(){
   document.getElementById('mkCexName').value='';
   document.getElementById('mkCexNote').value='';
   document.getElementById('mkCexLink').value='';
+  mkCexInvSet(false);
   document.getElementById('mkCexOvl').classList.add('on');
 }
 function mkEditCex(id){
@@ -4565,7 +4575,21 @@ function mkEditCex(id){
   document.getElementById('mkCexName').value=x.name||'';
   document.getElementById('mkCexNote').value=x.note||'';
   document.getElementById('mkCexLink').value=x.link||'';
+  mkCexInvSet(!!x.inv);
   document.getElementById('mkCexOvl').classList.add('on');
+}
+// The tick on the new-exercise sheet, held on the element itself so nothing else has to remember
+// it between opening the sheet and saving from it.
+function mkCexInvSet(v){
+  var b=document.getElementById('mkCexInv');if(!b)return;
+  b.classList.toggle('on',!!v);
+  b.querySelector('svg').innerHTML=v
+    ? '<rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M6.5 10.2l2.6 2.6 4.4-5"/>'
+    : '<rect x="3.5" y="3.5" width="13" height="13" rx="3"/>';
+}
+function mkCexInvToggle(){
+  var b=document.getElementById('mkCexInv');
+  mkCexInvSet(!b.classList.contains('on'));
 }
 function mkSaveCex(){
   var n=document.getElementById('mkCexName').value.trim();
@@ -4573,13 +4597,18 @@ function mkSaveCex(){
   var link=document.getElementById('mkCexLink').value.trim();
   if(link&&!/^https?:\/\//i.test(link))link='https://'+link;
   var note=document.getElementById('mkCexNote').value.trim();
+  var inv=document.getElementById('mkCexInv').classList.contains('on')?1:0;
   if(mkCexId&&DB.cex[mkCexId]){
     DB.cex[mkCexId].name=n;DB.cex[mkCexId].note=note;DB.cex[mkCexId].link=link;
+    // Editable after the fact: it is easy to add an assisted machine and only notice the scale
+    // runs backwards the first time a good set grades as a bad one.
+    if(inv)DB.cex[mkCexId].inv=1;else delete DB.cex[mkCexId].inv;
     mergeCustom();saveDB();closeOvl('mkCexOvl');mkCexId=null;
     mkPickList();mkRender();return;
   }
   var id='cx'+Date.now().toString(36);
   DB.cex[id]={name:n,note:note,link:link,sets:'0x10\n0x10\n0x10',rest:'60 sec',custom:1};
+  if(inv)DB.cex[id].inv=1;
   mergeCustom();saveDB();
   closeOvl('mkCexOvl');
   if(mkPickBlk!=null&&MK.blocks[mkPickBlk])mkAddEx(id);
