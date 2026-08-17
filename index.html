@@ -736,6 +736,24 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 /* ---------- the builder ---------- */
 .mk-hint{font-size:11px;color:var(--txt3);margin:-6px 0 12px;letter-spacing:.02em;}
 .mk-lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:24px 0 9px;}
+/* The day's own three controls. Small and side by side rather than three full-width buttons:
+   they are the shape of a toolbar, not of a decision you make one at a time. Delete is the trash
+   alone, because a bin needs no label and a destructive control reads better without shouting. */
+.dayacts{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
+.dayact{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--txt3);
+  font-family:inherit;font-size:12px;letter-spacing:.02em;transition:.15s;}
+.dayact svg{width:15px;height:15px;flex:0 0 15px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;}
+.dayact:hover{color:var(--txt);border-color:#3d434a;}
+.dayact.on{color:var(--go);border-color:color-mix(in srgb,var(--go) 45%,var(--line));
+  background:color-mix(in srgb,var(--go) 10%,var(--surface));}
+.dayact.del{--bad:#e0736b;color:var(--bad);border-color:color-mix(in srgb,var(--bad) 34%,var(--line));
+  padding:9px 11px;margin-left:auto;}
+.dayact.del:hover{background:color-mix(in srgb,var(--bad) 12%,var(--surface));
+  border-color:color-mix(in srgb,var(--bad) 65%,var(--line));}
+body.forge .dayact.del{--bad:#f0645a;}
+body.light .dayact.del{--bad:#b1332c;}
 .mk-in{width:100%;box-sizing:border-box;padding:13px 14px;border-radius:11px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:inherit;font-size:15px;}
 .mk-in::placeholder{color:var(--txt3);}
 .mk-in:focus{outline:none;border-color:color-mix(in srgb,var(--go) 55%,var(--line));}
@@ -2745,7 +2763,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.62';
+var APPV='v4.63';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3300,6 +3318,14 @@ function markDayDone(id){
       if(typeof closeMake==='function'&&document.getElementById('make').classList.contains('on'))closeMake();
       renderHome();
     },'Mark '+nm+' done?','MARK IT DONE');
+}
+// Unticking Required is the one direction worth a word: an optional day stops counting towards
+// the week being finished, which is not obvious from a tick going out. Ticking it back on needs
+// no ceremony, so it does not get any.
+function mkReqToggle(v){
+  if(v!=='opt'){mkSetVar(v);return;}
+  ask('An optional day is one you can take or leave. It stops counting towards the week being finished, and the week can complete without it.',
+    function(){mkSetVar('opt');},'Make it optional?','MAKE IT OPTIONAL');
 }
 // Every day on the week done, with something actually on the week to have done.
 function weekAllDone(){
@@ -4367,6 +4393,33 @@ function mkRender(){
      '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
   // Seven weekday chips and an OFF became two: a day is either on the plan or waiting in the
   // bank. Where it sits in the order is set by moving it, not by picking a weekday here.
+  // What you DO with the day, up here under its name, rather than three full-width buttons at the
+  // bottom of a long editor where you had to scroll past everything to reach them. Three small
+  // controls: done for this week, required or not, and gone. Only for a day that already exists -
+  // there is nothing to mark done or delete about one you have not saved yet.
+  if(MK.open){
+    var cv=wkVar(MK.open),e0=wkDefault(MK.open),back=(e0&&e0.v==='rest')?'rest':'';
+    var mdone=!!loggedThisWeek()[MK.open];
+    var mine=!!(DB.custom&&DB.custom[MK.open]);
+    h+='<div class="mk-lbl">This day</div><div class="dayacts">';
+    // Done without logging it. The week should not sit open because the app has no proof.
+    h+='<button class="dayact'+(mdone?' on':'')+'" onclick="'+(mdone?'':'markDayDone(\''+MK.open+'\')')+'">'+
+       '<svg viewBox="0 0 20 20"><path d="M4 10.5l4 4 8-9"/></svg>'+
+       (mdone?'Done this week':'Mark done')+'</button>';
+    // A tick rather than a verb. The day IS required or it is not, which is a state to read at a
+    // glance; "MAKE IT OPTIONAL" made you work out which way round you currently were.
+    h+='<button class="dayact'+(cv==='opt'?'':' on')+'" onclick="mkReqToggle(\''+(cv==='opt'?back:'opt')+'\')">'+
+       '<svg viewBox="0 0 20 20">'+(cv==='opt'
+         ?'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/>'
+         :'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M6.5 10.2l2.6 2.6 4.4-5"/>')+
+       '</svg>Required</button>';
+    if(mine){
+      h+='<button class="dayact del" title="Delete this day" onclick="mkDelete(\''+MK.open+'\')">'+
+         '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg>'+
+         '</button>';
+    }
+    h+='</div>';
+  }
   h+='<div class="mk-lbl">Where it lives</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
   h+='<div class="mk-slot'+(MK.slot?' sel':'')+'" onclick="MK.slot=\'plan\';mkRender()"><b>PLAN</b><small>Up next</small></div>';
   h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>OFF</b><small>'+T.xl+'</small></div>';
@@ -4413,25 +4466,6 @@ function mkRender(){
   // Everything the hold menu used to carry lives down here now, with the rest of the day's
   // settings, where you can see what you are changing. Only for a day that already exists - there
   // is nothing to mark optional or delete about one you have not saved yet.
-  if(MK.open){
-    var cv=wkVar(MK.open),e0=wkDefault(MK.open),back=(e0&&e0.v==='rest')?'rest':'';
-    h+='<div class="mk-lbl" style="margin-top:24px">This day</div>';
-    // Done without logging it. A walk you did not record, a session on someone else's equipment,
-    // a day you simply want out of the way - the week should not be stuck open because the app
-    // has no proof. It writes a sealed log carrying no sets, which is what "done" is made of
-    // here, tagged so history can tell it apart from a session that was actually worked.
-    var mdone=!!loggedThisWeek()[MK.open];
-    h+='<div class="presets" style="grid-template-columns:1fr;margin-bottom:8px">'+
-       '<button class="preset sm'+(mdone?' exed-off':'')+'" onclick="'+(mdone?'':'markDayDone(\''+MK.open+'\')')+'">'+
-       (mdone?'ALREADY DONE THIS WEEK':'MARK DAY AS DONE')+'</button></div>';
-    h+='<div class="presets" style="grid-template-columns:1fr">'+
-       '<button class="preset sm" onclick="mkSetVar(\''+(cv==='opt'?back:'opt')+'\')">'+
-       (cv==='opt'?'MAKE IT REQUIRED':'MAKE IT OPTIONAL')+'</button></div>';
-    if(DB.custom&&DB.custom[MK.open]){
-      h+='<div class="presets" style="grid-template-columns:1fr;margin-top:8px">'+
-         '<button class="preset sm mk-del" onclick="mkDelete(\''+MK.open+'\')">DELETE THIS DAY</button></div>';
-    }
-  }
   document.getElementById('mkBody').innerHTML=h;
 }
 function mkSet(i,j,k,v){
