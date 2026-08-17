@@ -743,6 +743,9 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 /* The day's own three controls. Small and side by side rather than three full-width buttons:
    they are the shape of a toolbar, not of a decision you make one at a time. Delete is the trash
    alone, because a bin needs no label and a destructive control reads better without shouting. */
+.exed-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:5px;}
+.exed-h .dayact.del{margin-left:0;flex:0 0 auto;}
+.dayact.exed-off{opacity:.4;cursor:default;}
 .dayacts{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
 .dayact{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:10px;cursor:pointer;
   border:1px solid var(--line);background:var(--surface);color:var(--txt3);
@@ -1930,7 +1933,15 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 </div>
 <div class="ovl" id="exEditOvl">
   <div class="sheet" style="max-width:420px">
-    <h3 id="exEdName">Exercise</h3>
+    <!-- Name and bin on one line. The bin was a full-width button at the foot of the sheet
+         carrying a sentence, which is a lot of room and a lot of shouting for something you press
+         rarely. It still asks before it removes anything. -->
+    <div class="exed-h">
+      <h3 id="exEdName" style="margin-bottom:0">Exercise</h3>
+      <button class="dayact del" id="exEdRm" title="Remove this exercise" onclick="exEdRemove()">
+        <svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg>
+      </button>
+    </div>
     <div class="sfx-lbl" style="margin-top:2px"><span>Rest</span></div>
     <div class="presets" id="exEdRest" style="grid-template-columns:repeat(4,1fr)"></div>
     <div class="sfx-lbl"><span>Sets</span></div>
@@ -1941,9 +1952,6 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     </div>
     <div class="exed-sub" id="exEdSub"></div>
     <div class="mk-acts" id="exEdGrp" style="margin-top:14px"></div>
-    <div class="mk-acts" style="margin-top:9px">
-      <button class="preset sm" id="exEdRm" onclick="exEdRemove()">Remove this exercise</button>
-    </div>
     <div class="sheet-btns">
       <div class="btn" onclick="closeOvl('exEditOvl')">CANCEL</div>
       <!-- "KEEP IT" never said what it kept it FOR. The pair reads as a question about scope now,
@@ -2776,7 +2784,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.65';
+var APPV='v4.66';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7301,8 +7309,11 @@ function drawExEdit(){
   // Said "Sets logged here, cannot remove", which reads as a rule about the app rather than a
   // fact about today. It is saying you have already done work on this exercise, so taking it off
   // the day would throw that away.
-  rm.textContent=logged?'Already logged today, cannot remove':'Remove this exercise';
-  rm.className='preset sm'+(logged?' exed-off':'');
+  // The bin is an icon now, so what used to be its label becomes the tooltip and the reason it
+  // is dead: work already logged on this exercise today is work removing it would throw away.
+  rm.title=logged?'Already logged today, cannot remove':'Remove this exercise';
+  rm.className='dayact del'+(logged?' exed-off':'');
+  rm.onclick=logged?null:exEdRemove;
 }
 function exEdRest(v){EXED.rest=v;drawExEdit();}
 function exEdSet(d){
