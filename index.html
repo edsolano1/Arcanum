@@ -723,7 +723,10 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .sheet p{font-size:13px;color:var(--txt3);margin-bottom:16px;line-height:1.55;}
 .sheet textarea{width:100%;min-height:230px;background:var(--bg);border:1px solid var(--line);border-radius:11px;color:var(--txt2);font-family:var(--mono);font-size:12px;padding:13px;line-height:1.65;resize:vertical;}
 .sheet-btns{display:flex;gap:8px;margin-top:16px;}
-.sheet-btns .btn{flex:1;text-align:center;padding:13px;}
+/* Centred both ways. The row stretches every button to match the tallest, so as soon as one of
+   them wrapped to two lines - JUST TODAY, EVERY WEEK - the single-line CANCEL beside it kept its
+   text up at the top of a box that had grown underneath it. */
+.sheet-btns .btn{flex:1;text-align:center;padding:13px;display:flex;align-items:center;justify-content:center;}
 .swaplist{max-height:calc(var(--usablevh) * .58);overflow-y:auto;}
 .swaphead{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--go);margin:16px 0 8px;}
 .swapitem{padding:13px 14px;border:1px solid var(--line);border-radius:11px;margin-bottom:7px;font-size:14px;color:var(--txt);cursor:pointer;transition:.15s;}
@@ -2742,7 +2745,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.61';
+var APPV='v4.62';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3277,6 +3280,26 @@ function unsealAll(){
 function doUnseal(){
   DB.logs.forEach(function(l){l.unsealed=1;});
   saveDB();renderHome();
+}
+// Done without a set in it. Marking and skipping are the same act as far as the week is
+// concerned - both say "this one is behind me" - so there is one action rather than two words
+// for the same thing. What it writes is a sealed log with no entries, which is exactly what the
+// week reads to decide a day is finished. Nothing else is disturbed by it: per-exercise history
+// only ever walks entries that have sets in them, so a marked day adds no volume, no reps and no
+// records. The flag is there so history can say which it was rather than showing a session that
+// looks like it went wrong.
+function markDayDone(id){
+  if(!id||!W[id])return;
+  if(loggedThisWeek()[id])return;              // already done this week, nothing to do
+  var nm=W[id].name.replace('Optional: ','');
+  ask('Marks '+nm+' as done for this week without logging any sets. Your history keeps it as a day marked done, not a session.',
+    function(){
+      DB.logs.push({day:id,date:today(),entries:{},note:'',swaps:{},sealed:1,marked:1});
+      delete DB.active[id];
+      saveDB();
+      if(typeof closeMake==='function'&&document.getElementById('make').classList.contains('on'))closeMake();
+      renderHome();
+    },'Mark '+nm+' done?','MARK IT DONE');
 }
 // Every day on the week done, with something actually on the week to have done.
 function weekAllDone(){
@@ -4393,6 +4416,14 @@ function mkRender(){
   if(MK.open){
     var cv=wkVar(MK.open),e0=wkDefault(MK.open),back=(e0&&e0.v==='rest')?'rest':'';
     h+='<div class="mk-lbl" style="margin-top:24px">This day</div>';
+    // Done without logging it. A walk you did not record, a session on someone else's equipment,
+    // a day you simply want out of the way - the week should not be stuck open because the app
+    // has no proof. It writes a sealed log carrying no sets, which is what "done" is made of
+    // here, tagged so history can tell it apart from a session that was actually worked.
+    var mdone=!!loggedThisWeek()[MK.open];
+    h+='<div class="presets" style="grid-template-columns:1fr;margin-bottom:8px">'+
+       '<button class="preset sm'+(mdone?' exed-off':'')+'" onclick="'+(mdone?'':'markDayDone(\''+MK.open+'\')')+'">'+
+       (mdone?'ALREADY DONE THIS WEEK':'MARK DAY AS DONE')+'</button></div>';
     h+='<div class="presets" style="grid-template-columns:1fr">'+
        '<button class="preset sm" onclick="mkSetVar(\''+(cv==='opt'?back:'opt')+'\')">'+
        (cv==='opt'?'MAKE IT REQUIRED':'MAKE IT OPTIONAL')+'</button></div>';
@@ -7736,7 +7767,10 @@ var TUT_ALL=[
   {sel:'#weekCards .card[data-base="d1"]',hit:'#weekCards .card[data-base="d1"]',sweep:true,once:true,
    w:'Waiting for Tuesday',nudge:'Not that day. Tuesday is the card in the highlight.',
    when:function(){return document.getElementById('session').classList.contains('on');}},
-  {sel:'#sr-bench-0',hit:'#w-bench-0',ping:'#w-bench-0',once:true,
+  // The whole exercise is lit, not the one row. Lighting a single set row left the grid floating
+  // with no sign of which exercise it belonged to; the ring on the weight still says exactly
+  // where to tap.
+  {sel:'#exc-bench',pad:6,hit:'#w-bench-0',ping:'#w-bench-0',once:true,
    w:'Waiting for the weight',nudge:'Tap the weight in the highlight.',
    when:function(){return tutOn('editOvl');}},
   {sel:'#editOvl .edsheet',pad:10,ovl:'editOvl',hit:'#editOvl .edsheet|#w-bench-0',ping:'#editOvl .btn-go',
@@ -7963,10 +7997,16 @@ function tutGuard(e){
     }
     return;
   }
-  e.preventDefault();e.stopPropagation();
-  // A quiet step is not waiting on anything, so a tap is not a mistake. Still swallowed -
-  // the day is opened by the next step - but without the shake and the correction.
-  if((e.type==='pointerdown'||e.type==='mousedown')&&!st.quiet)tutNudge();
+  // stopPropagation keeps the app's own handlers off it, so nothing opens, drags or starts a
+  // hold. preventDefault is what BLOCKS SCROLLING, so it is now only used on the events that
+  // actually activate something. Stopping it on pointerdown meant a drag to read down the export
+  // sheet went nowhere and shook the card at you for trying - the tour was refusing to let you
+  // look at the thing it had just told you to look at.
+  e.stopPropagation();
+  if(e.type==='click'||e.type==='dblclick'||e.type==='contextmenu')e.preventDefault();
+  // And the shake is only for a step that is WAITING for something. On a step that asks for
+  // nothing, a tap is not a mistake and there is nothing to correct.
+  if((e.type==='pointerdown'||e.type==='mousedown')&&st.when&&!tutRev()&&!st.quiet)tutNudge();
 }
 ['pointerdown','mousedown','touchstart','click','dblclick','contextmenu'].forEach(function(ev){
   document.addEventListener(ev,tutGuard,true);
