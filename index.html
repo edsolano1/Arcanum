@@ -390,10 +390,25 @@ body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
 /* the tagline is the first thing to go: it is the one line up there that says nothing the tour
    has not already said, and it is holding the whole week down the screen */
 body.tut #tagline{display:none;}
-/* The embers were never gone. Forty four of them, rising, measured mid-climb at 0.28 opacity -
-   which on a phone held at arm's length in a lit room is nothing at all. Lifted rather than
-   rebuilt: same count, same motion, just bright enough to see. */
-body.forge .bg-motes i{filter:brightness(1.5) saturate(1.15);}
+/* Measured, finally, instead of guessed at: each ember was rendering 1.5px square at 0.26
+   opacity. Two pixels of a quarter-strength gradient. They were running the whole time and there
+   was nothing there to see, which is why brightening them twice changed nothing - brightness on
+   a two pixel dot is still a two pixel dot.
+   Size is the fix. Four to seven pixels with a real halo around each one, carried at closer to
+   full strength, so a coal reads as a coal. Same forty four, same rise, same drift. */
+body.forge .bg-motes i{
+  width:5px;height:5px;
+  filter:brightness(1.35) saturate(1.1);
+  box-shadow:0 0 7px 2px color-mix(in srgb,var(--gold) 60%,transparent),
+             0 0 16px 5px color-mix(in srgb,#ff6a12 34%,transparent);}
+body.forge .bg-motes i:nth-child(3n){width:7px;height:7px;}
+body.forge .bg-motes i:nth-child(4n){width:4px;height:4px;}
+/* and lifted off the floor of the opacity curve, so the dimmest part of a rise is still visible */
+@keyframes emberrise{
+  0%{transform:translateY(0) scale(.7);opacity:0;}
+  12%{opacity:.85;}
+  70%{opacity:.7;}
+  100%{transform:translateY(-88vh) scale(1.25);opacity:0;}}
 /* The rest pill belongs to a session. On the week board it was a clock floating over a screen
    with nothing to time, and leaving a day mid-rest is not a reason to keep it hovering there.
    The countdown is in the notification shade the whole time, so nothing is lost by it going. */
@@ -2784,7 +2799,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.66';
+var APPV='v4.67';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
