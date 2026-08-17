@@ -38,6 +38,13 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
+  /* Screen height MINUS the system bars. Every scroller inside a sheet was sized in plain vh,
+     which in the app counts the strip behind the status bar and the strip behind the gesture bar
+     as usable space - the viewport is cover-fit, so vh is the whole panel. A list capped at 56vh
+     therefore came out about sixty pixels taller than the room it actually had, and the bottom of
+     the sheet, buttons and all, sat under the gesture bar. Sizing off this instead gives back
+     exactly what the bars take. */
+  --usablevh:calc(100vh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
   --bg:#07080e; --surface:#0e111b; --surface2:#151a28; --line:#242c40;
   --txt:#e9edf6; --txt2:#98a4bd; --txt3:#5f6b84;
   --go:#6fd9ff; --gold:#f0c96b;
@@ -137,7 +144,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .slotrow .sd{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--txt3);width:34px;flex-shrink:0;}
 .slotrow .sn{font-size:13.5px;color:var(--txt);min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .slotrow .sm{font-size:11px;color:var(--txt3);flex-shrink:0;}
-.lvl-list{max-height:46vh;overflow-y:auto;overflow-x:hidden;margin:8px 0 4px;display:flex;flex-direction:column;gap:9px;}
+.lvl-list{max-height:calc(var(--usablevh) * .46);overflow-y:auto;overflow-x:hidden;margin:8px 0 4px;display:flex;flex-direction:column;gap:9px;}
 .lvl-row{border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:var(--surface2);}
 .lvl-n{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:6px;}
 .lvl-d{display:flex;flex-wrap:wrap;gap:5px 15px;white-space:nowrap;font-size:12.5px;color:var(--txt3);font-variant-numeric:tabular-nums;}
@@ -295,7 +302,10 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
    hole's fade. Nothing here may take a transform or a filter or they would stop doing that. */
 #tutHole{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:14px;
   border:1.5px solid var(--go);opacity:0;transition:opacity .25s;}
-#tutHole > i{position:fixed;display:block;background:rgba(4,5,7,.78);pointer-events:none;}
+/* Lighter than it was. At .78 the surroundings went practically black, which is fine when the
+   step points at one control and wrong when it points at one SECTION of a sheet you are meant to
+   be reading the rest of. The ring does the pointing; the scrim only has to say "not this bit". */
+#tutHole > i{position:fixed;display:block;background:rgba(4,5,7,.58);pointer-events:none;}
 #tutHole.on{opacity:1;}
 /* A one-shot entrance: the highlight is planted around the whole viewport and closes onto the
    step's target, so the week is taken in whole before any one day is singled out. Geometry
@@ -348,6 +358,14 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
 .tut-b li::before{content:'';flex:0 0 4px;width:4px;height:4px;border-radius:50%;background:var(--go);margin-top:8px;}
 .tut-b p{margin:9px 0 0;}
 /* the three grades named by their own colours rather than described in a paragraph */
+/* The grade key, at the top of a day. It was a tutorial step, which is the one place it is no
+   use: three colours explained once are three colours forgotten by the tenth session. It sits
+   above the first exercise instead, small enough to read past and there whenever it is wanted. */
+.gradekey{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;
+  margin:0 0 14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;
+  background:color-mix(in srgb,var(--surface) 60%,transparent);}
+.gradekey span{display:inline-flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.04em;color:var(--txt3);}
+.gradekey i{width:9px;height:9px;border-radius:3px;flex:0 0 9px;}
 .tut-g{display:flex;flex-direction:column;gap:7px;margin:3px 0 10px;}
 .tut-g div{display:flex;gap:10px;align-items:center;}
 .tut-g i{flex:0 0 13px;width:13px;height:13px;border-radius:4px;}
@@ -372,6 +390,12 @@ body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
 /* the tagline is the first thing to go: it is the one line up there that says nothing the tour
    has not already said, and it is holding the whole week down the screen */
 body.tut #tagline{display:none;}
+/* The export is the tallest thing the tour stops on: tiles, then the whole session written out.
+   At full size the step was a scroll rather than a look, and a step you have to scroll through
+   is one you skim. Scaled down for the length of the tour it fits in a screen, which is all this
+   step needs - it is showing you that the thing exists and what is in it, not asking you to read
+   the text of a session you just did. */
+body.tut #exportOvl .sheet{transform:scale(.84);transform-origin:50% 0;}
 body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:30px;}
 .tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
   border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
@@ -696,7 +720,7 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .sheet textarea{width:100%;min-height:230px;background:var(--bg);border:1px solid var(--line);border-radius:11px;color:var(--txt2);font-family:var(--mono);font-size:12px;padding:13px;line-height:1.65;resize:vertical;}
 .sheet-btns{display:flex;gap:8px;margin-top:16px;}
 .sheet-btns .btn{flex:1;text-align:center;padding:13px;}
-.swaplist{max-height:58vh;overflow-y:auto;}
+.swaplist{max-height:calc(var(--usablevh) * .58);overflow-y:auto;}
 .swaphead{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--go);margin:16px 0 8px;}
 .swapitem{padding:13px 14px;border:1px solid var(--line);border-radius:11px;margin-bottom:7px;font-size:14px;color:var(--txt);cursor:pointer;transition:.15s;}
 .swapitem:hover{border-color:#3d434a;background:var(--surface2);}
@@ -747,7 +771,7 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .ed-unit{font-size:12px;color:var(--txt3);margin-bottom:18px;}
 .prog-key{display:flex;gap:14px;justify-content:center;font-size:10.5px;color:var(--txt3);margin:10px 0 4px;}
 .prog-key b{font-size:9px;}
-.prog-wrap{max-height:58vh;overflow-y:auto;text-align:left;margin-top:6px;}
+.prog-wrap{max-height:calc(var(--usablevh) * .58);overflow-y:auto;text-align:left;margin-top:6px;}
 .pg-sec{font-size:10px;letter-spacing:.1em;color:var(--txt3);margin:14px 0 6px;}
 .pg-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:10px;margin-bottom:5px;background:var(--surface);}
 .pg-n{flex:1;min-width:0;font-size:12.5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1450,7 +1474,7 @@ body.light #wcover{background:linear-gradient(180deg,#04322f 0%,#021c1b 42%,#010
 .hsegb{padding:7px 12px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);cursor:pointer;background:transparent;transition:.15s;}
 .hsegb:hover{color:var(--txt2);}
 .hsegb.on{background:color-mix(in srgb,var(--go) 16%,transparent);color:var(--go);}
-.hscroll{max-height:56vh;overflow-y:auto;}
+.hscroll{max-height:calc(var(--usablevh) * .56);overflow-y:auto;}
 .hrow{display:flex;align-items:center;gap:11px;padding:12px 13px;border:1px solid var(--line);border-radius:11px;margin-bottom:6px;background:var(--surface);cursor:pointer;transition:.15s;}
 .hrow:hover{border-color:color-mix(in srgb,var(--hc) 45%,var(--line));background:var(--surface2);}
 .hrow-b{flex:1;min-width:0;}
@@ -2701,7 +2725,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.58';
+var APPV='v4.59';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3577,23 +3601,28 @@ function renderHome(){
   syncPumpBtn();
   document.getElementById('weekHint').textContent=MKTXT().hint;
   var fg=FG();
+  // The footer's icons stay with the world; its WORDS go through the generic gate like every
+  // other string. These were the last place still saying "Pieces finished" and "Work measured"
+  // while the rest of the app spoke plainly, because they were written as a straight theme
+  // ternary and never looked at GENERIC.
+  var fgw=fg&&!GENERIC;
   document.getElementById('foot').innerHTML=
     '<div class="footbar">'+
       '<div class="fbtn" onclick="showProgress()">'+(fg
         // stock stacked by thickness on the bench
         ?'<svg viewBox="0 0 20 20"><path d="M2.5 16.5h15M4 16.5V11h3v5.5M8.5 16.5V6.5h3v10M13 16.5V3.5h3v13"/></svg>'
         :'<svg viewBox="0 0 20 20"><path d="M3 16V8M8 16V4M13 16v-6M18 16V6"/></svg>')+
-        (fg?'Work<br>measured':'Progress<br>review')+'</div>'+
+        (fgw?'Work<br>measured':'Progress<br>review')+'</div>'+
       '<div class="fbtn" onclick="showHistory()">'+(fg
         // finished pieces racked in a row
         ?'<svg viewBox="0 0 20 20"><path d="M4 15.5h12l-1 2.5H5zM5.5 11.5h9l-.9 2.6H6.4zM7 7.5h6l-.8 2.6H7.8zM10 2.5v3.6M8.4 4.3L10 2.5l1.6 1.8"/></svg>'
         :'<svg viewBox="0 0 20 20"><path d="M3.5 3.5h13v13h-13zM3.5 7.5h13M7.5 3.5v13"/></svg>')+
-        (fg?'Pieces<br>finished':'Logged<br>sessions')+'</div>'+
+        (fgw?'Pieces<br>finished':'Workouts<br>finished')+'</div>'+
       '<div class="fbtn" onclick="openBackup()">'+(fg
         // ingot going into the crucible
         ?'<svg viewBox="0 0 20 20"><path d="M10 2.5v7M7 7l3 3 3-3M4 12.5h12l-1.5 5h-9z"/></svg>'
         :'<svg viewBox="0 0 20 20"><path d="M10 13V3M6.5 9.5L10 13l3.5-3.5M3.5 15.5h13"/></svg>')+
-        (fg?'Store<br>&amp; recover':'Backup<br>&amp; restore')+'</div>'+
+        (fgw?'Store<br>&amp; recover':'Backup<br>&amp; restore')+'</div>'+
     '</div>'+
     '<div class="unsealbtn'+(Object.keys(loggedThisWeek()).length?'':' idle')+'" onclick="unsealAll()"><svg viewBox="0 0 20 20"><path d="M10 2.5c2.3 2.6 3.4 4.6 3.4 6.3 0 1.6-1.1 2.7-2.3 3.4M10 2.5c-2.3 2.6-3.4 4.6-3.4 6.3 0 2.4 1.5 3.6 3.4 4.6M6.6 13.5c0 2.2 1.5 4 3.4 4s3.4-1.8 3.4-4"/></svg>'+TXT('unsealBtn')+'</div>'+
     '<div style="text-align:center;margin-top:18px;font-size:11px;letter-spacing:.14em;opacity:.32">'+APPNAME()+' '+APPV+'</div>';
@@ -3712,6 +3741,11 @@ function renderSession(){
   stopHold();resetHoldState();
   var wk=CUR,w=W[wk],A=DB.active[wk],html='';
   var canRaise={};levelPlan(wk).forEach(function(p){canRaise[p.id]=1;});
+  // What the colours on a logged set mean, once at the top rather than once in a tutorial.
+  html+='<div class="gradekey">'+
+        '<span><i style="background:var(--gold)"></i>Best ever</span>'+
+        '<span><i style="background:var(--go)"></i>Matched</span>'+
+        '<span><i style="background:var(--txt3)"></i>Under</span></div>';
 
   var lastT=null;
   var blks=edBlocks(wk),ssTot=0,ssI=0;
@@ -7647,7 +7681,15 @@ var TUT_STEPS=[
    block:'input,button,textarea,a,.chk,.hold,.ex-swap,.lvl,.exdrag',
    w:'Waiting for a long press',nudge:'Hold inside the ring. The grip, the arrows and the links are not part of it.',
    when:function(){return tutOn('exEditOvl');}},
-  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
+  // One sheet, three steps. It used to be a single card listing all three things you can change,
+  // which is a list to read rather than three controls to find. The sheet stays lit the whole way
+  // through and the ring walks down it, so each one is pointed at where it actually sits.
+  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEdRest',
+   nudge:'Tap NEXT to carry on.'},
+  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEditOvl .exed-n',
+   nudge:'Tap NEXT to carry on.'},
+  {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEdRm',
+   nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
   // on screen with the links row visible and nothing else competing for the highlight.
   // The spotlight was on the links row alone, which showed a pair of buttons floating with no
@@ -7660,31 +7702,19 @@ var TUT_STEPS=[
    when:function(){return tutOn('exNoteOvl');}},
   {sel:'#exNoteOvl .sheet',pad:10,ovl:'exNoteOvl',top:true,nudge:'Tap NEXT to carry on.',
    act:function(){closeOvl('exNoteOvl');}},
-  // Grading and Finish used to be one step: the card explained gold, matched and under while the
-  // spotlight sat on the Finish button three thousand pixels down the page. Two subjects, one
-  // light, and the light was on neither of them. The grade is shown on the set you actually just
-  // logged, which is carrying it.
-  {sel:'#sr-bench-0',pad:8,quiet:true,nudge:'Tap NEXT when you have had a look.'},
+  // The grading step is gone. Three colours explained once during a tour is three colours nobody
+  // remembers an hour later, so the key lives at the top of the day now, where it is there to be
+  // glanced at on the tenth session as much as the first.
   {sel:'.finish-inline',pad:6,hit:'.finishbtn',ping:'.finishbtn',once:true,sweep:true,
    w:'Waiting for Finish',nudge:'Tap Finish in the highlight.',
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
   {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
-  {sel:'#foot .unsealbtn',pad:6,endRest:1,sweep:true,nudge:'Tap NEXT to carry on.'},
-  // The week itself - which the tour used to walk you past twice without ever saying it could be
-  // rearranged. Logging a set is close to self-evident; that a workout can be dragged onto another
-  // day, and that there is somewhere for the ones with no day at all, is not guessable from
-  // looking. Both quiet on purpose: they point at a GESTURE, and a tour that will not let you out
-  // until you land a drag is a tour that can strand you. The ring carries the eye to the grip.
-  {sel:'#weekCards',pad:6,quiet:true,ping:'#weekCards .card[data-base="d1"] .carddrag',
-   nudge:'Tap NEXT when you have had a look.'},
-  // The rack sits under the week and the tour used to arrive at it instantly, which on a dimmed
-  // screen reads as everything going black rather than as the light moving somewhere. The sweep
-  // opens the highlight around the whole screen and closes it onto the rack, so the eye is
-  // carried down to where it is instead of having to find it again.
-  {sel:'#extraWrap',pad:8,quiet:true,last:true,sweep:true,ping:'#extraCards .card',
-   nudge:'Tap DONE to close the tour.'}
+  // Ends here. Dragging a workout between days and the rack underneath were both steps once, and
+  // both came out: a grip you drag is close enough to self-evident that spending two of sixteen
+  // steps on it costs more attention than it buys.
+  {sel:'#foot .unsealbtn',pad:6,endRest:1,sweep:true,last:true,nudge:'Tap DONE to close the tour.'}
 ];
 function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
 function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e.value)||0:0;}
@@ -7716,15 +7746,14 @@ var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   {t:'Log it',b:'Tap the sigil at the end of the row.'},
   {t:'The rest timer',b:'That set is saved, and the rest started on its own.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
   {t:'Change an exercise',b:'Press and hold the bench, anywhere inside the ring. The grip, the arrows and the links do other things.'},
-  {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only, or keep it so every Tuesday carries the change.</p>'},
+  {t:'Rest between sets',b:'How long the timer runs after each set of this exercise.'},
+  {t:'How many sets',b:'Add or drop a set. The targets underneath follow.'},
+  {t:'On the day, or not',b:'Take the exercise off today entirely.<p>JUST TODAY clears when the day is done. KEEP IT means every Tuesday carries the change.</p>'},
   {t:'Your own notes',b:'Tap Add note on the bench.'},
   {t:'What a note is for',b:'Yours, not the app&rsquo;s. A seat height, a pin number, a cue that keeps your form honest. It stays on that exercise every time it comes round.'},
-  {t:'How a set is graded',b:'The set you just logged is carrying its grade.<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Best ever.</b> Beats anything you have logged</span></div><div><i style="background:var(--go)"></i><span><b>Matched.</b> Equals your best</span></div><div><i style="background:var(--txt3)"></i><span><b>Under.</b> A first attempt, or below your best</span></div></div><p>The ring in the header counts the whole day.</p>'},
   {t:'Finish the day',b:'Tap Finish when the last set is in.'},
   {t:'The export',b:'What you just did, as tiles and as plain text underneath. Save it, send it on, or paste it into a chat. Closing it changes nothing.'},
-  {t:'Completed',b:'A finished day stays completed for the rest of the week.<ul><li>Everything you logged stays in your history</li><li>It comes back around next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'},
-  {t:'Move things around',b:'Drag a workout by the grip on its right edge.<ul><li>Move it inside a day, or onto another one</li><li>A day holds three at most</li><li>Tapping a card opens it, so drag by the grip</li></ul>'},
-  {t:'Days without a home',b:'Workouts with no day wait here. Drag one up onto a day, or drag one down here to take it out of the week. Everything you logged against it stays.'}]};
+  {t:'Completed',b:'A finished day stays completed for the rest of the week.<ul><li>Everything you logged stays in your history</li><li>It comes back around next week</li></ul><p>To go round again early, this button reopens every day at once.</p>'}]};
 function TUTC(){
   var t=curTheme();
   var C={
@@ -7881,7 +7910,7 @@ function tutEnd(){
   TUTON=false;
   document.body.classList.remove('tut');
   tutShift(null);   // put back any sheet the tour pushed down
-  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);
   document.getElementById('tutHole').classList.remove('sweep');
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
@@ -7920,13 +7949,17 @@ function tutGo(i){
   document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
   document.getElementById('tutSkip').textContent=st.last?'Close':'End tour';
-  // A sweep step scrolls INSTANTLY and then sweeps. It used not to scroll at all, on the premise
-  // that everything a sweep points at is already in view - true of the week, and not true of
-  // Finish at the bottom of a long day or the rack under the board. Those swept onto a target
-  // that was still off screen, which on a dimmed display reads as the whole screen going black.
-  // The scroll has to be instant rather than smooth: a smooth one running underneath drags the
-  // target while the highlight is easing onto it, and the hole trails behind it the whole way.
-  if(st.sweep){tutScroll(true);tutSweep();}else tutScroll();
+  // A sweep step TRAVELS to its target and then closes on it. The page scrolls smoothly, the hole
+  // rides along with it because placement runs every frame, and only once it has arrived does the
+  // highlight sweep shut. Jumping there instantly and sweeping in the same breath told you where
+  // the light ended up but never that it had moved, which on a dimmed screen reads as everything
+  // going dark and something new appearing somewhere else. The wait is what makes it a journey
+  // rather than a cut.
+  if(st.sweep){
+    tutScroll();
+    clearTimeout(TUTSW2);
+    TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},380);
+  }else tutScroll();
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
   // down - and a scroll worked out before that happened lands nowhere near the target. The
@@ -7964,15 +7997,14 @@ var TUT_SCENE=[
   function(){tutDay();},
   function(){tutDay();tutRest();},
   function(){tutDay();},
-  function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},
+  function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},   // rest
+  function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},   // sets
+  function(){tutDay();if(!tutOn('exEditOvl'))openExEdit('bench');},   // on the day or not
   function(){tutDay();},                                    // tap Add note - the day, sheets closed
   function(){tutDay();if(!tutOn('exNoteOvl'))openExNote('bench');},   // the note sheet itself
-  function(){tutDay();},                                    // the graded set
   function(){tutDay();},                                    // Finish
   function(){tutWeek();document.getElementById('exportOvl').classList.add('on');},
-  function(){tutWeek();},
-  function(){tutWeek();},                                   // rearranging - the week, sealed day and all
-  function(){tutWeek();}                                    // the rack
+  function(){tutWeek();}                                    // completed
 ];
 function tutHome(){
   tutUnseal();
@@ -8093,7 +8125,7 @@ function tutBox(el,box,p){
 // full-viewport box is planted with transitions off and the placement cache cleared, so the
 // very next frame writes the step's real target with transitions armed and CSS carries it in.
 // Nothing here chooses the target - tutPlace does that, exactly as it always has.
-var TUTSW=null,TUTSC=null;
+var TUTSW=null,TUTSC=null,TUTSW2=null;
 function tutSweep(){
   var hole=document.getElementById('tutHole'),vw=window.innerWidth,vh=window.innerHeight;
   hole.classList.remove('sweep');
