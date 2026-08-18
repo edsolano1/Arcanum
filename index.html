@@ -487,6 +487,18 @@ body:not(:has(#session.on)) #timerPill{display:none;}
    the text of a session you just did. */
 body.tut #exportOvl .sheet{transform:scale(.84);transform-origin:50% 0;}
 body.tut #home{padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:30px;}
+/* The alert control, borrowed into the card. Narrower than the Settings one because it shares a
+   row with its own label and value rather than sitting under a heading. */
+.tut-fine{margin-top:7px;font-size:11.5px;line-height:1.5;color:var(--txt3);}
+.tut-vol{margin-top:12px;gap:10px;}
+.tut-vol .tut-vol-l{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);flex-shrink:0;}
+.tut-vol .slider-num{min-width:44px;font-size:12px;}
+/* NEXT was the same weight as End tour and HEAR IT, so the one button that always moves you on
+   looked like one of three equal choices. It is the primary action of every step it appears on
+   and it now says so - and it says what it DOES, which is how you tell a page turn from the
+   thing itself. */
+.tut-btns .btn-go{padding:13px 20px;font-size:13px;letter-spacing:.1em;font-weight:600;
+  box-shadow:0 0 22px -8px color-mix(in srgb,var(--go) 85%,transparent);}
 .tut-nudge{display:none;margin-top:10px;font-size:12px;line-height:1.5;color:var(--gold);
   border-top:1px solid color-mix(in srgb,var(--gold) 30%,transparent);padding-top:9px;}
 .tut-nudge.on{display:block;}
@@ -2413,6 +2425,16 @@ body.wcon{overflow:hidden;}
   <div class="tut-t" id="tutT"></div>
   <div class="tut-b" id="tutB"></div>
   <div class="tut-nudge" id="tutNudge"></div>
+  <!-- The rest alert is the one setting worth meeting before you need it: the first time it goes
+       off you are in a gym with headphones in, and that is the wrong moment to find out it is
+       too loud. It is the real control - setAlertLvl, the same one Settings calls - so moving it
+       here sticks, and the copy says where to find it again. -->
+  <div class="tut-vol slider-row" id="tutVol" style="display:none">
+    <span class="tut-vol-l">Alert</span>
+    <input type="range" id="tutVolRange" min="0" max="10" step="1"
+      oninput="setAlertLvl(this.value,true)" onchange="setAlertLvl(this.value)">
+    <span class="slider-num num" id="tutVolNum"></span>
+  </div>
   <div class="tut-btns">
     <span class="tut-skip" id="tutSkip" onclick="tutEnd()">End tour</span>
     <span class="tut-wait" id="tutWait" style="display:none"></span>
@@ -3250,7 +3272,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.98';
+var APPV='v4.99';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5509,8 +5531,14 @@ function quenchAnvil(cb){
   function fin(){
     if(done)return;done=true;
     if(raf)cancelAnimationFrame(raf);
-    if(ov&&ov.parentNode)ov.parentNode.removeChild(ov);
+    // Hand over BEFORE tearing the overlay down, and tear it down a frame later. Removing it
+    // first uncovers whatever is behind - the week board - for however long the next screen takes
+    // to paint, which is one frame, and one frame of the old screen between the anvil and the
+    // export is exactly the flash. The export sits at z-index 200 and this overlay at 120, so
+    // opening it first simply covers the anvil and nothing is ever seen underneath either.
     if(cb)cb();
+    var o=ov;ov=null;
+    if(o&&o.parentNode)requestAnimationFrame(function(){if(o.parentNode)o.parentNode.removeChild(o);});
   }
   var reduce=false;
   try{reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
@@ -6418,6 +6446,14 @@ function sfxRestTest(){try{sfxRest();}catch(e){}}
 function drawAlertLvl(){
   var e=document.getElementById('alertLvl');if(!e)return;
   var r=document.getElementById('alertRange'),n=document.getElementById('alertNum');
+  // The tour carries the same control, so both faces of it move together and neither can show a
+  // number the app is not actually set to.
+  var tr=document.getElementById('tutVolRange'),tn=document.getElementById('tutVolNum');
+  if(tr){
+    if(tr.value!=String(ALERT_LVL))tr.value=ALERT_LVL;
+    tr.style.setProperty('--fill',(ALERT_LVL/ALERT_MAX*100)+'%');
+  }
+  if(tn)tn.textContent=alertMuted()?'MUTED':String(ALERT_LVL);
   if(r&&r.value!=String(ALERT_LVL))r.value=ALERT_LVL;
   // WebKit has no ::-moz-range-progress, so the filled part of the track is painted as a hard
   // gradient stop and this is where the stop sits.
@@ -8753,7 +8789,7 @@ var TUT_ALL=[
   // dead control and asking someone to take it in is the wrong lesson. It sits on the two save
   // buttons instead, which is the thing about this sheet worth knowing.
   {sel:'#exEditOvl .sheet',pad:10,ovl:'exEditOvl',top:true,ping:'#exEditOvl .sheet-btns',
-   nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exEditOvl');}},
+   next:'SAVE AND GO ON',nudge:'Tap SAVE AND GO ON to carry on.',act:function(){closeOvl('exEditOvl');}},
   // Your own notes. Placed here because the exercise sheet has just closed, so the day is back
   // on screen with the links row visible and nothing else competing for the highlight.
   // The spotlight was on the links row alone, which showed a pair of buttons floating with no
@@ -8776,7 +8812,7 @@ var TUT_ALL=[
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
-  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
+  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,next:'CLOSE THE LOG',nudge:'Tap CLOSE THE LOG to carry on.',act:function(){closeOvl('exportOvl');}},
   // Two steps, not one. What a completed day LOOKS like and what reopening the week DOES are
   // different facts, and the second only makes sense once you have seen the first.
   {sel:'#weekCards .card[data-base="d1"]',pad:6,sweep:true,
@@ -8814,7 +8850,7 @@ var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   {t:'The set grid',b:'Tap the weight on the first bench set. Every row here is one set: weight, reps, and a sigil to mark it.'},
   {t:'Set the number',b:'Raise it to 150 or more, then tap DONE.'},
   {t:'Log it',b:'Tap the sigil at the end of the row.'},
-  {t:'The rest timer',b:'That set is saved, and the rest started on its own.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul>'},
+  {t:'The rest timer',b:'That set is saved, and the rest started on its own.<ul><li>−15 and +15 nudge it, SKIP cancels it</li><li>It keeps counting with the screen off</li><li>It sounds at zero, but stays silent during this tour</li></ul><p class="tut-fine">Set how loud it lands below. It sticks, and it is in Settings under Alert volume.</p>'},
   {t:'Change an exercise',b:'Press and hold the bench, anywhere inside the ring. The grip, the arrows and the links do other things.'},
   {t:'Rest between sets',b:'How long the timer runs after each set of this exercise.'},
   {t:'How many sets',b:'Add or drop a set. The targets underneath follow.'},
@@ -8870,7 +8906,7 @@ function TUTC(){
       {t:'The set grid',b:'Every row is one set: weight, reps, and a sigil to mark it. Tap the weight on the first bench set.'},
       {t:'Set the number',b:'Tap the number and type it straight in. Raise it to 150 or more, then tap DONE.'},
       {t:'Mark it',b:'Tap the sigil at the end of the row. The set is kept the instant you touch it, and the rest begins on its own.'},
-      {t:'The rest',b:'It begins when a set is kept.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen dark</li><li>Sounds at zero \u2014 silent during this tour</li></ul>'},
+      {t:'The rest',b:'It begins when a set is kept.<ul><li>\u221215 and +15 nudge it, SKIP cancels it</li><li>Keeps counting with the screen dark</li><li>Sounds at zero \u2014 silent during this tour</li></ul><p class="tut-fine">Set how loud it lands below. It sticks, and it lives in Settings under Alert volume.</p>'},
       {t:'Change it on the spot',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the night at all</li></ul><p>Save it for tonight only and it clears when the night is kept. Keep it and every Tuesday carries the change.</p>'},
       {t:'Your own notes',b:'Tap Add note on any exercise to keep what only matters to you - a seat height, a pin number, a cue that holds your form. It stays with the lift every time it comes round.'},
@@ -9045,6 +9081,13 @@ function tutGo(i){
   else{nx.style.display='';wt.style.display='none';nx.textContent=tutLast()?'DONE':'NEXT';}
   document.getElementById('tutBack').style.display=i>0?'':'none';
   document.getElementById('tutSfx').style.display=st.sample?'':'none';
+  var tv=document.getElementById('tutVol');
+  if(tv){tv.style.display=st.sample?'':'none';if(st.sample)drawAlertLvl();}
+  // NEXT says what NEXT does. A step that ends by writing the session out and one that just turns
+  // the page were the same word, so the button never told you whether it was a page turn or the
+  // thing itself - which is the question you are actually asking when you look at it.
+  var nb=document.getElementById('tutNext');
+  if(nb)nb.textContent=st.next||(tutLast()?'DONE':'NEXT');
   document.getElementById('tutSkip').textContent=tutLast()?'Close':'End tour';
   // A sweep step TRAVELS to its target and then closes on it. The page scrolls smoothly, the hole
   // rides along with it because placement runs every frame, and only once it has arrived does the
@@ -9078,24 +9121,21 @@ function tutGo(i){
     // sweep is doing its job. Same code, different amount of week.
     // The hole not being lit yet is the one case that still wants a bloom - that is the tour
     // arriving, and gliding from nothing is a cut.
-    // Gate the bloom on how far the LIGHT actually travels, which is the thing being animated.
-    // The previous gate asked tutScroll whether it had scrolled, and tutScroll says yes to any
-    // move over 50px - so a 52px nudge counted as a journey and the bloom played anyway. That is
-    // why this came back unchanged: on a three card week the target is a hair off centre, the
-    // scroll is tens of pixels, and the highlight blooms across the whole screen to travel none.
-    // Measured here BEFORE the per-frame placement moves the hole onto the new target, so the
-    // rect still describes where the light is coming FROM.
-    var hole=document.getElementById('tutHole'),lit=hole.classList.contains('on');
-    var tel=tutEls(st.sel)[0],travel=Infinity;
-    if(lit&&tel){
-      var hr=hole.getBoundingClientRect(),tr=tel.getBoundingClientRect();
-      travel=Math.abs((hr.top+hr.height/2)-(tr.top+tr.height/2))+
-             Math.abs((hr.left+hr.width/2)-(tr.left+tr.width/2));
-    }
-    if(travel>window.innerHeight*0.25){
-      if(tutScroll(false,PAN))TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
-      else tutSweep();
-    }else{tutGlide();tutScroll();}
+    // The bloom is retired. Three gates were written for it - a step number, then whether
+    // tutScroll had scrolled, then how far the light travelled - and it was reported wrong after
+    // every one of them, because each gate asked a question that could be answered wrong by
+    // ordinary timing. The last one read the hole's own rect, and tutFrame switches the hole OFF
+    // for any frame where the target has no height yet, which is exactly what happens on the
+    // frame a sheet is closing. So the measurement said "arriving from nowhere" and bloomed.
+    // There is no gate that survives this, because the thing being asked is unknowable at the
+    // moment it is asked. What IS knowable: a glide is never wrong. It moves the light from
+    // wherever it is to wherever it goes, at whatever distance, and reads as the same gesture
+    // every time. The journey on a long step is carried by the SCROLL, which still pans, and
+    // that was always the part doing the work - the bloom was decoration on top of it.
+    // tutSweep is left defined and unused rather than deleted; if a step is ever built that
+    // genuinely arrives from nothing, it is there to call.
+    tutGlide();
+    tutScroll(false,PAN);
   }else{tutGlide();tutScroll();}
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
