@@ -50,8 +50,11 @@
   // either setting on its own. Unset falls back to what the device asks for.
   try{
     var mo=localStorage.getItem('arc_motion');
+    // Calm by default, not Full. The drifting ground costs frames on a real phone in real use,
+    // and a first launch should be the good version rather than the showy one. Full is still
+    // there for anyone who wants it, and a device asking for reduced motion still gets Off.
     if(mo!=='full'&&mo!=='calm'&&mo!=='off')
-      mo=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'off':'full';
+      mo=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'off':'calm';
     if(mo!=='full')d.classList.add('mo-'+mo);
   }catch(e){}
   try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);}catch(e){}
@@ -2103,15 +2106,28 @@ body.wcon{overflow:hidden;}
    under you. :root also carries enough specificity to beat the per-theme ground rules above
    without !important, which body.mo-off would tie with and lose on source order alone. */
 
-/* ---- Calm and Off: the particles come off ---- */
+/* ---- Calm and Off: the particles come off, and the GROUND stops ----
+   Calm used to leave the ground drifting and only take the particles. That was the wrong line to
+   draw. Measured on the desk the whole ground came out free - 120Hz, no janky frames - and on the
+   actual phone in actual use it drops frames, which come straight back the moment it is switched
+   off. The bench was wrong or it was measuring the wrong thing; the device is not up for debate.
+   So everything that moves BEHIND the board stops here: the watermark's turn, the light's drift
+   and breath, the forge's own fire, the rings and the storm. Calm is now the default, and the
+   whole ambient idea is shelved rather than deleted - it is three CSS rules away from coming
+   back when there is a reason to believe it is free.
+   What is NOT here is anything on the board itself. Today's ring still turns, the runes and the
+   mark still breathe, a ready day still pulses. Those sit on the content, they are how the app
+   says which day is today, and they are not what the frame counter was complaining about. */
 :root.mo-calm .bg-motes,:root.mo-off .bg-motes{display:none;}
+:root.mo-calm .bg-wm svg,:root.mo-off .bg-wm svg,
+:root.mo-calm .bg-rules,:root.mo-off .bg-rules,
+:root.mo-calm .bg-rules > i,:root.mo-off .bg-rules > i,
+:root.mo-calm .bg-ripple i,:root.mo-off .bg-ripple i,
+:root.mo-calm .bg-wind path,:root.mo-off .bg-wind path,
+:root.mo-calm .bg-light,:root.mo-off .bg-light{animation:none;}
+:root.mo-calm body.forge::before{animation:none;opacity:.94;transform:none;}
 
-/* ---- Off: and now nothing moves ---- */
-:root.mo-off .bg-wm svg,
-:root.mo-off .bg-rules,:root.mo-off .bg-rules > i,
-:root.mo-off .bg-ripple i,
-:root.mo-off .bg-wind path,
-:root.mo-off .bg-light,
+/* ---- Off: and now the board stops too ---- */
 :root.mo-off .card-day::after,
 :root.mo-off .markglow,
 :root.mo-off .dayglow::before,:root.mo-off .dayglow::after,
@@ -3217,7 +3233,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.96';
+var APPV='v4.97';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5533,9 +5549,13 @@ function quenchAnvil(cb){
       g.beginPath();g.arc(m.x,m.y,m.r,0,6.283);g.fill();
     }
     g.globalCompositeOperation='source-over';
-    // the piece itself, cooling
-    g.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(0.10+0.26*glow)+')';
-    piece(0.44);g.fill();
+    // The piece itself, cooling. ONE anvil: this used to fill piece(0.44) - the same outline
+    // shrunk to 44% toward the centre - which put a second, smaller anvil inside the traced one
+    // and read as a shadow of the wrong shape sitting behind it. The fill belongs on the piece
+    // being drawn, at its own size, and it comes up with the trace so it never runs ahead of the
+    // line that is still being walked.
+    g.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+((0.10+0.26*glow)*draw)+')';
+    piece(1);g.fill();
     g.save();
     g.lineJoin='miter';g.lineCap='round';
     g.lineWidth=2.2+3.6*glow;
@@ -6303,9 +6323,9 @@ function setAlertLvl(n,quiet){
 // The class is already on <html> by the time this runs - the head sets it before the first
 // paint - so MOTION reads back from the element rather than from storage a second time, and
 // the two can never disagree about what is on screen.
-var MOTIONS=[['full','Full','The ground as drawn: particles drifting over it, everything moving.'],
-             ['calm','Calm','No particles. The ground and the mark behind the board stay, and still move.'],
-             ['off','Off','The same ground, held still. Taps still answer — sheets, cards and the page turn as they did.']];
+var MOTIONS=[['full','Full','Embers drifting over the ground behind the board. Costs frames on some phones.'],
+             ['calm','Calm','The ground is still. Today’s ring, the runes and the mark still breathe. The default.'],
+             ['off','Off','Nothing moves at all. Taps still answer — sheets, cards and the page turn as they did.']];
 var MOTION=(function(){
   var d=document.documentElement;
   return d.classList.contains('mo-off')?'off':d.classList.contains('mo-calm')?'calm':'full';
@@ -9005,7 +9025,20 @@ function tutGo(i){
     // which is the hiccup. No journey, no wait: the sweep goes now and is the only move the step
     // makes. Which of the two happens depends on the screen, which is why it is asked rather
     // than assumed - the same step travels on one size and does not on another.
+    // No journey, no sweep. The note above got half of it: it removed the dead PAUSE before the
+    // bloom but left the bloom itself, and a bloom is a JOURNEY - the hole opens to the whole
+    // viewport and closes back down. Played when the light is already sitting on or around the
+    // target, that reads as the highlight expanding and shrinking onto the spot it was already
+    // on, which is a stutter rather than a move.
+    // It shows up in the sandbox and not on a real week for a reason that is worth writing down:
+    // the starter week is three cards, so everything the tour points at is already on screen and
+    // tutScroll declines to move. On an eight card week the same steps genuinely travel and the
+    // sweep is doing its job. Same code, different amount of week.
+    // The hole not being lit yet is the one case that still wants a bloom - that is the tour
+    // arriving, and gliding from nothing is a cut.
+    var lit=document.getElementById('tutHole').classList.contains('on');
     if(tutScroll(false,PAN))TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
+    else if(lit)tutGlide();
     else tutSweep();
   }else{tutGlide();tutScroll();}
   // And again once the layout has settled. The board is rebuilt underneath several of these
