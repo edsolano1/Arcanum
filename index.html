@@ -237,8 +237,13 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
   animation:dayspin 4.2s linear infinite;}
 @keyframes dayspin{from{transform:translate(-50%,-50%) rotate(0turn);}to{transform:translate(-50%,-50%) rotate(1turn);}}
 /* Forge runs molten - slower, hotter in the core, and trailing ember behind the head of it. */
+/* The ring is lit the whole way round now. It was a bright head with everything behind it fully
+   transparent, so at any moment about a third of the border carried light and the rest was dark
+   border - which reads as the glow only going part of the way rather than travelling a circuit.
+   The head is unchanged; what follows it is a long ember tail that never quite dies before it
+   meets the head again, so the whole edge is hot and the bright part is what moves. */
 body.forge .daybox.today > .dayglow::before{
-  background:conic-gradient(from 0turn,transparent 0 .02turn,rgba(196,62,10,.45) .06turn,#ff6a12 .11turn,#ff8a1f .14turn,#fff0cd .165turn,#ff8a1f .19turn,rgba(255,90,10,.4) .25turn,transparent .34turn 1turn);
+  background:conic-gradient(from 0turn,rgba(196,62,10,.30) 0 .02turn,rgba(196,62,10,.55) .06turn,#ff6a12 .11turn,#ff8a1f .14turn,#fff0cd .165turn,#ff8a1f .19turn,rgba(255,90,10,.5) .25turn,rgba(196,62,10,.34) .45turn,rgba(160,48,8,.26) .72turn,rgba(196,62,10,.30) 1turn);
   animation-duration:3.4s;}
 body.forge .daybox.today > .dayglow::after{animation-duration:3.4s;opacity:.45;}
 
@@ -2799,7 +2804,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.67';
+var APPV='v4.68';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
