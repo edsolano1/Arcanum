@@ -3208,7 +3208,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.94';
+var APPV='v4.95';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4111,20 +4111,25 @@ var LOGO={
   // and the rotation is negative, which in SVG lifts the handle end and drops the face toward
   // the work. Sparks sit clear of the silhouette, or they are simply not visible.
   body:
-    '<path d="'+ANVIL+'"/>'+
-    // Built with the handle HORIZONTAL and the head's long axis vertical - perpendicular, which
-    // is what makes a hammer read as a hammer - and then the pair is rotated as one unit so the
-    // relationship survives. Rotating them separately, or laying the head along the handle, is
-    // what produced the tapered wedge that looked like a knife stuck in the anvil.
-    '<g transform="rotate(-34 33 16)">'+
-      '<rect x="23" y="4" width="20" height="24" rx="3.5"/>'+
-      '<rect x="41" y="12.6" width="44" height="6.8" rx="3.4"/>'+
+    // The anvil is scaled down and dropped, and that is what makes the rest possible. At its
+    // native size it runs y26-80, which leaves a quarter of the box for a hammer that is meant
+    // to be the other half of the mark - the handle rotated straight off the top edge and was
+    // clipped, which is why it kept coming out stubby. Here the face sits at y38 and the hammer
+    // has everything above it.
+    '<g transform="translate(6 16) scale(.86)"><path d="'+ANVIL+'"/></g>'+
+    // translate-then-rotate, so the position and the angle are separate numbers and moving one
+    // does not silently move the other. Inside the group the handle is HORIZONTAL and the head's
+    // long axis is vertical - perpendicular, which is what makes a hammer read as a hammer
+    // rather than as a widening of its own handle.
+    '<g transform="translate(34 20) rotate(-24)">'+
+      '<rect x="-10" y="-10.5" width="20" height="21" rx="3.5"/>'+
+      '<rect x="9" y="-3.4" width="40" height="6.8" rx="3.4"/>'+
     '</g>'+
-    // Clear of both silhouettes or they are simply not visible - the anvil's top face runs from
-    // y=26 down, and the rotated head covers roughly x18-45, so the sparks go above and outside.
-    '<circle cx="9" cy="21" r="2.1"/>'+
-    '<circle cx="15" cy="11" r="1.5"/>'+
-    '<circle cx="64" cy="13" r="1.8"/>'
+    // Struck sparks, kept clear of both silhouettes - anything drawn inside either is invisible,
+    // which is how two of the first three went missing.
+    '<circle cx="11" cy="27" r="2.2"/>'+
+    '<circle cx="6.5" cy="17" r="1.5"/>'+
+    '<circle cx="62" cy="24" r="1.8"/>'
 };
 // cls and size are the caller's; fill is currentColor so the theme decides the colour.
 function logoSvg(cls,size){
