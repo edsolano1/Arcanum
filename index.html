@@ -2807,7 +2807,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.69';
+var APPV='v4.70';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3507,6 +3507,18 @@ function dismissSplash(){
   if(!SPLASH_ON){
     s.style.display='none';
     s.style.width='';s.style.height='';
+    // booting is the launch's own state, not a state the app rests in. It holds #bg at zero
+    // opacity so that nothing paints behind four full-screen turning layers, and every exit
+    // from the launch has to hand it back. This exit did not. With the splash switched off
+    // the app took this branch on the very first frame and never reached the line below that
+    // clears it, so the entire ground sat at opacity 0 permanently - the embers, the wind,
+    // the rings, the watermark, the grain and the vignette, all of them drawing correctly
+    // the whole time inside a parent nobody had turned back on.
+    // Three builds went hunting for a fault in the motes. The motes were never the problem,
+    // and no amount of measuring them could have said so: every one of them measured fine.
+    // If a flag ever hides the launch again, it still has to end the launch.
+    document.body.classList.remove('booting');
+    document.documentElement.style.background='';
     document.body.classList.remove('held');
     return;
   }
