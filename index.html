@@ -1651,6 +1651,24 @@ body.forge .storenote{font-family:'Barlow',system-ui,sans-serif;}
 body.forge .side{border-radius:5px;
   box-shadow:inset 0 1px 0 rgba(255,183,120,.14),inset 0 -1px 0 rgba(0,0,0,.45);}
 
+/* ---------- sandbox ---------- */
+#sbxBar{display:none;position:fixed;left:0;right:0;top:0;z-index:150;
+  align-items:center;gap:9px;padding:calc(7px + env(safe-area-inset-top,0px)) 14px 7px;
+  background:color-mix(in srgb,var(--gold) 16%,#120a05);
+  border-bottom:1px solid color-mix(in srgb,var(--gold) 42%,transparent);
+  font-size:11.5px;letter-spacing:.14em;color:var(--gold);}
+body.sbx #sbxBar{display:flex;}
+.sbx-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex:0 0 auto;
+  box-shadow:0 0 8px var(--gold);animation:sbxpulse 2.2s ease-in-out infinite;}
+@keyframes sbxpulse{0%,100%{opacity:.45;}50%{opacity:1;}}
+.sbx-txt{flex:1 1 auto;}
+.sbx-out{flex:0 0 auto;padding:3px 10px;border-radius:6px;cursor:pointer;
+  border:1px solid color-mix(in srgb,var(--gold) 55%,transparent);}
+/* The bar is fixed, so the board has to be pushed out from under it - and the sheets sit above
+   it at z-index 200, which is right: inside a sheet the bar is not the thing you are reading. */
+body.sbx #home{padding-top:calc(52px + env(safe-area-inset-top,0px));}
+@media(prefers-reduced-motion:reduce){.sbx-dot{animation:none;opacity:.85;}}
+
 /* ---------- launch ---------- */
 #splash{position:fixed;left:0;top:0;right:0;bottom:0;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
 #splash.out{pointer-events:none;background:transparent;}
@@ -1844,6 +1862,13 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   <div class="bg-motes"></div>
   <div class="bg-grain"></div>
   <div class="bg-vig"></div>
+</div>
+<!-- Nothing in the sandbox is real, so it says so on the screen the entire time it is open.
+     A demo you can mistake for your own data is worse than no demo. -->
+<div id="sbxBar">
+  <span class="sbx-dot"></span>
+  <span class="sbx-txt">SANDBOX &middot; nothing here is saved</span>
+  <span class="sbx-out" onclick="sbEnd()">LEAVE</span>
 </div>
 <div id="home">
   <div class="brand">
@@ -2131,6 +2156,11 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
       <button class="preset sm" id="tutBtn" onclick="tutStart()">Full tour</button>
     </div>
     <div class="footnote" style="margin-top:8px">The short one covers a day start to finish. The full one adds changing an exercise and keeping your own notes. Both run on sample data and never touch your own logs.</div>
+    <div class="sfx-lbl" style="margin-top:14px"><span>Sandbox</span></div>
+    <div class="presets" style="grid-template-columns:1fr">
+      <button class="preset sm" onclick="sbStart()">Open the sandbox</button>
+    </div>
+    <div class="footnote" style="margin-top:8px">The app as somebody opening it for the first time gets it: an empty week, the first-run prompt, and nothing logged. Build days, add your own exercises, log sets &mdash; none of it is written down, and none of it touches your own week. It starts empty again every time you open it.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -2846,7 +2876,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.77';
+var APPV='v4.78';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2867,7 +2897,7 @@ var saveT=null;
 // the session came back empty and reconcileActive then deleted the stub outright.
 function persistNow(){
   clearTimeout(saveT);saveT=null;
-  if(TUTON)return;   // the tour runs on a swapped-in DB; nothing it does may reach storage
+  if(TUTON||SANDBOX)return;   // both run on a swapped-in DB; nothing they do may reach storage
   try{Store.set(KEY,DB);}catch(e){}
   try{localStorage.setItem(KEY+':bak',JSON.stringify({t:Date.now(),db:DB}));}catch(e){}
 }
@@ -2888,13 +2918,13 @@ function checkVersion(){
   // opened a handful of times a day, not continuously.
   if(Date.now()-VERCHK<60000)return;
   VERCHK=Date.now();
-  if(TUTON||CUR||document.querySelector('.ovl.on'))return;
+  if(TUTON||SANDBOX||CUR||document.querySelector('.ovl.on'))return;
   fetch('./index.html?v='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null;})
     .then(function(t){
       if(!t)return;
       var m=t.match(/var APPV=.([^']+)./);
       if(!m||m[1]===APPV)return;
-      if(TUTON||CUR||document.querySelector('.ovl.on'))return;   // re-checked: the fetch took time
+      if(TUTON||SANDBOX||CUR||document.querySelector('.ovl.on'))return;   // re-checked: the fetch took time
       persistNow();location.reload();
     }).catch(function(){});
 }
@@ -8713,14 +8743,72 @@ function tutScroll(instant,ms){
   }catch(e){}
   return true;
 }
-function tutSeen(){try{localStorage.setItem(KEY+':tut','1');}catch(e){}}
-function tutWasSeen(){try{return !!localStorage.getItem(KEY+':tut');}catch(e){return true;}}
+// The sandbox is a first run every time it opens, and it must not spend the real one: without
+// these two, opening it once would tick the tour off for good on the actual install.
+function tutSeen(){if(SANDBOX)return;try{localStorage.setItem(KEY+':tut','1');}catch(e){}}
+function tutWasSeen(){if(SANDBOX)return false;try{return !!localStorage.getItem(KEY+':tut');}catch(e){return true;}}
 function tutOffer(){
   if(TUTON||tutWasSeen())return;
   if(DB.logs.length||Object.keys(DB.active||{}).length)return;
   tutSeen();
   var C=TUTC();
   ask(C.msg,function(){tutStart(1);},C.ttl,C.yes);   // first run gets the short one
+}
+
+// ---------- sandbox ----------
+// A whole working app with nothing real in it. The tour already proved the shape - swap DB out,
+// put a made-up one in, refuse every write to storage while the flag is up - and the only
+// difference here is that the tour drives you and this does not. Everything works. Nothing is
+// kept.
+// Rebuilt from empty every single time it opens, which is the whole point: it exists to show
+// what somebody who has never opened this app sees, and a sandbox you left half-built two days
+// ago is not that. Leaving it throws the lot away.
+// EX, W, NOREF and GRP are module-level libraries, and mergeCustom only ever ADDS to them - it
+// copies DB.cex and DB.custom in and never takes anything out, because in normal use there is
+// nothing to take out. A sandbox breaks that assumption: an exercise invented in there is not
+// in the real DB, so it would not survive a reload, but until then it would sit in the picker
+// on the real week looking like something you own. The key sets are noted on the way in and
+// anything new is dropped on the way out.
+var SANDBOX=false,SBDB=null,SBKEYS=null;
+function sbSeed(){
+  return {logs:[],days:{},extra:[],active:{},custom:{},slots:{},plan:[],cex:{},
+          up:{},upSkip:{},dayEdit:{},vOvr:{},exNotes:{},walks:[],walkRun:null};
+}
+function sbStart(){
+  if(SANDBOX)return;
+  if(TUTON)tutEnd();
+  closeOvl('settingsOvl');
+  persistNow();                       // last honest write before the real week goes out of reach
+  SBKEYS={ex:Object.keys(EX),w:Object.keys(W)};
+  SBDB=DB;DB=sbSeed();SANDBOX=true;   // set the flag AFTER the swap: persistNow above must land
+  document.body.classList.add('sbx');
+  if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
+  stopTimer();stopHold();resetHoldState();
+  dayMap();                           // the week a fresh install builds for itself
+  mergeCustom();renderHome();window.scrollTo(0,0);
+  tutOffer();                         // and the first-run prompt, because this IS a first run
+}
+function sbEnd(){
+  if(!SANDBOX)return;
+  if(TUTON)tutEnd();                  // a tour inside the sandbox holds the sandbox DB; give it back first
+  SANDBOX=false;
+  document.body.classList.remove('sbx');
+  ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl','exEditOvl','exNoteOvl','exAddOvl','settingsOvl','histOvl','progOvl'].forEach(function(id){
+    if(document.getElementById(id))closeOvl(id);
+  });
+  document.getElementById('session').classList.remove('on');
+  if(document.getElementById('make'))document.getElementById('make').classList.remove('on');
+  CUR=null;stopTimer();stopHold();resetHoldState();
+  DB=SBDB;SBDB=null;
+  if(SBKEYS){
+    var keepEx={},keepW={};
+    SBKEYS.ex.forEach(function(k){keepEx[k]=1;});
+    SBKEYS.w.forEach(function(k){keepW[k]=1;});
+    for(var k in EX)if(!keepEx[k]){delete EX[k];delete NOREF[k];delete GRP[k];}
+    for(var d in W)if(!keepW[d])delete W[d];
+    SBKEYS=null;
+  }
+  mergeCustom();renderHome();window.scrollTo(0,0);
 }
 
 // ---------- boot ----------
