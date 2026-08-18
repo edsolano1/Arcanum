@@ -2846,7 +2846,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.75';
+var APPV='v4.76';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4897,7 +4897,7 @@ function finishSession(){
 // back down the heat scale it actually follows - white to straw to cherry to dull red
 // to cold iron - while steam boils off it. The inverse of Arcanum's ignition, and the
 // right ending for a session that was about shaping something.
-function quenchDiamond(cb){
+function quenchBar(cb){
   var done=false,ov=null,raf=null;
   function fin(){
     if(done)return;done=true;
@@ -4920,14 +4920,38 @@ function quenchDiamond(cb){
   g.scale(dpr,dpr);
   requestAnimationFrame(function(){if(ov)ov.style.background='rgba(8,6,4,0.95)';});
   var cx=W/2,cy=H/2,R=Math.min(W,H)*0.2;
-  var P=[[cx,cy-R],[cx+R,cy],[cx,cy+R],[cx-R,cy]];
+  // A loaded bar, not the old Arcanum diamond. That mark is off every other surface in the app
+  // now and it had no business being the last thing a finished session showed you. Twelve
+  // points: a plate at each end, the bar between them.
+  var PO=1.20,PI=0.85,PH=0.55,BT=0.12;   // plate outer, plate inner, plate half-height, bar half-thick
+  var P=[
+    [cx-R*PO,cy-R*PH],[cx-R*PI,cy-R*PH],[cx-R*PI,cy-R*BT],
+    [cx+R*PI,cy-R*BT],[cx+R*PI,cy-R*PH],[cx+R*PO,cy-R*PH],
+    [cx+R*PO,cy+R*PH],[cx+R*PI,cy+R*PH],[cx+R*PI,cy+R*BT],
+    [cx-R*PI,cy+R*BT],[cx-R*PI,cy+R*PH],[cx-R*PO,cy+R*PH]
+  ];
+  // Walked by LENGTH, not corner to corner. The diamond had four equal sides so stepping by
+  // index was the same thing; a bar has a long shaft and short plate lips, and stepping by
+  // corner would spend as long drawing an eight pixel lip as the whole shaft - the outline
+  // would crawl round the plates and leap the middle, and the steam would bunch at the ends.
+  var SEG=[],PER=0;
+  for(var pi=0;pi<P.length;pi++){
+    var pa=P[pi],pb=P[(pi+1)%P.length];
+    var dd=Math.sqrt((pb[0]-pa[0])*(pb[0]-pa[0])+(pb[1]-pa[1])*(pb[1]-pa[1]));
+    SEG.push(dd);PER+=dd;
+  }
   function ptAt(f){
-    var s=(f%1)*4,i=Math.floor(s)%4,u=s-Math.floor(s),a=P[i],b=P[(i+1)%4];
+    var t=(((f%1)+1)%1)*PER,i=0;
+    while(i<SEG.length-1&&t>SEG[i]){t-=SEG[i];i++;}
+    var a=P[i],b=P[(i+1)%P.length],u=SEG[i]?Math.min(1,t/SEG[i]):0;
     return [a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u];
   }
-  function diamond(k){
+  function piece(k){
     g.beginPath();
-    g.moveTo(cx,cy-R*k);g.lineTo(cx+R*k,cy);g.lineTo(cx,cy+R*k);g.lineTo(cx-R*k,cy);
+    for(var pi=0;pi<P.length;pi++){
+      var x=cx+(P[pi][0]-cx)*k,y=cy+(P[pi][1]-cy)*k;
+      if(pi===0)g.moveTo(x,y);else g.lineTo(x,y);
+    }
     g.closePath();
   }
   // the real colours steel passes through as it loses heat
@@ -4977,14 +5001,14 @@ function quenchDiamond(cb){
     g.globalCompositeOperation='source-over';
     // the piece itself, cooling
     g.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(0.10+0.26*glow)+')';
-    diamond(0.44);g.fill();
+    piece(0.44);g.fill();
     g.save();
     g.lineJoin='miter';g.lineCap='round';
     g.lineWidth=2.2+3.6*glow;
     g.strokeStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(0.62+0.38*glow)+')';
     g.shadowColor='rgba('+c[0]+','+c[1]+','+c[2]+','+(0.75*glow)+')';
     g.shadowBlur=6+52*glow;
-    if(draw>=1){diamond(1);}
+    if(draw>=1){piece(1);}
     else{
       g.beginPath();
       var N=Math.max(2,Math.round(draw*160));
@@ -4997,7 +5021,7 @@ function quenchDiamond(cb){
   raf=requestAnimationFrame(frame);
   setTimeout(fin,DUR+600);
 }
-function sessionSeal(cb){return MW()?waxMoon(cb):FG()?quenchDiamond(cb):igniteDiamond(cb);}
+function sessionSeal(cb){return MW()?waxMoon(cb):FG()?quenchBar(cb):igniteDiamond(cb);}
 // Moonwell's finish is the one gesture the theme is named for: a disc waxes from nothing
 // to full, holds, and floods. The phase is built the way a real one is - a half disc, then
 // an ellipse cut out of it or added back to it as the terminator crosses - so the shape is
@@ -6928,6 +6952,34 @@ function parseRest(t){
   return /min/i.test(t)?Math.round(n*60):Math.round(n);
 }
 var timerEnd=0,restStartedAt=0,skipQuiet=false;
+// The pill used to show GO for four seconds and then take itself away on a blind timer. Four
+// seconds is plenty when you are looking at it and nothing at all when you are in another app,
+// which is exactly when a rest ends - you go and do something else, the alarm fires from
+// Android, and you come back to a screen with no sign a rest ever ran. The countdown to hiding
+// it now only runs while the page is actually being looked at.
+// restTick is the running clock held where the resume handler can reach it: a hidden page has
+// its timers throttled or frozen outright, so a rest that is STILL going comes back with a
+// stale number on it until the next tick. Coming back re-reads the clock at once.
+var restEndedAt=0,restHideT=null,restTick=null;
+function hideRestPill(){
+  clearTimeout(restHideT);restHideT=null;restEndedAt=0;
+  var p=document.getElementById('timerPill');
+  if(p){p.classList.remove('on');p.classList.remove('ring2');}
+  stopFlame();
+}
+// Ten minutes is the point where GO stops being news. Past that you did not step away from a
+// rest, you left - and coming back to a finished countdown from another session is noise.
+function restHideSoon(){
+  clearTimeout(restHideT);
+  if(!restEndedAt)return;
+  if(Date.now()-restEndedAt>600000){hideRestPill();return;}
+  restHideT=setTimeout(hideRestPill,4000);
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible')return;
+  if(restTick&&timerInt)restTick();      // still resting: re-read the clock, do not trust the label
+  else if(restEndedAt)restHideSoon();    // ended while away: the four seconds start now
+});
 // The lift the running rest belongs to, for the line under the countdown in the shade.
 var restExName='';
 function fmtT(ms){var l=Math.max(0,Math.round(ms/1000)),m=Math.floor(l/60),x=l%60;return m+':'+(x<10?'0':'')+x;}
@@ -7237,9 +7289,12 @@ function startTimer(secs,exName){
       if(skipQuiet)clearRestNotif();
       else restAlert();   // posts the notice itself, so it can decide which of the two sounds
       skipQuiet=false;
-      setTimeout(function(){pill.classList.remove('on');pill.classList.remove('ring2');stopFlame();},4000);
+      restEndedAt=Date.now();
+      // Only start counting it out if there is somebody there to see it.
+      if(document.visibilityState==='visible')restHideSoon();
     }
   }
+  restTick=tick;restEndedAt=0;clearTimeout(restHideT);restHideT=null;
   tick();pill.classList.add('on');pill.classList.remove('ring2');
   startRestNotif();
   timerInt=setInterval(tick,250);
@@ -7270,8 +7325,9 @@ function stopTimer(){
   stopRestAlert();
   clearRestNotif();
   stopFlame();
+  restTick=null;restEndedAt=0;clearTimeout(restHideT);restHideT=null;
   var p=document.getElementById('timerPill');
-  p.classList.remove('on');p.classList.remove('ring');
+  p.classList.remove('on');p.classList.remove('ring');p.classList.remove('ring2');
 }
 // ---------- walks ----------
 // A walk is not a set: it has minutes and distance, not weight and reps, and it happens on
