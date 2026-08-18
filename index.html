@@ -892,6 +892,27 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-bh{display:flex;gap:8px;align-items:center;}
 .mk-bt{flex:1;min-width:0;padding:9px 11px;font-size:13px;border-radius:9px;}
 /* What the block is, stated rather than asked for - it took the name box's place in the row */
+/* A run of exercises, drawn as one bracketed group rather than as a box you had to make first.
+   The rows keep their own shape inside it - it is a relationship, not a container. */
+.mk-grp{border:1px solid color-mix(in srgb,var(--go) 34%,var(--line));border-radius:12px;
+  background:color-mix(in srgb,var(--go) 5%,transparent);padding:9px 9px 1px;margin-bottom:11px;}
+.mk-grp-h{display:flex;align-items:center;gap:8px;padding:0 3px 8px;}
+.mk-grp-h span:first-child{flex:1;font-family:var(--mono);font-size:10px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--go);}
+.mk-unlink{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--txt3);
+  cursor:pointer;padding:3px 7px;border-radius:6px;border:1px solid var(--line);}
+.mk-unlink:hover{color:var(--go);border-color:var(--go);}
+.mk-row.ing{background:transparent;}
+/* The offer to run this one with another. Quiet until wanted - it sits beside the name and only
+   shows on an exercise that is not already in a run. */
+.mk-link{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.09em;color:var(--txt3);cursor:pointer;padding:3px 8px;border-radius:6px;
+  border:1px solid var(--line);flex-shrink:0;}
+.mk-link:hover{color:var(--go);border-color:var(--go);}
+.mk-link svg{width:10px;height:10px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;}
+.swapitem.sel{border-color:var(--go);background:color-mix(in srgb,var(--go) 11%,transparent);}
+.swapitem.off{opacity:.4;cursor:default;}
+.mk-tick{color:var(--go);font-size:14px;flex-shrink:0;}
 .mk-bn{flex:1;min-width:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* A choice that is not available yet still shows, so the block reads the same before and after
@@ -2405,6 +2426,20 @@ body.wcon{overflow:hidden;}
   </div>
 </div>
 
+<!-- Running exercises together, from the exercise you are looking at. Multi-select because a
+     circuit is a list, not a pair, and asking twice for a triset is asking twice. -->
+<div class="ovl" id="mkSSOvl">
+  <div class="sheet">
+    <h3 id="mkSSTtl">Run it with</h3>
+    <p>They run back to back, sharing one rest at the end. Pick as many as go round before you are back at the start.</p>
+    <div class="swaplist" id="mkSSList" style="margin-top:12px"></div>
+    <div class="sheet-btns">
+      <div class="btn" onclick="closeOvl('mkSSOvl')">CANCEL</div>
+      <div class="btn btn-go" id="mkSSDone" onclick="mkJoinDone()" style="display:none">SUPERSET THEM</div>
+    </div>
+  </div>
+</div>
+
 <div class="ovl" id="exJoinOvl">
   <div class="sheet">
     <h3>Superset it with</h3>
@@ -3278,7 +3313,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.100';
+var APPV='v4.101';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4858,7 +4893,7 @@ function doSwap(k){
 // removed from DB.custom - history rows look their day up by id long after it left the week.
 // ============================================================
 var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a0','#e0b667','#ff9152','#66718c'];
-var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',blocks:[]};
+var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',rows:[]};
 var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','2-3 min'];
 function MKTXT(){
   // "Work this day again" was the offender: it opens the day EDITOR, and nothing in those three
@@ -5178,18 +5213,27 @@ function openMake(base,editId,blank,want){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
         color:w.color||MK_COLS[0],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
-      blocks:w.sections.map(function(s){
-        return {title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
-          var id=typeof row==='string'?row:row[0];
-          var ov=(typeof row==='string'?null:row[1])||{};
-          var base2=EX[id]||{sets:'0x10',rest:''};
-          var p=mkParse(ov.sets||base2.sets);
-          return {id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,rest:(ov.rest!==undefined?ov.rest:base2.rest)||''};
-        })};
-      })};
+      // Sections flatten into one list. An ss section hands its rows a shared group id, which is
+      // the whole of what "these run together" means now - the box is gone, the relationship
+      // stays, and a day built before this change opens with its supersets intact.
+      rows:(function(){
+        var out=[];
+        w.sections.forEach(function(s,si){
+          var g=s.ss&&s.rows.length>1?('g'+si+'_'+Math.random().toString(36).slice(2,6)):null;
+          s.rows.forEach(function(row){
+            var id=typeof row==='string'?row:row[0];
+            var ov=(typeof row==='string'?null:row[1])||{};
+            var base2=EX[id]||{sets:'0x10',rest:''};
+            var p=mkParse(ov.sets||base2.sets);
+            out.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,
+                      rest:(ov.rest!==undefined?ov.rest:base2.rest)||'',g:g});
+          });
+        });
+        return out;
+      })()};
   }else{
     MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',
-      blocks:[{title:'',ss:false,rows:[]}]};
+      rows:[]};
   }
   document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
   mkRender();
@@ -5202,7 +5246,7 @@ function closeMake(){document.getElementById('make').classList.remove('on');sync
 // ---------- render ----------
 function mkRender(){
   var h='',T=MKTXT();
-  document.getElementById('mkSub').textContent=MK.blocks.reduce(function(a,b){return a+b.rows.reduce(function(x,r){return x+(r.n||0);},0);},0)+' sets';
+  document.getElementById('mkSub').textContent=MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets';
   h+='<div class="mk-lbl">Name</div>'+
      '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
   // Seven weekday chips and an OFF became two: a day is either on the plan or waiting in the
@@ -5261,78 +5305,132 @@ function mkRender(){
        '<svg viewBox="0 0 20 20" style="width:14px;height:14px;position:absolute;left:7px;top:7px;fill:none;stroke:rgba(0,0,0,.55);stroke-width:2;stroke-linecap:round"><path d="M10 5v10M5 10h10"/></svg></label>';
   h+='</div>';
   h+='<div class="mk-lbl">The work</div>';
-  if(!MK.blocks.length)h+='<div class="mk-empty">Nothing here yet. Add a block, then fill it with lifts.</div>';
-  MK.blocks.forEach(function(b,i){
-    h+='<div class="mk-blk">'+
-       '<div class="mk-bh">'+
-         // The name box is gone. It asked you to describe the work - push, pull, whatever - which
-         // is a category the app does nothing with and a decision nobody wants to make while
-         // building a day. The one thing the block genuinely IS gets said by the toggle beside
-         // it, and the title is written from that when the day is saved.
-         '<span class="mk-bn">'+(b.ss?'Superset':'Straight sets')+'</span>'+
-         // Two exercises is what a superset MEANS - back to back with no rest between them - so
-         // one row cannot be one. It was offering the choice anyway and taking it, which produced
-         // a superset of a single machine and no way to see that was wrong.
-         '<div class="btn'+(b.ss?' btn-go':'')+(b.rows.length<2?' mk-off':'')+'" '+
-           'onclick="'+(b.rows.length<2?'mkNote(\'A superset needs two exercises. Add another to this block first.\')':'mkToggleSS('+i+')')+'">'+
-           (b.ss?'SUPERSET':'STRAIGHT')+'</div>'+
-         '<div class="mk-x" onclick="mkDelBlock('+i+')" title="Remove block"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div>'+
-       '</div>';
-    b.rows.forEach(function(r,j){
-      var nm=EX[r.id]?EX[r.id].name:r.id;
-      h+='<div class="mk-row">'+
-         '<div class="mk-rt"><span class="mk-rn">'+mkEsc(nm)+'</span>'+
-           '<div class="mk-x" onclick="mkDelRow('+i+','+j+')" title="Remove"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div></div>'+
-         '<div class="mk-rf">'+
-           '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+','+j+',\'n\',this.value)"></label>'+
-           (r.hold?'':'<label class="mk-f"><span>Weight</span><input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+(r.w||0)+'" oninput="mkSet('+i+','+j+',\'w\',this.value)"></label>')+
-           '<label class="mk-f"><span>'+(r.hold?'Seconds':'Reps')+'</span><input class="mk-num" type="number" inputmode="numeric" value="'+(r.r||0)+'" oninput="mkSet('+i+','+j+',\'r\',this.value)"></label>'+
-           '<label class="mk-f"><span>Count</span><div class="btn" onclick="mkToggleHold('+i+','+j+')">'+(r.hold?'TIME':'REPS')+'</div></label>'+
-           '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkSet('+i+','+j+',\'rest\',this.value)">'+
-             /* a library rest string outside the preset list (e.g. "45 sec after round") keeps
-                its own option, or the select would show "none" while saving something else */
-             (MK_REST.indexOf(r.rest)<0?[r.rest].concat(MK_REST):MK_REST).map(function(v){
-               return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkEsc(v||'none')+'</option>';}).join('')+
-           '</select></label>'+
-         '</div></div>';
-    });
-    h+='<div class="mk-add" onclick="mkPick('+i+')">+ Exercise</div></div>';
+  // ---------- the work: one flat list ----------
+  // Blocks are gone. They were a container you had to create before you could put anything in it,
+  // and the first one arrived pre-made - so the obvious reading was "this is where the exercises
+  // go", and a whole day would land in one block that then claimed to be a single superset.
+  // A block was never a thing anybody wanted to make. What people want is a list of exercises,
+  // and occasionally to say "these two run together".
+  // So: exercises in order, and a group is a RELATIONSHIP between them rather than a box they sit
+  // in. Every builder worth copying works this way. Grouping is applied after the fact, from the
+  // exercise you are looking at, which is also the only moment you know what you want to group.
+  if(!MK.rows.length)h+='<div class="mk-empty">Nothing here yet. Add your first exercise.</div>';
+  MK.rows.forEach(function(r,i){
+    var g=r.g||null, prev=i>0?(MK.rows[i-1].g||null):null, next=i<MK.rows.length-1?(MK.rows[i+1].g||null):null;
+    var head=g&&g!==prev, tail=g&&g!==next;
+    if(head){
+      var n=mkGroupRows(g).length;
+      h+='<div class="mk-grp"><div class="mk-grp-h"><span>'+(n>2?'Circuit':'Superset')+' &middot; '+n+'</span>'+
+         '<span class="mk-unlink" onclick="mkUnlink(\''+g+'\')">UNLINK</span></div>';
+    }
+    var nm=EX[r.id]?EX[r.id].name:r.id;
+    h+='<div class="mk-row'+(g?' ing':'')+'">'+
+       '<div class="mk-rt"><span class="mk-rn">'+mkEsc(nm)+'</span>'+
+         (g?'':'<span class="mk-link" onclick="mkJoin('+i+')" title="Run this with another exercise">'+PLUS+'SUPERSET</span>')+
+         '<div class="mk-x" onclick="mkDelRow('+i+')" title="Remove"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div></div>'+
+       '<div class="mk-rf">'+
+         '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+',\'n\',this.value)"></label>'+
+         (r.hold?'':'<label class="mk-f"><span>Weight</span><input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+(r.w||0)+'" oninput="mkSet('+i+',\'w\',this.value)"></label>')+
+         '<label class="mk-f"><span>'+(r.hold?'Seconds':'Reps')+'</span><input class="mk-num" type="number" inputmode="numeric" value="'+(r.r||0)+'" oninput="mkSet('+i+',\'r\',this.value)"></label>'+
+         '<label class="mk-f"><span>Count</span><div class="btn" onclick="mkToggleHold('+i+')">'+(r.hold?'TIME':'REPS')+'</div></label>'+
+         '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkSet('+i+',\'rest\',this.value)">'+
+           (MK_REST.indexOf(r.rest)<0?[r.rest].concat(MK_REST):MK_REST).map(function(v){
+             return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkEsc(v||'none')+'</option>';}).join('')+
+         '</select></label>'+
+       '</div></div>';
+    if(tail)h+='</div>';
   });
-  h+='<div class="mk-add" onclick="mkAddBlock()">+ Block</div>';
+  h+='<div class="mk-add" onclick="mkPick()">+ Exercise</div>';
   h+='<button class="finishbtn" style="margin-top:20px" onclick="mkSave()">'+(MK.id?'SAVE THIS DAY':T.save)+'</button>';
   // Everything the hold menu used to carry lives down here now, with the rest of the day's
   // settings, where you can see what you are changing. Only for a day that already exists - there
   // is nothing to mark optional or delete about one you have not saved yet.
   document.getElementById('mkBody').innerHTML=h;
 }
-function mkSet(i,j,k,v){
-  var r=MK.blocks[i].rows[j];
+function mkSet(i,k,v){
+  var r=MK.rows[i];if(!r)return;
   if(k==='rest')r.rest=v;
   else if(k==='n')r.n=Math.max(1,Math.min(12,parseInt(v,10)||1));
   else if(k==='w')r.w=parseFloat(v)||0;
   else r.r=parseInt(v,10)||0;
 }
-function mkToggleHold(i,j){var r=MK.blocks[i].rows[j];r.hold=!r.hold;if(r.hold&&r.r<10)r.r=30;mkRender();}
-function mkToggleSS(i){
-  var b=MK.blocks[i];
-  // Guarded here as well as on the button. The button is the thing a finger reaches, but this is
-  // the thing that changes the day, and a rule that only lives in the markup is one refactor away
-  // from not existing.
-  if(!b.ss&&b.rows.length<2){mkNote('A superset needs two exercises. Add another to this block first.');return;}
-  if(!b.ss&&b.rows.length>3){mkNote('A superset holds two or three lifts. This block has '+b.rows.length+'.');return;}
-  b.ss=!b.ss;
-  if(b.title==='Straight sets'&&b.ss)b.title='Superset';
-  else if(b.title==='Superset'&&!b.ss)b.title='Straight sets';
-  mkRender();
+function mkToggleHold(i){var r=MK.rows[i];if(!r)return;r.hold=!r.hold;if(r.hold&&r.r<10)r.r=30;mkRender();}
+// Everything sharing a group id, in the order they sit in the list.
+function mkGroupRows(g){return MK.rows.filter(function(r){return r.g===g;});}
+// A group is only a group while more than one thing is in it. Drop to one and the id goes, or the
+// list would carry a Superset of one - the exact state the old block model kept producing.
+function mkTidyGroups(){
+  var seen={};
+  MK.rows.forEach(function(r){if(r.g)seen[r.g]=(seen[r.g]||0)+1;});
+  MK.rows.forEach(function(r){if(r.g&&seen[r.g]<2)r.g=null;});
 }
-function mkAddBlock(){MK.blocks.push({title:'',ss:false,rows:[]});mkRender();}
-function mkDelBlock(i){MK.blocks.splice(i,1);mkRender();}
-function mkDelRow(i,j){MK.blocks[i].rows.splice(j,1);mkRender();}
+function mkDelRow(i){MK.rows.splice(i,1);mkTidyGroups();mkRender();}
+function mkUnlink(g){MK.rows.forEach(function(r){if(r.g===g)r.g=null;});mkRender();}
+// ---------- running exercises together ----------
+// Three was the old ceiling and it was the wrong shape of limit: a superset is two, a triset is
+// three, and a circuit is however many you can get round before you are back at the start. Six is
+// a real circuit and still a list you can read on a phone.
+var SS_MAX=6;
+var mkJoinI=null,mkJoinSel=null;
+function mkJoin(i){
+  mkJoinI=i;mkJoinSel={};
+  mkJoinList();
+  document.getElementById('mkSSOvl').classList.add('on');
+}
+function mkJoinList(){
+  var a=MK.rows[mkJoinI];if(!a)return;
+  var h='',any=false;
+  MK.rows.forEach(function(r,j){
+    if(j===mkJoinI)return;
+    var nm=EX[r.id]?EX[r.id].name:r.id;
+    // Something already in a group is not offered. Pulling one half of a pair into a new pair
+    // would silently break the old one, and nothing on screen would say it had happened.
+    var taken=!!r.g;
+    any=true;
+    h+='<div class="swapitem'+(mkJoinSel[j]?' sel':'')+(taken?' off':'')+'"'+
+       (taken?'':' onclick="mkJoinToggle('+j+')"')+
+       ' style="display:flex;align-items:center;gap:10px">'+
+       '<span style="flex:1;min-width:0">'+mkEsc(nm)+
+       (taken?'<small>Already running with another</small>':'<small>'+mkEsc(mkLine(r))+'</small>')+'</span>'+
+       (mkJoinSel[j]?'<span class="mk-tick">&#10003;</span>':'')+'</div>';
+  });
+  if(!any)h='<div class="mk-empty">Add another exercise first — there is nothing to run this with yet.</div>';
+  document.getElementById('mkSSList').innerHTML=h;
+  var n=1+Object.keys(mkJoinSel).length;
+  document.getElementById('mkSSTtl').textContent='Run '+(EX[a.id]?EX[a.id].name:a.id)+' with';
+  document.getElementById('mkSSDone').textContent=n>2?('MAKE A CIRCUIT OF '+n):'SUPERSET THEM';
+  document.getElementById('mkSSDone').style.display=Object.keys(mkJoinSel).length?'':'none';
+}
+function mkJoinToggle(j){
+  if(mkJoinSel[j])delete mkJoinSel[j];
+  else{
+    if(1+Object.keys(mkJoinSel).length>=SS_MAX){
+      mkNote('Six is as long as one run gets. Save the rest for the next one.');return;
+    }
+    mkJoinSel[j]=1;
+  }
+  mkJoinList();
+}
+function mkJoinDone(){
+  var picks=Object.keys(mkJoinSel).map(Number).sort(function(x,y){return x-y;});
+  if(!picks.length){closeOvl('mkSSOvl');return;}
+  var a=MK.rows[mkJoinI];
+  var g='g'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36);
+  a.g=g;
+  // Tagging is not enough: a run has to be CONSECUTIVE, because that is the only way sections can
+  // write it down and the only way it reads on the day. The picks are lifted out and put back
+  // directly behind the anchor, keeping the order they were chosen in.
+  var moved=picks.map(function(j){return MK.rows[j];});
+  moved.forEach(function(r){r.g=g;});
+  MK.rows=MK.rows.filter(function(r){return moved.indexOf(r)<0;});
+  var at=MK.rows.indexOf(a);
+  MK.rows.splice.apply(MK.rows,[at+1,0].concat(moved));
+  mkJoinI=null;mkJoinSel=null;
+  closeOvl('mkSSOvl');mkRender();
+}
 
 // ---------- the exercise picker ----------
-var mkPickBlk=null;
-function mkPick(i){
-  mkPickBlk=i;
+function mkPick(){
   document.getElementById('mkSearch').value='';
   mkPickList();
   document.getElementById('mkPickOvl').classList.add('on');
@@ -5361,11 +5459,8 @@ function mkPickList(){
   document.getElementById('mkList').innerHTML=h;
 }
 function mkAddEx(id){
-  var b=MK.blocks[mkPickBlk];
-  if(!b)return;
-  if(b.ss&&b.rows.length>=3){mkNote('A superset holds two or three lifts. Make another block for the rest.');return;}
   var p=mkParse(EX[id].sets);
-  b.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,rest:EX[id].rest||''});
+  MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,rest:EX[id].rest||'',g:null});
   closeOvl('mkPickOvl');mkRender();
 }
 var mkCexId=null;
@@ -5419,7 +5514,7 @@ function mkSaveCex(){
   if(inv)DB.cex[id].inv=1;
   mergeCustom();saveDB();
   closeOvl('mkCexOvl');
-  if(mkPickBlk!=null&&MK.blocks[mkPickBlk])mkAddEx(id);
+  mkAddEx(id);
 }
 
 // ---------- save ----------
@@ -5427,13 +5522,26 @@ function mkBuild(){
   return {
     name:MK.name.trim(),tag:MK.tag||'Yours',color:MK.color,time:MK.time||'~9:00 PM',
     custom:1,made:MK.made||Date.now(),
-    sections:MK.blocks.filter(function(b){return b.rows.length;}).map(function(b){
-      return {title:b.title||(b.ss?'Superset':'Straight sets'),ss:!!b.ss,
-        rows:b.rows.map(function(r){
-          var L=[],i;for(i=0;i<(r.n||1);i++)L.push(mkLine(r));
-          return [r.id,{sets:L.join('\n'),rest:r.rest||''}];
-        })};
-    })
+    // The flat list becomes sections again on the way out, so nothing downstream - the session
+    // grid, the export, the level-up walk - has to learn a new shape. A run of rows sharing a
+    // group id is one ss:true section; everything else is a section of its own. Order in the list
+    // IS order in the day, which is why grouping moves rows together rather than just tagging
+    // them: a superset whose halves are not adjacent cannot be written down.
+    sections:(function(){
+      var out=[],i=0;
+      while(i<MK.rows.length){
+        var g=MK.rows[i].g,run=[MK.rows[i]],j=i+1;
+        if(g){while(j<MK.rows.length&&MK.rows[j].g===g){run.push(MK.rows[j]);j++;}}
+        out.push({title:run.length>1?(run.length>2?'Circuit':'Superset'):'Straight sets',
+          ss:run.length>1,
+          rows:run.map(function(r){
+            var L=[],k;for(k=0;k<(r.n||1);k++)L.push(mkLine(r));
+            return [r.id,{sets:L.join('\n'),rest:r.rest||''}];
+          })});
+        i=j;
+      }
+      return out;
+    })()
   };
 }
 function mkSave(){
