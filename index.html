@@ -309,6 +309,18 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
 
 .daycount{font-size:10px;letter-spacing:.1em;opacity:.75;}
 .dayempty{font-size:12.5px;color:var(--txt3);padding:6px 4px 4px;opacity:.75;}
+/* An empty day is a way in, not a caption. Same dashed language as the New day button so the two
+   read as the same offer in two places. */
+.dayempty.dayadd{display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;
+  color:var(--go);opacity:1;padding:11px 4px;border-radius:10px;
+  border:1px dashed color-mix(in srgb,var(--go) 34%,var(--line));transition:.15s;}
+.dayempty.dayadd:hover{background:color-mix(in srgb,var(--go) 8%,transparent);
+  border-color:color-mix(in srgb,var(--go) 60%,var(--line));}
+.dayempty.dayadd:active{transform:scale(.99);}
+.dayempty.dayadd svg{width:13px;height:13px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;flex-shrink:0;}
+/* a day with no room left still shows, so the grid keeps its shape and you can see WHY */
+.mk-slot.full{opacity:.42;cursor:default;}
+.mk-slot.full:hover{border-color:var(--line);}
 /* Where it will land, and whether it can. */
 .daybox.dropok,#extraCards.dropok{border-color:var(--go);background:color-mix(in srgb,var(--go) 9%,transparent);}
 .daybox.dropfull,#extraCards.dropfull{border-color:var(--bad,#c2554a);background:color-mix(in srgb,#c2554a 10%,transparent);}
@@ -1805,6 +1817,11 @@ body.sbx #sbxBar{display:flex;}
 /* The bar is fixed, so the board has to be pushed out from under it - and the sheets sit above
    it at z-index 200, which is right: inside a sheet the bar is not the thing you are reading. */
 body.sbx #home{padding-top:calc(52px + env(safe-area-inset-top,0px));}
+/* #home was the only thing that made room for the banner. Every other full screen - the day
+   builder, a session - has its own sticky .s-head with the back button in it, and the banner sat
+   straight over the top of it: in the sandbox the only way out of the builder was the phone's own
+   back gesture. The banner is fixed over everything, so everything with a head has to duck. */
+body.sbx .s-head{padding-top:calc(52px + env(safe-area-inset-top,0px));}
 @media(prefers-reduced-motion:reduce){.sbx-dot{animation:none;opacity:.85;}}
 
 /* ---------- launch ---------- */
@@ -3233,7 +3250,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.97';
+var APPV='v4.98';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3769,7 +3786,11 @@ function dayBox(d,nx,n0){
   // No count. How many a day can hold is not something to be reminded of on every day you own -
   // it only matters at the moment you try to exceed it, and it says so then.
   h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span></div>';
-  if(!ids.length)h+='<div class="dayempty">Drag a workout here</div>';
+  // "Drag a workout here" is only an instruction if you HAVE a workout to drag. On a week that
+  // started empty there is nothing on the rack and nothing on the other days, so every day read
+  // as a dead end and the only way in was the New day button at the very bottom of the page -
+  // which is not where somebody looking at an empty Tuesday is looking. It builds into this day.
+  if(!ids.length)h+='<div class="dayempty dayadd" onclick="openNewDay(\''+d.k+'\')">'+PLUS+'Add a workout</div>';
   else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
   return h+'</div>';
 }
@@ -4998,7 +5019,7 @@ var PLUS='<svg viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg>';
 // takes. Same model as holding a card - this just makes it findable.
 // Straight into the editor. There is no weekday left to pick on the way in, and the editor
 // already carries the only choice that remains: on the plan, or in the bank.
-function openNewDay(){openMake(null,null);}
+function openNewDay(k){openMake(null,null,false,k);}
 // Lands in the first day with room. Without a free day there is nowhere to put it, and saying so
 // beats silently dropping it back on the rack.
 function planAdd(id,k){
@@ -5107,13 +5128,22 @@ function mkDelete(id){
 }
 // Reshaping a day starts from the day that is already there. Building from nothing is still
 // available, but it is the rarer thing and no longer the default.
-function openMake(base,editId,blank){
+// want is the weekday this is being built INTO - passed by the Add a workout on an empty day, so
+// the picker opens already pointing at the day you tapped. Falls back to where the day already
+// lives when editing, then to the first weekday with room.
+function mkWantSlot(editId,want){
+  if(want)return want;
+  if(editId)return dayKeyOf(editId)||null;
+  for(var i=0;i<DAYS.length;i++)if(!dayFull(DAYS[i].k))return DAYS[i].k;
+  return null;
+}
+function openMake(base,editId,blank,want){
   var isEdit=!!(editId&&DB.custom[editId]);
   var src=isEdit?DB.custom[editId]:(blank?null:W[effWk(base)]);
   if(src){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
-        color:w.color||MK_COLS[0],slot:(editId?(onPlan(editId)?'plan':null):'plan'),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+        color:w.color||MK_COLS[0],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
       blocks:w.sections.map(function(s){
         return {title:s.title,ss:!!s.ss,rows:s.rows.map(function(row){
           var id=typeof row==='string'?row:row[0];
@@ -5124,7 +5154,7 @@ function openMake(base,editId,blank){
         })};
       })};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:(editId?(onPlan(editId)?'plan':null):'plan'),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',
+    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',
       blocks:[{title:'',ss:false,rows:[]}]};
   }
   document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
@@ -5172,9 +5202,21 @@ function mkRender(){
     }
     h+='</div>';
   }
+  // The weekday chips are BACK. They were collapsed to PLAN/OFF when a day's position was
+  // decided by dragging it into place, and the note that replaced them said so - "where it sits
+  // in the order is set by moving it, not by picking a weekday here". That was true then and is
+  // not now: a weekday is a container that a day is placed INTO, planAdd already takes the key
+  // to place it at, and PLAN meant "first slot with room", which is the app choosing the day for
+  // you and then not telling you which. Seven days and a shelf: eight tiles, two even rows of
+  // four in the grid this already uses.
   h+='<div class="mk-lbl">Where it lives</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
-  h+='<div class="mk-slot'+(MK.slot?' sel':'')+'" onclick="MK.slot=\'plan\';mkRender()"><b>PLAN</b><small>Up next</small></div>';
-  h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>OFF</b><small>'+T.xl+'</small></div>';
+  DAYS.forEach(function(d){
+    var n=(DB.days&&DB.days[d.k]?DB.days[d.k].length:0),full=dayFull(d.k)&&MK.slot!==d.k;
+    h+='<div class="mk-slot'+(MK.slot===d.k?' sel':'')+(full?' full':'')+'" '+
+       'onclick="'+(full?'mkNote(\'That day is full. Move something off it first.\')':'MK.slot=\''+d.k+'\';mkRender()')+'">'+
+       '<b>'+d.n.slice(0,3).toUpperCase()+'</b><small>'+(full?'Full':(n?n+' on it':'Free'))+'</small></div>';
+  });
+  h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>SAVED</b><small>'+T.xl+'</small></div>';
   h+='</div>';
   h+='<div class="mk-lbl">Its color</div><div class="mk-cols">';
   MK_COLS.forEach(function(c){
@@ -5360,7 +5402,7 @@ function mkCommit(){
   DB.custom[id]=mkBuild();
   mergeCustom();
   // Already on a day: leave it where it is rather than moving it for having been edited.
-  if(MK.slot){ if(!onPlan(id))planAdd(id); }
+  if(MK.slot){ planDropSilent(id); planAdd(id,MK.slot); }
   else{ planDropSilent(id);DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id); }
   saveDB();
   try{sfxLog();}catch(e){}
@@ -9036,10 +9078,24 @@ function tutGo(i){
     // sweep is doing its job. Same code, different amount of week.
     // The hole not being lit yet is the one case that still wants a bloom - that is the tour
     // arriving, and gliding from nothing is a cut.
-    var lit=document.getElementById('tutHole').classList.contains('on');
-    if(tutScroll(false,PAN))TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
-    else if(lit)tutGlide();
-    else tutSweep();
+    // Gate the bloom on how far the LIGHT actually travels, which is the thing being animated.
+    // The previous gate asked tutScroll whether it had scrolled, and tutScroll says yes to any
+    // move over 50px - so a 52px nudge counted as a journey and the bloom played anyway. That is
+    // why this came back unchanged: on a three card week the target is a hair off centre, the
+    // scroll is tens of pixels, and the highlight blooms across the whole screen to travel none.
+    // Measured here BEFORE the per-frame placement moves the hole onto the new target, so the
+    // rect still describes where the light is coming FROM.
+    var hole=document.getElementById('tutHole'),lit=hole.classList.contains('on');
+    var tel=tutEls(st.sel)[0],travel=Infinity;
+    if(lit&&tel){
+      var hr=hole.getBoundingClientRect(),tr=tel.getBoundingClientRect();
+      travel=Math.abs((hr.top+hr.height/2)-(tr.top+tr.height/2))+
+             Math.abs((hr.left+hr.width/2)-(tr.left+tr.width/2));
+    }
+    if(travel>window.innerHeight*0.25){
+      if(tutScroll(false,PAN))TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
+      else tutSweep();
+    }else{tutGlide();tutScroll();}
   }else{tutGlide();tutScroll();}
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
