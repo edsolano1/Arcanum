@@ -1756,7 +1756,22 @@ body.sbx #home{padding-top:calc(52px + env(safe-area-inset-top,0px));}
 @media(prefers-reduced-motion:reduce){.sbx-dot{animation:none;opacity:.85;}}
 
 /* ---------- launch ---------- */
-#splash{position:fixed;left:0;top:0;right:0;bottom:0;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
+/* FIFTH answer on this box, and the first one that names what actually moves.
+   Pinned edges were right about the BOX and that is not what bumps. Everything inside the
+   launch is centred, and centring is a halving machine: whatever the box does vertically,
+   the mark does half of it. Android hands the WebView a full-screen viewport, puts the system
+   bars back a moment later, and the window shrinks - which the note further down already had
+   written out. Pin to that window with bottom:0 and the box faithfully follows the shrink, so
+   the mark rises by half of whatever the bars take. Measured in the browser at the two heights:
+   72px off the window moves the mark up 36px. Exactly half, every time.
+   So the fix is not a better pin, it is a height that does not move. This app is cover-fit -
+   see the note on --vh at the top of :root - so vh is the whole panel INCLUDING the strips
+   behind the bars, and it does not change when they land. innerHeight does; vh does not.
+   Centring against the panel instead of against the window gives the mark one position from
+   the first frame, and the bars arriving over the bottom of a box that is flat colour there
+   anyway is not something the eye can see. overflow:hidden stays, so any overshoot is clipped
+   rather than scrolled. */
+#splash{position:fixed;left:0;top:0;right:0;height:100vh;z-index:200;background:#04050a;perspective:1700px;perspective-origin:0% 50%;transition:background-color .4s ease .34s;}
 #splash.out{pointer-events:none;background:transparent;}
 .sp-leaf{position:absolute;inset:0;transform-origin:left center;
   background:linear-gradient(100deg,var(--surface2) 0%,var(--surface) 44%,#0a0c14 100%);
@@ -3028,7 +3043,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.84';
+var APPV='v4.85';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
