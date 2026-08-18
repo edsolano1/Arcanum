@@ -2846,7 +2846,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.76';
+var APPV='v4.77';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3545,21 +3545,23 @@ setTimeout(function(){dismissSplash();},3600);
 // splash ran past the window and over the system bars.
 // So: pin to the viewport, then re-measure a few times while it settles, and only ever GROW.
 // Growing catches the settling. Never shrinking is what stops the stepping the pin was added for.
-var splashLocked=false;
-function fitSplash(){
-  var s=document.getElementById('splash');if(!s||splashGone)return;
-  var w=Math.max(window.innerWidth,document.documentElement.clientWidth||0);
-  var h=Math.max(window.innerHeight,document.documentElement.clientHeight||0);
-  if(w>(parseFloat(s.style.width)||0))s.style.width=w+'px';
-  if(h>(parseFloat(s.style.height)||0))s.style.height=h+'px';
-}
+// FOURTH answer, and the first one that is not JS measuring the window: none of it was needed.
+// #splash is already position:fixed with all four edges pinned, which is a box that IS the
+// viewport, tracked by the browser and updated in the same frame that changes it. Setting an
+// explicit width and height on top of that overrode the two pinned edges and put the sizing
+// back in our hands - and then it had to be corrected five times, at 0, 120, 350, 800 and
+// 1500ms. Every correction relaid the box out and re-centred everything inside it. That
+// stepping IS the stutter, and it always was; grow-only made it smaller, not absent.
+// Grow-only is wrong in one direction besides. Android hands the WebView a full-screen
+// viewport first and puts the system bars back a moment later, so the window SHRINKS after
+// first paint. A box that refuses to shrink then stands taller than the window, the mark
+// centred in it sits below the middle of the screen, and when the launch leaves and the board
+// arrives correctly centred the whole thing appears to jump upward. That is the move up.
+// Pinned edges are short in neither direction and step in neither. The only thing kept from
+// the old version is the overflow clip.
 function lockSplash(){
-  if(splashLocked)return;
-  var s=document.getElementById('splash');if(!s||splashGone)return;
-  splashLocked=true;
+  var s=document.getElementById('splash');if(!s)return;
   s.style.overflow='hidden';
-  fitSplash();
-  [120,350,800,1500].forEach(function(ms){setTimeout(fitSplash,ms);});
 }
 lockSplash();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
@@ -3579,7 +3581,6 @@ function dismissSplash(){
   if(!s)return;
   if(!SPLASH_ON){
     s.style.display='none';
-    s.style.width='';s.style.height='';
     // booting is the launch's own state, not a state the app rests in. It holds #bg at zero
     // opacity so that nothing paints behind four full-screen turning layers, and every exit
     // from the launch has to hand it back. This exit did not. With the splash switched off
@@ -3608,7 +3609,6 @@ function dismissSplash(){
 
   setTimeout(function(){
     s.style.display='none';
-    s.style.width='';s.style.height='';
     document.body.classList.remove('booting');
     document.documentElement.style.background='';
     // only now, with the launch fully off the screen, does the board start arriving - run any
@@ -4897,7 +4897,23 @@ function finishSession(){
 // back down the heat scale it actually follows - white to straw to cherry to dull red
 // to cold iron - while steam boils off it. The inverse of Arcanum's ignition, and the
 // right ending for a session that was about shaping something.
-function quenchBar(cb){
+// Points along the anvil outline, sampled once and kept. A path element is the only thing that
+// can measure its own curves, so one is made offscreen, read, and thrown away.
+var ANVIL_PTS=null;
+function anvilPts(){
+  if(ANVIL_PTS)return ANVIL_PTS;
+  var ns='http://www.w3.org/2000/svg',sv=document.createElementNS(ns,'svg');
+  sv.setAttribute('viewBox','0 0 100 100');
+  sv.style.cssText='position:absolute;left:-9999px;top:0;width:100px;height:100px';
+  var pa=document.createElementNS(ns,'path');
+  pa.setAttribute('d',ANVIL);
+  sv.appendChild(pa);document.body.appendChild(sv);
+  var L=pa.getTotalLength(),out=[];
+  for(var i=0;i<220;i++){var p=pa.getPointAtLength(L*i/220);out.push([p.x,p.y]);}
+  sv.parentNode.removeChild(sv);
+  ANVIL_PTS=out;return out;
+}
+function quenchAnvil(cb){
   var done=false,ov=null,raf=null;
   function fin(){
     if(done)return;done=true;
@@ -4920,37 +4936,22 @@ function quenchBar(cb){
   g.scale(dpr,dpr);
   requestAnimationFrame(function(){if(ov)ov.style.background='rgba(8,6,4,0.95)';});
   var cx=W/2,cy=H/2,R=Math.min(W,H)*0.2;
-  // A loaded bar, not the old Arcanum diamond. That mark is off every other surface in the app
-  // now and it had no business being the last thing a finished session showed you. Twelve
-  // points: a plate at each end, the bar between them.
-  var PO=1.20,PI=0.85,PH=0.55,BT=0.12;   // plate outer, plate inner, plate half-height, bar half-thick
-  var P=[
-    [cx-R*PO,cy-R*PH],[cx-R*PI,cy-R*PH],[cx-R*PI,cy-R*BT],
-    [cx+R*PI,cy-R*BT],[cx+R*PI,cy-R*PH],[cx+R*PO,cy-R*PH],
-    [cx+R*PO,cy+R*PH],[cx+R*PI,cy+R*PH],[cx+R*PI,cy+R*BT],
-    [cx-R*PI,cy+R*BT],[cx-R*PI,cy+R*PH],[cx-R*PO,cy+R*PH]
-  ];
-  // Walked by LENGTH, not corner to corner. The diamond had four equal sides so stepping by
-  // index was the same thing; a bar has a long shaft and short plate lips, and stepping by
-  // corner would spend as long drawing an eight pixel lip as the whole shaft - the outline
-  // would crawl round the plates and leap the middle, and the steam would bunch at the ends.
-  var SEG=[],PER=0;
-  for(var pi=0;pi<P.length;pi++){
-    var pa=P[pi],pb=P[(pi+1)%P.length];
-    var dd=Math.sqrt((pb[0]-pa[0])*(pb[0]-pa[0])+(pb[1]-pa[1])*(pb[1]-pa[1]));
-    SEG.push(dd);PER+=dd;
-  }
+  // The anvil, quenched. Sampled off its own path rather than written out again as points, so
+  // the mark on the icon, in the header, on the set tick and here are all the SAME drawing -
+  // change ANVIL and this follows. getPointAtLength walks by distance, so the outline comes out
+  // already uniform and the steam does not bunch where the corners crowd.
+  var AP=anvilPts(),SC=(2.1*R)/87;
+  var P=AP.map(function(p){return [cx+(p[0]-53.5)*SC,cy+(p[1]-53)*SC];});
   function ptAt(f){
-    var t=(((f%1)+1)%1)*PER,i=0;
-    while(i<SEG.length-1&&t>SEG[i]){t-=SEG[i];i++;}
-    var a=P[i],b=P[(i+1)%P.length],u=SEG[i]?Math.min(1,t/SEG[i]):0;
+    var t=(((f%1)+1)%1)*P.length,i=Math.floor(t)%P.length,u=t-Math.floor(t);
+    var a=P[i],b=P[(i+1)%P.length];
     return [a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u];
   }
   function piece(k){
     g.beginPath();
-    for(var pi=0;pi<P.length;pi++){
-      var x=cx+(P[pi][0]-cx)*k,y=cy+(P[pi][1]-cy)*k;
-      if(pi===0)g.moveTo(x,y);else g.lineTo(x,y);
+    for(var i=0;i<P.length;i++){
+      var x=cx+(P[i][0]-cx)*k,y=cy+(P[i][1]-cy)*k;
+      if(i===0)g.moveTo(x,y);else g.lineTo(x,y);
     }
     g.closePath();
   }
@@ -5021,7 +5022,7 @@ function quenchBar(cb){
   raf=requestAnimationFrame(frame);
   setTimeout(fin,DUR+600);
 }
-function sessionSeal(cb){return MW()?waxMoon(cb):FG()?quenchBar(cb):igniteDiamond(cb);}
+function sessionSeal(cb){return MW()?waxMoon(cb):FG()?quenchAnvil(cb):igniteDiamond(cb);}
 // Moonwell's finish is the one gesture the theme is named for: a disc waxes from nothing
 // to full, holds, and floods. The phase is built the way a real one is - a half disc, then
 // an ellipse cut out of it or added back to it as the terminator crosses - so the shape is
