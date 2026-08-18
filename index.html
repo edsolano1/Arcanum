@@ -3208,7 +3208,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.93';
+var APPV='v4.94';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4112,13 +4112,19 @@ var LOGO={
   // the work. Sparks sit clear of the silhouette, or they are simply not visible.
   body:
     '<path d="'+ANVIL+'"/>'+
-    '<g transform="rotate(-32 44 16)">'+
-      '<rect x="27" y="6.5" width="25" height="15.5" rx="3.2"/>'+
-      '<rect x="50" y="11.2" width="35" height="6.2" rx="3.1"/>'+
+    // Built with the handle HORIZONTAL and the head's long axis vertical - perpendicular, which
+    // is what makes a hammer read as a hammer - and then the pair is rotated as one unit so the
+    // relationship survives. Rotating them separately, or laying the head along the handle, is
+    // what produced the tapered wedge that looked like a knife stuck in the anvil.
+    '<g transform="rotate(-34 33 16)">'+
+      '<rect x="23" y="4" width="20" height="24" rx="3.5"/>'+
+      '<rect x="41" y="12.6" width="44" height="6.8" rx="3.4"/>'+
     '</g>'+
-    '<circle cx="13" cy="23.5" r="2.3"/>'+
-    '<circle cx="21.5" cy="15.5" r="1.7"/>'+
-    '<circle cx="65" cy="17" r="1.8"/>'
+    // Clear of both silhouettes or they are simply not visible - the anvil's top face runs from
+    // y=26 down, and the rotated head covers roughly x18-45, so the sparks go above and outside.
+    '<circle cx="9" cy="21" r="2.1"/>'+
+    '<circle cx="15" cy="11" r="1.5"/>'+
+    '<circle cx="64" cy="13" r="1.8"/>'
 };
 // cls and size are the caller's; fill is currentColor so the theme decides the colour.
 function logoSvg(cls,size){
