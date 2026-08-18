@@ -3208,7 +3208,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.92';
+var APPV='v4.93';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4102,18 +4102,23 @@ var ANVIL='M10 26L74 26C83 26 91 28 97 33C90 38 82 41 70 42L66 42C62 51 60 55 60
 var LOGO={
   id:'anvil-hammer',
   vb:'0 0 100 100',
-  // The hammer is one group rotated as a unit, which is the only way the head and the handle
-  // stay joined if either is ever nudged. Sparks are struck metal, so they sit off the far
-  // edge of the face rather than around the whole mark.
+  // Painter's order matters and got it wrong the first time: the anvil was drawn LAST, so it
+  // covered the hammer head and two of the three sparks, and what was left read as a spike
+  // sticking out of the anvil rather than a hammer about to come down on it. Anvil first, then
+  // everything that is meant to sit in front of it.
+  // The anvil path spans y 26-80, so the hammer lives above 26 or it is inside the anvil. The
+  // head and handle are one rotated group - the only way they stay joined if either is nudged -
+  // and the rotation is negative, which in SVG lifts the handle end and drops the face toward
+  // the work. Sparks sit clear of the silhouette, or they are simply not visible.
   body:
-    '<g transform="rotate(-30 46 24)">'+
-      '<rect x="29" y="14" width="25" height="16" rx="3.4"/>'+
-      '<rect x="52" y="19.2" width="37" height="6.4" rx="3.2"/>'+
+    '<path d="'+ANVIL+'"/>'+
+    '<g transform="rotate(-32 44 16)">'+
+      '<rect x="27" y="6.5" width="25" height="15.5" rx="3.2"/>'+
+      '<rect x="50" y="11.2" width="35" height="6.2" rx="3.1"/>'+
     '</g>'+
-    '<circle cx="15.5" cy="35" r="2.2"/>'+
-    '<circle cx="24" cy="27.5" r="1.7"/>'+
-    '<circle cx="62.5" cy="24" r="1.9"/>'+
-    '<path d="'+ANVIL+'"/>'
+    '<circle cx="13" cy="23.5" r="2.3"/>'+
+    '<circle cx="21.5" cy="15.5" r="1.7"/>'+
+    '<circle cx="65" cy="17" r="1.8"/>'
 };
 // cls and size are the caller's; fill is currentColor so the theme decides the colour.
 function logoSvg(cls,size){
