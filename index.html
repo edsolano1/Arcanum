@@ -2846,7 +2846,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.74';
+var APPV='v4.75';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4237,7 +4237,12 @@ function toggleSet(id,i,rest,unit){
     // you actually just did, which is the one worth reading in the shade.
     if(secs>0)startTimer(secs,(EX[exId]||{}).name);
     try{
-      if(isTop(gr)){sfxPR();vib([40,60,40,60,140]);}
+      // The record cue is for beating something, and the first time you do a lift there is
+      // nothing to have beaten - the grade is first, not pr. It still READS like a best,
+      // gold and flared, because it is the best you have done it; what it stops doing is
+      // sounding like one. A fanfare for turning up is a fanfare that means nothing by the
+      // third exercise of a new program, which is when it fires most.
+      if(gr==='pr'){sfxPR();vib([40,60,40,60,140]);}
       else{sfxLog();vib(35);}
       if(cb){
         cb.classList.remove('flare','pr');void cb.offsetWidth;
