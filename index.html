@@ -1964,6 +1964,47 @@ html.light .sp-word,body.light .sp-word{color:#1c2430;text-shadow:0 1px 0 rgba(2
 html.light .sp-tag,body.light .sp-tag{color:#5b6a7d;}
 html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 
+/* ===== WELCOME ===== the first screen with a question on it.
+   Sits on the app's own ground rather than over a scrim, because there is nothing behind it
+   worth dimming yet - the week underneath is empty by definition at this point. The entrance is
+   opacity and a short rise, staggered down the column so the eye is led from the mark to the
+   two answers rather than being handed the whole screen at once. Nothing here loops: it plays
+   once, on arrival, and then holds still. That is the difference between a moment and a fidget. */
+#welcome{display:none;position:fixed;inset:0;z-index:210;background:var(--bg);
+  padding:calc(28px + env(safe-area-inset-top,0px)) 22px calc(28px + env(safe-area-inset-bottom,0px));
+  overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#welcome.on{display:flex;align-items:center;justify-content:center;}
+/* the week is behind this and must not scroll under it while the question is up */
+body.wcon{overflow:hidden;}
+.wc-in{display:flex;flex-direction:column;align-items:center;width:100%;max-width:340px;text-align:center;}
+#welcome.on .wc-in > *{animation:wcRise .62s cubic-bezier(.22,.72,.3,1) both;}
+#welcome.on .wc-mark{animation-delay:.05s;}
+#welcome.on .wc-rule{animation-delay:.16s;}
+#welcome.on .wc-t{animation-delay:.24s;}
+#welcome.on .wc-s{animation-delay:.34s;}
+#welcome.on .wc-picks{animation-delay:.44s;}
+@keyframes wcRise{from{opacity:0;transform:translateY(11px);}to{opacity:1;transform:none;}}
+.wc-mark{color:var(--gold);filter:drop-shadow(0 0 16px color-mix(in srgb,var(--gold) 45%,transparent));}
+.wc-rule{width:104px;height:1px;margin:19px 0 17px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);}
+.wc-t{font-family:'Big Shoulders Display','Barlow Condensed',var(--sans);font-weight:800;
+  font-size:33px;line-height:1.15;letter-spacing:.13em;text-transform:uppercase;color:var(--txt);}
+.wc-s{margin-top:11px;font-size:13.5px;line-height:1.5;color:var(--txt2);}
+.wc-picks{display:flex;flex-direction:column;gap:11px;width:100%;margin-top:27px;}
+/* Two answers, weighted the same. Neither is the recommended one - somebody walking into a gym
+   either has a plan or wants one handed to them, and the app has no business guessing which. */
+.wc-pick{display:block;width:100%;text-align:left;cursor:pointer;
+  padding:16px 17px;border-radius:13px;border:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(255,150,70,.05),rgba(255,150,70,.01)),var(--surface);
+  color:var(--txt);transition:border-color .16s,background .16s,transform .11s;}
+.wc-pick b{display:block;font-size:15.5px;font-weight:600;letter-spacing:.01em;}
+.wc-pick small{display:block;margin-top:4px;font-size:12px;color:var(--txt3);letter-spacing:.01em;}
+.wc-pick:hover{border-color:color-mix(in srgb,var(--gold) 52%,var(--line));}
+.wc-pick:active{transform:scale(.988);}
+@media(max-width:360px){.wc-t{font-size:28px;}.wc-in{max-width:300px;}}
+/* Motion Off means the screen still arrives, it just arrives already there. */
+:root.mo-off #welcome.on .wc-in > *{animation:none;}
+
 /* ===== MOTION ===== how much of the ground is drawn, and how much of it moves.
 
    Three settings, and they LAYER - each one takes away what the one above it took, and then
@@ -2310,6 +2351,33 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
   </div>
 </div>
 
+<!-- The first real interaction. Deliberately NOT an .ovl: a system-shaped dialog with a title and
+     two grey buttons is what every app does for "are you sure", and using it here made the one
+     moment that should feel made-for-you look like a confirmation prompt.
+     The research is consistent on the shape - one screen, route by intent, do not explain
+     features - so it asks exactly one question and offers exactly two answers. No feature list,
+     no carousel, no progress dots, nothing to dismiss. The gold rule and the framed mark are
+     lifted straight off the launch, so the app the user just watched open is the app that is
+     talking to them. -->
+<div id="welcome" aria-hidden="true">
+  <div class="wc-in">
+    <svg class="wc-mark" width="64" height="64" viewBox="0 0 100 100" fill="none" id="wcMark"></svg>
+    <div class="wc-rule"></div>
+    <h1 class="wc-t">Welcome to the Forge</h1>
+    <p class="wc-s">Where do you want to start?</p>
+    <div class="wc-picks">
+      <button class="wc-pick" onclick="wcPick(0)">
+        <b>I know what I'm building</b>
+        <small>Start with an empty week</small>
+      </button>
+      <button class="wc-pick" onclick="wcPick(1)">
+        <b>Build one for me</b>
+        <small>Start with a week already laid out</small>
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="ovl" id="settingsOvl">
   <div class="sheet" style="max-width:400px">
     <h3>Settings</h3>
@@ -2335,7 +2403,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <!-- TEMPORARY, and it goes as soon as the launch bump is understood. See the launch trace
          note beside lockSplash for what the columns are. -->
     <div class="sfx-lbl" style="margin-top:14px"><span>Launch trace</span></div>
-    <div class="footnote" style="margin:0 2px 6px">ms &middot; window &middot; visual &middot; splash &middot; frame &middot; markTop &mdash; one line per change during the launch. Screenshot this.</div>
+    <div class="footnote" style="margin:0 2px 6px">ms &middot; window &middot; splash &middot; frame &middot; markTop &middot; wordH &middot; flags &mdash; one line per change during the launch. Flags are html.forge / body.forge / fready. Screenshot this.</div>
     <div id="ltrace" style="font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;white-space:pre;overflow-x:auto;margin-bottom:12px"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
@@ -3078,7 +3146,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.88';
+var APPV='v4.89';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3819,14 +3887,23 @@ var LTRACE=[];
   var t0=(window.performance&&performance.now)?performance.now():Date.now(),last='',n=0;
   function row(){
     var s=document.getElementById('splash');
-    var f=s&&s.querySelector('.sp-frame'),m=s&&s.querySelector('.sp-mark');
-    var vv=window.visualViewport;
-    var fr=f?f.getBoundingClientRect():null,mk=m?m.getBoundingClientRect():null;
+    var f=s&&s.querySelector('.sp-frame'),m=s&&s.querySelector('.sp-mark'),
+        w=s&&s.querySelector('.sp-word');
+    var fr=f?f.getBoundingClientRect():null,mk=m?m.getBoundingClientRect():null,
+        wr=w?w.getBoundingClientRect():null;
+    // Which classes have landed, as three bits: html.forge, body.forge, html.fready. The bump
+    // was one of these arriving a paint late and resizing the wordmark under a centred box, so
+    // a height that moves next to a bit that flips names its own cause.
+    var d=document.documentElement,b=document.body;
+    var fl=(d.classList.contains('forge')?'1':'0')+
+           ((b&&b.classList.contains('forge'))?'1':'0')+
+           (d.classList.contains('fready')?'1':'0');
     var v=[Math.round(window.innerHeight),
-           vv?Math.round(vv.height):-1,
            s?Math.round(s.getBoundingClientRect().height):-1,
            fr?Math.round(fr.height):-1,
-           mk?Math.round(mk.top):-1].join(' ');
+           mk?Math.round(mk.top):-1,
+           wr?Math.round(wr.height):-1,
+           fl].join(' ');
     if(v!==last){
       last=v;
       LTRACE.push(Math.round(((window.performance&&performance.now)?performance.now():Date.now())-t0)+' '+v);
@@ -5935,6 +6012,11 @@ function leaveSession(){
 }
 function onBackButton(){
   if(!splashGone){dismissSplash();backGuard();return;}
+  // The welcome is not an .ovl, so back fell straight past it and asked whether to quit - on the
+  // one screen where quitting is the last thing anybody means. It answers with the empty week,
+  // which is the choice that assumes least: nothing is built, and the builder is one tap away.
+  var wc=document.getElementById('welcome');
+  if(wc&&wc.classList.contains('on')){wcPick(0);backGuard();return;}
   var ov=topOvl();
   if(ov){                                  // an open sheet closes first
     if(ov.id==='histOvl'&&HIST.sel!==null){histBack();backGuard();return;}
@@ -9132,12 +9214,23 @@ function tutOffer(){
 // still the first launch and the tour is still worth offering.
 function offerStart(){
   STARTPEND=false;
-  var after=function(){renderHome();window.scrollTo(0,0);setTimeout(tutOffer,600);};
-  ask('Three plain days - push, pull and legs - with the weights left blank for you to fill in as you go. Or start with an empty week and build it yourself.',
-      function(){installStarter();after();},
-      'How do you want to start?','SET IT UP',
-      null,
-      {label:'EMPTY WEEK',fn:after});
+  var w=document.getElementById('welcome');
+  if(!w){installStarter();renderHome();setTimeout(tutOffer,600);return;}   // never strand a first run
+  var m=document.getElementById('wcMark');
+  if(m)m.innerHTML=HEAD_GLYPH[curTheme()]||HEAD_GLYPH.dark;
+  w.setAttribute('aria-hidden','false');
+  w.classList.add('on');
+  document.body.classList.add('wcon');
+}
+// 0 = their own week, 1 = one laid out for them. Both land on the same screen afterwards, and
+// both hand over to the tour offer - whichever they picked, this is still a first launch.
+function wcPick(n){
+  var w=document.getElementById('welcome');
+  if(w){w.classList.remove('on');w.setAttribute('aria-hidden','true');}
+  document.body.classList.remove('wcon');
+  if(n===1)installStarter();
+  renderHome();window.scrollTo(0,0);
+  setTimeout(tutOffer,650);
 }
 
 // ---------- sandbox ----------
