@@ -54,7 +54,16 @@
   --sans:'Inter Tight',system-ui,sans-serif;
   --mono:var(--mono);
 }
-body{font-family:var(--sans);background:var(--bg);color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;}
+/* line-height is here for the same reason it is on the launch wordmark, and it matters more
+   here because it is inherited by everything. line-height:normal asks the FONT how tall a line
+   is, so every line box in the app is a different height before the webfonts land than after.
+   Measured on the week board: each card grew 2px when Barlow arrived and the board grew 21px,
+   with seven card-meta lines carrying most of it. The whole screen reflows under you at
+   whatever moment the font finishes loading, which is the launch bumping.
+   1.2 is what Barlow reports for normal, so the loaded screen is unchanged to the pixel; what
+   changes is that the screen BEFORE it loads is now the same. Anything wanting different
+   spacing already states its own line-height and still wins. */
+body{font-family:var(--sans);line-height:1.2;background:var(--bg);color:var(--txt);min-height:100vh;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased;}
 input,button,textarea{font-family:inherit;}
 /* A long press on a phone is also the browser's own gesture for selecting text and raising
    the callout menu. The sheet opens under the finger mid-gesture, so the selection lands on
@@ -2887,7 +2896,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.79';
+var APPV='v4.80';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
