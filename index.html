@@ -31,6 +31,18 @@
   // meant the splash drew in the default palette and then jumped to the real one.
   try{
     var th=(localStorage.getItem('baseline:theme')||'').replace(/^"|"$/g,'');
+    // THE LAUNCH BUMP, and it lived here the whole time.
+    // Themes are off for this release: boot forces ONE_THEME regardless of what is stored, and
+    // while that is true NOTHING ever writes baseline:theme. So this lookup came back empty on
+    // every launch, the pre-paint apply never ran, and the splash painted in the BASE palette at
+    // the BASE wordmark size - 26px. Boot then added .forge a moment later, the wordmark became
+    // 32px, and the framed box, which sizes to its own text, grew with it. Centred content
+    // halves that: the box moves seven pixels and the mark moves up three and a half.
+    // Measured by the launch trace, on a window that never changed size: frame 296 -> 303 at
+    // 137ms, mark 269 -> 265. Five fixes went looking for this in the viewport. It was a theme
+    // class arriving one paint late.
+    // The fallback has to stay in step with ONE_THEME - there is a note on it saying so.
+    if(!th)th='forge';
     if(th==='light'||th==='forge'||th==='moon')d.classList.add(th);
   }catch(e){}
   // Motion goes on for the same reason and in the same breath as the theme: set it after the
@@ -2320,6 +2332,11 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
     <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
     <div class="presets" id="motionRow"></div>
     <div class="footnote" style="margin-top:8px" id="motionNote"></div>
+    <!-- TEMPORARY, and it goes as soon as the launch bump is understood. See the launch trace
+         note beside lockSplash for what the columns are. -->
+    <div class="sfx-lbl" style="margin-top:14px"><span>Launch trace</span></div>
+    <div class="footnote" style="margin:0 2px 6px">ms &middot; window &middot; visual &middot; splash &middot; frame &middot; markTop &mdash; one line per change during the launch. Screenshot this.</div>
+    <div id="ltrace" style="font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;white-space:pre;overflow-x:auto;margin-bottom:12px"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2886,6 +2903,10 @@ var THEME_BAR={dark:'#08090c',light:'#eef1f4',forge:'#0a0605',moon:'#0b0812'};
 // and the sheet. Turning it back on restores the picker AND whatever theme was last chosen,
 // because the stored choice is never overwritten while this is off - it is simply not read.
 var THEMES_ON=0;
+// Changing this means changing the fallback in the head script too. With THEMES_ON off nothing
+// writes baseline:theme, so the head has no way to learn which world this release is - it
+// hardcodes the answer, and if the two drift apart the splash paints one theme and the app
+// becomes another a frame later. That is what the launch bump was.
 var ONE_THEME='forge';
 var GENERIC=1;
 var GEN_TXT={
@@ -3057,7 +3078,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.87';
+var APPV='v4.88';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3784,6 +3805,42 @@ function lockSplash(){
   s.style.overflow='hidden';
 }
 lockSplash();
+// ---------- launch trace ----------
+// TEMPORARY. Five fixes have gone at the launch bump and every one of them was a theory about
+// what moves; none of them measured it. This measures it. It watches the four numbers that could
+// move the mark - the window, the visual viewport, the splash box and the frame's own height -
+// and writes a line ONLY when one of them changes, so what comes out is a list of events rather
+// than a wall of samples. It reads geometry on an already-running frame and allocates nothing
+// unless something moved, and it stops itself after three seconds.
+// The result is shown in Settings under Launch trace, to be read off the screen in a screenshot.
+// It comes out the moment the bump is understood.
+var LTRACE=[];
+(function(){
+  var t0=(window.performance&&performance.now)?performance.now():Date.now(),last='',n=0;
+  function row(){
+    var s=document.getElementById('splash');
+    var f=s&&s.querySelector('.sp-frame'),m=s&&s.querySelector('.sp-mark');
+    var vv=window.visualViewport;
+    var fr=f?f.getBoundingClientRect():null,mk=m?m.getBoundingClientRect():null;
+    var v=[Math.round(window.innerHeight),
+           vv?Math.round(vv.height):-1,
+           s?Math.round(s.getBoundingClientRect().height):-1,
+           fr?Math.round(fr.height):-1,
+           mk?Math.round(mk.top):-1].join(' ');
+    if(v!==last){
+      last=v;
+      LTRACE.push(Math.round(((window.performance&&performance.now)?performance.now():Date.now())-t0)+' '+v);
+      if(LTRACE.length>24)LTRACE.shift();
+    }
+    // A timer rather than rAF on purpose: rAF does not run while the page is hidden, and the
+    // note in dismissSplash records that a launch can start hidden - opened from a notification,
+    // or restored into the background. That is exactly a launch whose trace we would want.
+    if(++n<190)setTimeout(row,16);
+  }
+  row();
+  ['resize','orientationchange'].forEach(function(e){window.addEventListener(e,row);});
+  if(window.visualViewport){try{window.visualViewport.addEventListener('resize',row);}catch(e){}}
+})();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
@@ -7769,6 +7826,8 @@ function openTimerSheet(){
 function openSettings(){
   initAudio();
   drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();
+  var lt=document.getElementById('ltrace');
+  if(lt)lt.textContent=LTRACE.length?LTRACE.join('\n'):'(nothing moved during the launch)';
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
   // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
@@ -9126,13 +9185,15 @@ function sbStart(){
   document.body.classList.add('sbx');
   if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
   stopTimer();stopHold();resetHoldState();
-  // The starter week, which is what a first run that answers SET IT UP actually gets. Swapping
-  // the library down to what ships was necessary but not sufficient: what ships is still one
-  // person's program, so a sandbox standing on it was still not a stranger's first screen.
-  installStarter();
+  // An empty week and then the SAME question a real first run gets. Installing the starter
+  // outright was the wrong call: it handed the sandbox the answer to the one question a first
+  // run is actually asked, so the screen this exists to show was a screen no new user ever
+  // sees. offerStart hands over to the tour offer itself, exactly as it does on a cold install,
+  // so the whole sequence is reproduced rather than approximated.
+  blankWeek();
   dayMap();
   mergeCustom();renderHome();window.scrollTo(0,0);
-  tutOffer();                         // and the first-run prompt, because this IS a first run
+  offerStart();
 }
 function sbEnd(){
   if(!SANDBOX)return;
