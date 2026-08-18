@@ -1341,6 +1341,20 @@ body.light .bg-wind{display:block;}
 .bg-wm{display:flex;align-items:center;justify-content:center;
   -webkit-mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);
   mask-image:radial-gradient(closest-side,#000 62%,transparent 100%);}
+/* The last full-viewport re-composite per frame, and the one left standing when the paint
+   animations came off in v4.82. The mark turns inside a masked box, so the mask forces the whole
+   box into its own buffer and re-composites it on every frame the mark moves - which is every
+   frame, forever, on every ground. The escape below only fires past 664px, so a folded phone -
+   the common case - pays it the whole time.
+   The mask cannot move onto the turning mark: it is an ELLIPSE, sized to the viewport, and an
+   ellipse rotating with the mark would swing its fade from side to side over the course of a
+   turn. So on Forge it simply comes off. What it was doing here is fading the mark's left and
+   right extremes - and at the 5% opacity Forge draws the mark at, that fade is not something
+   the eye has any way to find. A layer nobody can see the edge of does not need its edge
+   softened, and it certainly does not need a per-frame buffer to soften it.
+   Forge only: themes are shut until v5.0, and the other three keep the mask until their own
+   grounds are looked at again. */
+body.forge .bg-wm{-webkit-mask-image:none;mask-image:none;}
 /* sized to clear the viewport in portrait - clipped at the top edge it stops reading as the
    mark and just looks like a smudge behind the header */
 .bg-wm svg{width:min(76vw,430px);height:min(76vw,430px);color:var(--gold);
@@ -3043,7 +3057,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.85';
+var APPV='v4.86';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3242,6 +3256,15 @@ var NOPAGE={hipraise:1,hang:1,hollow:1,p_hollow:1,stepup:1,chestdr:1,pigeon:1};
 // Shrinking list - every entry here is an exercise still awaiting a looked-up page.
 
 var NOREF={walk:1,stairs:1};   // not exrx exercises; no link beats a wrong one
+// The library exactly as it SHIPS, before a single thing of yours has been merged into it.
+// mergeCustom writes DB.custom and DB.cex straight into W and EX and only ever adds - which is
+// right for the real week and wrong for the sandbox, whose entire job is to show what somebody
+// who has never opened this app sees. Without this, "the app as a first-time user gets it"
+// opened on YOUR days, at YOUR working weights, wearing your own exercises, because the merge
+// had already happened and nothing took it back out. Captured here at parse time: all four
+// libraries are defined above this line and boot cannot have merged anything yet.
+var W0=Object.assign({},W),EX0=Object.assign({},EX),
+    NOREF0=Object.assign({},NOREF),GRP0=Object.assign({},GRP);
 function refLink(id,name){
   var cx=EX[id];
   if(cx&&cx.custom)return cx.link||'';   // your own exercise, your own reference
@@ -9000,17 +9023,33 @@ function tutOffer(){
 // in the real DB, so it would not survive a reload, but until then it would sit in the picker
 // on the real week looking like something you own. The key sets are noted on the way in and
 // anything new is dropped on the way out.
-var SANDBOX=false,SBDB=null,SBKEYS=null;
+var SANDBOX=false,SBDB=null,SBLIB=null;
 function sbSeed(){
   return {logs:[],days:{},extra:[],active:{},custom:{},slots:{},plan:[],cex:{},
           up:{},upSkip:{},dayEdit:{},vOvr:{},exNotes:{},walks:[],walkRun:null};
+}
+// Everything holds W, EX, NOREF and GRP by reference, so the swap has to be a rewrite of the
+// same four objects rather than four new ones. Contents out, contents in.
+function libSwap(to){
+  [[W,to.W],[EX,to.EX],[NOREF,to.NOREF],[GRP,to.GRP]].forEach(function(p){
+    var live=p[0],want=p[1],k;
+    for(k in live)delete live[k];
+    for(k in want)live[k]=want[k];
+  });
 }
 function sbStart(){
   if(SANDBOX)return;
   if(TUTON)tutEnd();
   closeOvl('settingsOvl');
   persistNow();                       // last honest write before the real week goes out of reach
-  SBKEYS={ex:Object.keys(EX),w:Object.keys(W)};
+  // Swapping the DB was only half of it. The libraries carry your merged-in days and exercises
+  // too, and a sandbox standing on those is not a first run - it is your week with the logs
+  // hidden. The whole library goes down to what ships and is put back in full on the way out,
+  // which also covers anything invented inside the sandbox: it was never in the snapshot, so it
+  // cannot survive the restore. That is what the old key-diffing was for, and this subsumes it.
+  SBLIB={W:Object.assign({},W),EX:Object.assign({},EX),
+         NOREF:Object.assign({},NOREF),GRP:Object.assign({},GRP)};
+  libSwap({W:W0,EX:EX0,NOREF:NOREF0,GRP:GRP0});
   SBDB=DB;DB=sbSeed();SANDBOX=true;   // set the flag AFTER the swap: persistNow above must land
   document.body.classList.add('sbx');
   if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
@@ -9031,14 +9070,7 @@ function sbEnd(){
   if(document.getElementById('make'))document.getElementById('make').classList.remove('on');
   CUR=null;stopTimer();stopHold();resetHoldState();
   DB=SBDB;SBDB=null;
-  if(SBKEYS){
-    var keepEx={},keepW={};
-    SBKEYS.ex.forEach(function(k){keepEx[k]=1;});
-    SBKEYS.w.forEach(function(k){keepW[k]=1;});
-    for(var k in EX)if(!keepEx[k]){delete EX[k];delete NOREF[k];delete GRP[k];}
-    for(var d in W)if(!keepW[d])delete W[d];
-    SBKEYS=null;
-  }
+  if(SBLIB){libSwap(SBLIB);SBLIB=null;}   // your library back, whole, exactly as it went in
   mergeCustom();renderHome();window.scrollTo(0,0);
 }
 
