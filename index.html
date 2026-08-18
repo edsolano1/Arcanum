@@ -3313,7 +3313,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.101';
+var APPV='v4.102';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5225,7 +5225,15 @@ function openMake(base,editId,blank,want){
             var ov=(typeof row==='string'?null:row[1])||{};
             var base2=EX[id]||{sets:'0x10',rest:''};
             var p=mkParse(ov.sets||base2.sets);
+            // The set lines are kept VERBATIM alongside the parsed summary. sets is one line per
+            // set and those lines are allowed to differ - eight of the shipped exercises use that,
+            // for descending sets and for a heavier top set - but mkParse only ever read line one
+            // and the count. So opening such a day and saving it rewrote every set to match the
+            // first, and 55x12/55x12/55x10 came back as three twelves. Silent, and on a tenth of
+            // the library. Held here and re-emitted untouched unless the numbers are edited.
+            var raw=String(ov.sets||base2.sets||"").split("\\n");
             out.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,
+                      lines:raw,base:{n:p.n,w:p.w,r:p.r,hold:p.hold},
                       rest:(ov.rest!==undefined?ov.rest:base2.rest)||'',g:g});
           });
         });
@@ -5460,7 +5468,11 @@ function mkPickList(){
 }
 function mkAddEx(id){
   var p=mkParse(EX[id].sets);
-  MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,rest:EX[id].rest||'',g:null});
+  // Same as the load path: an exercise whose library entry varies between sets keeps that when it
+  // is added, rather than being flattened on the way in.
+  MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,
+    lines:String(EX[id].sets||"").split("\\n"),base:{n:p.n,w:p.w,r:p.r,hold:p.hold},
+    rest:EX[id].rest||'',g:null});
   closeOvl('mkPickOvl');mkRender();
 }
 var mkCexId=null;
@@ -5535,7 +5547,13 @@ function mkBuild(){
         out.push({title:run.length>1?(run.length>2?'Circuit':'Superset'):'Straight sets',
           ss:run.length>1,
           rows:run.map(function(r){
-            var L=[],k;for(k=0;k<(r.n||1);k++)L.push(mkLine(r));
+            // Untouched numbers give back exactly what was read; touch any of them and the row is
+            // rewritten from the summary, which is the moment the per-set detail is genuinely gone
+            // because the user has just said what all the sets should be.
+            var b=r.base,keep=b&&r.lines&&r.n===b.n&&r.w===b.w&&r.r===b.r&&!!r.hold===!!b.hold;
+            var L=[],k;
+            if(keep)L=r.lines.slice();
+            else for(k=0;k<(r.n||1);k++)L.push(mkLine(r));
             return [r.id,{sets:L.join('\n'),rest:r.rest||''}];
           })});
         i=j;
