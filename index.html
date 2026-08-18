@@ -1989,6 +1989,12 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
    other three themes still style it and they are shut until v5.0 - untangling their overrides
    is that piece of work, not this one. Nothing renders it: the elements carry hidden. */
 #splash{display:flex;align-items:center;justify-content:center;}
+/* The hidden attribute is display:none in the UA sheet and ANY author display rule beats it -
+   .sp-board carries display:flex, so marking it hidden did nothing at all and the old board went
+   on rendering underneath the new launch. Caught on the phone: the trace was still reporting a
+   298px frame for a thing that was supposed to be gone. Stated with the id so it also outranks
+   the per-theme #splash.out overrides, which are the other place these are switched about. */
+#splash .sp-moon,#splash .sp-leaf,#splash .sp-board{display:none;}
 .lx-in{display:flex;flex-direction:column;align-items:center;text-align:center;
   transition:opacity .34s ease,transform .34s cubic-bezier(.4,0,.6,1);}
 #splash.out .lx-in{opacity:0;transform:scale(1.045);}
@@ -3202,7 +3208,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.91';
+var APPV='v4.92';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3969,8 +3975,11 @@ var LTRACE=[];
   var t0=(window.performance&&performance.now)?performance.now():Date.now(),last='',n=0;
   function row(){
     var s=document.getElementById('splash');
-    var f=s&&s.querySelector('.sp-frame'),m=s&&s.querySelector('.sp-mark'),
-        w=s&&s.querySelector('.sp-word');
+    // The new launch's own elements. These were still pointed at .sp-frame/.sp-mark/.sp-word
+    // after the rebuild, which is how the old board was caught still rendering - but it also
+    // means the columns were describing something the eye was no longer looking at.
+    var f=s&&s.querySelector('.lx-in'),m=s&&s.querySelector('.lx-logo'),
+        w=s&&s.querySelector('.lx-word');
     var fr=f?f.getBoundingClientRect():null,mk=m?m.getBoundingClientRect():null,
         wr=w?w.getBoundingClientRect():null;
     // Which classes have landed, as three bits: html.forge, body.forge, html.fready. The bump
@@ -3996,7 +4005,12 @@ var LTRACE=[];
     // or restored into the background. That is exactly a launch whose trace we would want.
     if(++n<190)setTimeout(row,16);
   }
-  row();
+  // Deferred by a tick rather than called outright. This whole script block is parser-blocking,
+  // so a sample taken partway down it measures a DOM the browser has not painted and never will
+  // - the logo is injected further down the same block, and reading before that showed the
+  // launch growing 76 -> 180 when nothing of the sort reaches the screen. The first sample now
+  // lands after the block, which is the first state that can actually be seen.
+  setTimeout(row,0);
   ['resize','orientationchange'].forEach(function(e){window.addEventListener(e,row);});
   if(window.visualViewport){try{window.visualViewport.addEventListener('resize',row);}catch(e){}}
 })();
