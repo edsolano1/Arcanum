@@ -891,6 +891,12 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-blk{border:1px solid var(--line);border-radius:13px;background:var(--surface);padding:12px 12px 4px;margin-bottom:11px;}
 .mk-bh{display:flex;gap:8px;align-items:center;}
 .mk-bt{flex:1;min-width:0;padding:9px 11px;font-size:13px;border-radius:9px;}
+/* What the block is, stated rather than asked for - it took the name box's place in the row */
+.mk-bn{flex:1;min-width:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* A choice that is not available yet still shows, so the block reads the same before and after
+   the second exercise arrives - it just says so when tapped rather than going quiet */
+.mk-off{opacity:.4;}
 .mk-row{border-top:1px solid var(--line);padding:11px 0 12px;}
 .mk-rt{display:flex;align-items:center;gap:8px;}
 .mk-rn{flex:1;min-width:0;font-size:14.5px;color:var(--txt);}
@@ -2699,7 +2705,7 @@ var EX = {
   hipraise: {bw:1,name:"Parallel Bar Hip Raise",note:"Captain's chair - lift knees to chest, slow descent",sets:"0x15\n0x15\n0x15",rest:""},
   plank:    {name:"Plank",note:"Forearms on floor - brace abs hard before starting",sets:"60 sec\n60 sec\n60 sec",rest:"45 sec after round"},
   dblat:    {name:"DB Lateral Raise",note:"Slight elbow bend, raise to shoulder height, lead with elbows",sets:"17.5x15\n17.5x15\n17.5x15\n17.5x15",rest:"60 sec"},
-  clat:     {name:"Cable Lateral Raise",note:"Single arm, LOWER pulley position (machine lowered - felt way better in the shoulder). All reps one side then switch",sets:"7x12\n7x12\n7x12",rest:"60 sec"},
+  clat:     {name:"Cable Lateral Raise",note:"Single arm, low pulley - all reps one side, then switch",sets:"7x12\n7x12\n7x12",rest:"60 sec"},
   revfly:   {name:"Machine Reverse Fly",note:"Rear delt - face the pad, arms out, pull handles back",sets:"70x15\n70x15\n70x15\n70x15",rest:"60 sec"},
   skull:    {name:"DB Skull Crusher",note:"Lie flat, one DB both hands - lower behind head, press back up",sets:"45x15\n45x15\n45x15",rest:"60 sec"},
   mfly:     {name:"Machine Fly",note:"Pec deck - slight bend in elbows, squeeze at the front",sets:"90x18\n90x18\n90x18",rest:"60 sec"},
@@ -2710,7 +2716,7 @@ var EX = {
   chestdr:  {name:"Chest Doorway Stretch",note:"Arms at 90 degrees against doorframe, lean forward gently",sets:"2 min",rest:""},
   pigeon:   {name:"Pigeon Pose",note:"Front shin parallel to your body, lean forward over it",sets:"90 sec each",rest:""},
   hamstr:   {name:"Hamstring Floor Stretch",note:"Seated, one leg extended - reach toward foot, back flat",sets:"90 sec each",rest:""},
-  stairs:   {name:"Stairmaster (bike if left knee acts up)",note:"Goal 200 calories. Left knee feels off at any point = switch to stationary bike immediately",sets:"200 cal",rest:""}
+  stairs:   {name:"Stairmaster",note:"Steady climbing pace - swap to a stationary bike if anything in the knee complains",sets:"200 cal",rest:""}
 };
 
 // Movement pattern groups - drives "comparable" swaps
@@ -3272,7 +3278,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.99';
+var APPV='v4.100';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4891,7 +4897,13 @@ function mergeCustom(){
 // an exercise lands. The shipped library keeps a generic form cue instead.
 var PERSONAL_NOTES={
   mbench:'Machine jumps in 20 lb increments - 130 or 150 only. Heavy first.',
-  xover:'Handles at shoulder height - horizontal setting 5, vertical setting 4'
+  xover:'Handles at shoulder height - horizontal setting 5, vertical setting 4',
+  // Two more that were still sitting in the shipped library, found by reading it back as a
+  // stranger would: one exercise was NAMED after a particular left knee, and a cable raise
+  // carried somebody's verdict on how it felt in their own shoulder. Neither means anything to
+  // anybody else, and the first was on the card itself rather than buried in a note.
+  stairs:'Bike instead if the left knee acts up - switch the moment it feels off. Goal 200 calories.',
+  clat:'Machine lowered - felt way better in the shoulder than the high pulley'
 };
 var PERSONAL_REST_LABEL='Office day - no gym + optional 200-300 cal cardio';
 var STOCK_DAYS=['rest','d1','d2','d3','d4','pump','opt5','opt6'];
@@ -5253,8 +5265,17 @@ function mkRender(){
   MK.blocks.forEach(function(b,i){
     h+='<div class="mk-blk">'+
        '<div class="mk-bh">'+
-         '<input class="mk-in mk-bt" placeholder="'+(b.ss?'Superset':'Straight sets')+'" value="'+mkEsc(b.title)+'" oninput="MK.blocks['+i+'].title=this.value">'+
-         '<div class="btn'+(b.ss?' btn-go':'')+'" onclick="mkToggleSS('+i+')">'+(b.ss?'SUPERSET':'STRAIGHT')+'</div>'+
+         // The name box is gone. It asked you to describe the work - push, pull, whatever - which
+         // is a category the app does nothing with and a decision nobody wants to make while
+         // building a day. The one thing the block genuinely IS gets said by the toggle beside
+         // it, and the title is written from that when the day is saved.
+         '<span class="mk-bn">'+(b.ss?'Superset':'Straight sets')+'</span>'+
+         // Two exercises is what a superset MEANS - back to back with no rest between them - so
+         // one row cannot be one. It was offering the choice anyway and taking it, which produced
+         // a superset of a single machine and no way to see that was wrong.
+         '<div class="btn'+(b.ss?' btn-go':'')+(b.rows.length<2?' mk-off':'')+'" '+
+           'onclick="'+(b.rows.length<2?'mkNote(\'A superset needs two exercises. Add another to this block first.\')':'mkToggleSS('+i+')')+'">'+
+           (b.ss?'SUPERSET':'STRAIGHT')+'</div>'+
          '<div class="mk-x" onclick="mkDelBlock('+i+')" title="Remove block"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div>'+
        '</div>';
     b.rows.forEach(function(r,j){
@@ -5294,6 +5315,10 @@ function mkSet(i,j,k,v){
 function mkToggleHold(i,j){var r=MK.blocks[i].rows[j];r.hold=!r.hold;if(r.hold&&r.r<10)r.r=30;mkRender();}
 function mkToggleSS(i){
   var b=MK.blocks[i];
+  // Guarded here as well as on the button. The button is the thing a finger reaches, but this is
+  // the thing that changes the day, and a rule that only lives in the markup is one refactor away
+  // from not existing.
+  if(!b.ss&&b.rows.length<2){mkNote('A superset needs two exercises. Add another to this block first.');return;}
   if(!b.ss&&b.rows.length>3){mkNote('A superset holds two or three lifts. This block has '+b.rows.length+'.');return;}
   b.ss=!b.ss;
   if(b.title==='Straight sets'&&b.ss)b.title='Superset';
