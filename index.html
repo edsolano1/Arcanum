@@ -1581,6 +1581,15 @@ body.moon .card-day::after{animation-duration:7.8s;}
    the step that opens a day onward and not before it. Off for the tour too. */
 .card.sealed .card-day::after,body.light .card-day::after,body.booting .card-day::after,
 body.tut .card-day::after,body.tut .dayglow{display:none;}
+/* The tour logs a set on the bench - it has to, that is the step - and from that moment the
+   week behind it is entitled to offer a level up, because readiness is exactly "you beat the
+   target you were given". So the arrows arrive halfway through somebody's first two minutes in
+   the app, pointing at a feature no step explains and the short tour never reaches.
+   The sandbox made it plainest: the one screen meant to show a stranger's first run was showing
+   progression prompts before the stranger had trained once. Off for the length of the tour. The
+   step list already blocks taps on .lvl, so this is that intent finished rather than a new one -
+   and nothing is lost, since the sandbox DB goes back to empty the moment the tour ends. */
+body.tut .lvl{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
 body.booting .card-day,body.tut .card-day,body.tut .srow.ispr .inp{animation:none;}
 /* the mark keeps the same breath as the runes - and now by the same means.
@@ -1964,6 +1973,48 @@ html.light .sp-word,body.light .sp-word{color:#1c2430;text-shadow:0 1px 0 rgba(2
 html.light .sp-tag,body.light .sp-tag{color:#5b6a7d;}
 html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 
+/* ===== LAUNCH ===== rebuilt, sixth time lucky, and this one has no moving parts.
+   What was here was a three-dimensional page turn: a perspective on #splash, three leaves and a
+   board rotating on rotateY, a serpent drawing itself along a dash offset, a swirl and a bite,
+   all of it centred in a box that Android resizes underneath during the first sixty
+   milliseconds. Six builds went into keeping that still. It never was.
+   So it is gone, and this replaces it. One flat panel, the mark, a rule, the word. Everything
+   that arrives does so on opacity and a few pixels of transform - no perspective, no rotation,
+   no masks, no blur - and it exits on a fade rather than a turn. There is nothing left in it
+   whose position depends on the height of the window, which is the whole point: a launch that
+   cannot bump because there is no geometry for the window to move.
+   The mark, the rule and the caps wordmark are the same three things the welcome screen uses,
+   in the same order, so the app opens and asks its first question in one voice.
+   .sp-* below is what the old launch was made of. It is hidden rather than deleted because the
+   other three themes still style it and they are shut until v5.0 - untangling their overrides
+   is that piece of work, not this one. Nothing renders it: the elements carry hidden. */
+#splash{display:flex;align-items:center;justify-content:center;}
+.lx-in{display:flex;flex-direction:column;align-items:center;text-align:center;
+  transition:opacity .34s ease,transform .34s cubic-bezier(.4,0,.6,1);}
+#splash.out .lx-in{opacity:0;transform:scale(1.045);}
+.lx-logo{color:var(--gold);line-height:0;
+  filter:drop-shadow(0 0 20px color-mix(in srgb,var(--gold) 42%,transparent));
+  opacity:0;animation:lxIn .52s cubic-bezier(.2,.7,.3,1) .06s both;}
+.lx-rule{width:0;height:1px;margin:21px 0 17px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+  animation:lxRule .5s cubic-bezier(.3,.7,.3,1) .34s both;}
+.lx-word{font-family:'Big Shoulders Display','Barlow Condensed',var(--sans);font-weight:800;
+  font-size:31px;line-height:1.2;letter-spacing:.3em;text-indent:.3em;text-transform:uppercase;
+  color:var(--txt);opacity:0;animation:lxIn .5s cubic-bezier(.2,.7,.3,1) .46s both;}
+/* The ember the mark is standing on. Static - it is a light source, not an effect. */
+#splash::after{content:'';position:absolute;left:50%;bottom:-14%;width:min(150vw,620px);
+  height:min(80vw,340px);transform:translateX(-50%);pointer-events:none;border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in srgb,var(--gold) 20%,transparent),
+    color-mix(in srgb,var(--gold) 6%,transparent) 46%,transparent 78%);}
+@keyframes lxIn{from{opacity:0;transform:translateY(8px) scale(.955);}to{opacity:1;transform:none;}}
+@keyframes lxRule{from{width:0;opacity:0;}to{width:112px;opacity:1;}}
+/* Motion Off still gets the launch, it just gets it already arrived. */
+:root.mo-off .lx-logo,:root.mo-off .lx-word{animation:none;opacity:1;}
+:root.mo-off .lx-rule{animation:none;width:112px;}
+:root.mo-off .lx-in{transition:opacity .28s ease;}
+:root.mo-off #splash.out .lx-in{transform:none;}
+@media(max-width:360px){.lx-word{font-size:27px;}}
+
 /* ===== WELCOME ===== the first screen with a question on it.
    Sits on the app's own ground rather than over a scrim, because there is nothing behind it
    worth dimming yet - the week underneath is empty by definition at this point. The entrance is
@@ -1984,7 +2035,7 @@ body.wcon{overflow:hidden;}
 #welcome.on .wc-s{animation-delay:.34s;}
 #welcome.on .wc-picks{animation-delay:.44s;}
 @keyframes wcRise{from{opacity:0;transform:translateY(11px);}to{opacity:1;transform:none;}}
-.wc-mark{color:var(--gold);filter:drop-shadow(0 0 16px color-mix(in srgb,var(--gold) 45%,transparent));}
+.wc-mark{color:var(--gold);line-height:0;filter:drop-shadow(0 0 16px color-mix(in srgb,var(--gold) 45%,transparent));}
 .wc-rule{width:104px;height:1px;margin:19px 0 17px;
   background:linear-gradient(90deg,transparent,var(--gold),transparent);}
 .wc-t{font-family:'Big Shoulders Display','Barlow Condensed',var(--sans);font-weight:800;
@@ -2060,11 +2111,16 @@ body.wcon{overflow:hidden;}
 <div id="turn"><div class="tpage"></div><div class="tspine"></div></div>
 <div id="wipe"><div id="wcover"></div><canvas id="wipecv"></canvas></div>
 <div id="splash" onclick="dismissSplash()">
-  <div class="sp-moon"></div>
-  <div class="sp-leaf l3"></div>
-  <div class="sp-leaf l2"></div>
-  <div class="sp-leaf l1"></div>
-  <div class="sp-board">
+  <div class="sp-moon" hidden></div>
+  <div class="sp-leaf l3" hidden></div>
+  <div class="sp-leaf l2" hidden></div>
+  <div class="sp-leaf l1" hidden></div>
+  <div class="lx-in">
+    <div class="lx-logo" id="lxLogo"></div>
+    <div class="lx-rule"></div>
+    <div class="lx-word">Arcanum</div>
+  </div>
+  <div class="sp-board" hidden>
     <div class="sp-frame">
       <svg class="sp-mark" viewBox="0 0 100 100" width="96" height="96" fill="none" shape-rendering="geometricPrecision">
         <g class="o"><g><path d="M74.31 24.82L75.33 25.52L76.26 26.31L77.15 27.15L78.01 28.03L78.83 28.95L79.62 29.90L80.37 30.88L81.09 31.90L81.77 32.94L82.41 34.01L83.01 35.10L83.57 36.22L84.10 37.36L84.58 38.51L85.03 39.69L85.43 40.89L85.79 42.10L86.10 43.32L86.38 44.56L86.61 45.81L86.80 47.07L86.94 48.33L87.04 49.60L87.09 50.88L87.04 52.16L86.94 53.43L86.80 54.70L86.62 55.97L86.39 57.22L86.12 58.47L85.81 59.71L85.45 60.94L85.05 62.15L84.61 63.35L84.13 64.54L83.61 65.70L83.05 66.85L82.45 67.98L81.81 69.09L81.14 70.17L80.43 71.23L79.68 72.27L78.89 73.27L78.07 74.25L77.22 75.21L76.34 76.13L75.42 77.02L74.48 77.88L73.50 78.71L72.50 79.50L71.47 80.26L70.42 80.98L69.34 81.66L68.24 82.31L67.11 82.92L65.97 83.49L64.81 84.02L63.63 84.51L62.43 84.96L61.22 85.36L59.99 85.73L58.76 86.05L57.51 86.33L56.26 86.57L54.99 86.76L53.72 86.91L52.45 87.02L51.17 87.08L49.90 87.10L48.62 87.07L47.34 87.00L46.07 86.89L44.80 86.73L43.54 86.53L42.29 86.29L41.04 86.00L39.81 85.67L38.58 85.30L37.38 84.89L36.18 84.43L35.00 83.93L33.85 83.40L32.70 82.82L31.58 82.21L30.49 81.55L29.41 80.86L28.36 80.14L27.34 79.37L26.34 78.58L25.37 77.74L24.43 76.88L23.52 75.98L22.64 75.05L21.79 74.10L20.98 73.11L20.20 72.10L19.46 71.06L18.75 70.00L18.08 68.91L17.45 67.80L16.85 66.67L16.30 65.51L15.79 64.34L15.31 63.16L14.88 61.96L14.49 60.74L14.14 59.51L13.83 58.27L13.57 57.02L13.35 55.76L13.17 54.50L13.04 53.22L12.95 51.95L12.91 50.67L12.90 49.40L12.95 48.12L13.03 46.84L13.17 45.57L13.34 44.31L13.56 43.05L13.82 41.80L14.12 40.56L14.47 39.33L14.86 38.11L15.29 36.91L15.76 35.72L16.27 34.55L16.82 33.40L17.41 32.26L18.04 31.15L18.71 30.06L19.42 29.00L20.16 27.96L20.94 26.94L21.75 25.95L22.59 25.00L23.47 24.07L24.38 23.17L25.32 22.30L26.29 21.47L27.28 20.67L28.31 19.90L29.35 19.18L30.43 18.48L31.52 17.83L32.64 17.21L33.78 16.63L34.94 16.09L36.12 15.60L37.31 15.14L41.14 25.66L40.31 25.98L39.49 26.33L38.68 26.71L37.88 27.11L37.10 27.54L36.34 28.00L35.59 28.48L34.85 28.99L34.14 29.52L33.44 30.08L32.77 30.66L32.11 31.27L31.48 31.90L30.87 32.54L30.28 33.21L29.71 33.90L29.17 34.61L28.65 35.34L28.16 36.08L27.69 36.84L27.25 37.62L26.84 38.41L26.45 39.21L26.10 40.03L25.77 40.86L25.47 41.70L25.19 42.55L24.95 43.41L24.74 44.27L24.56 45.15L24.41 46.03L24.29 46.91L24.19 47.80L24.13 48.69L24.10 49.58L24.10 50.47L24.14 51.36L24.20 52.25L24.29 53.14L24.41 54.02L24.57 54.90L24.75 55.77L24.97 56.64L25.21 57.50L25.48 58.35L25.78 59.19L26.11 60.01L26.47 60.83L26.86 61.63L27.27 62.42L27.72 63.20L28.18 63.96L28.68 64.70L29.20 65.43L29.74 66.13L30.31 66.82L30.90 67.49L31.51 68.14L32.15 68.76L32.80 69.37L33.48 69.95L34.18 70.51L34.89 71.04L35.63 71.55L36.38 72.03L37.14 72.48L37.93 72.91L38.72 73.32L39.53 73.69L40.35 74.04L41.19 74.35L42.03 74.64L42.88 74.90L43.75 75.13L44.62 75.33L45.49 75.50L46.37 75.64L47.26 75.75L48.15 75.83L49.04 75.88L49.93 75.90L50.82 75.89L51.71 75.84L52.60 75.77L53.49 75.66L54.37 75.53L55.24 75.36L56.11 75.17L56.98 74.94L57.83 74.69L58.68 74.40L59.51 74.09L60.34 73.75L61.15 73.38L61.95 72.98L62.73 72.56L63.50 72.10L64.25 71.63L64.99 71.12L65.71 70.59L66.41 70.04L67.09 69.46L67.75 68.86L68.39 68.24L69.00 67.60L69.60 66.93L70.17 66.25L70.72 65.54L71.24 64.82L71.74 64.08L72.21 63.32L72.66 62.55L73.07 61.76L73.47 60.96L73.83 60.15L74.16 59.32L74.47 58.48L74.75 57.64L75.00 56.78L75.22 55.91L75.40 55.04L75.56 54.16L75.69 53.28L75.79 52.40L75.86 51.51L75.89 50.61L75.96 49.72L76.00 48.83L76.00 47.93L75.98 47.02L75.93 46.12L75.84 45.22L75.73 44.32L75.59 43.42L75.41 42.52L75.21 41.63L74.97 40.74L74.71 39.86L74.41 38.98L74.09 38.11L73.74 37.25L73.36 36.40L72.95 35.56L72.51 34.72L72.05 33.90L71.56 33.09L71.05 32.29L70.52 31.49L69.97 30.70L69.45 29.86Z"/><path d="M74.31 24.82L71.12 24.38L68.46 24.60L68.96 27.80L69.45 29.86Z"/></g><path d="M37.35 15.23L40.76 12.93L44.63 11.78L47.30 11.39L42.96 5.55L49.32 11.21L51.36 11.12L48.12 6.84L53.37 11.45L56.63 12.38L59.02 13.81L61.85 15.58L63.91 17.23L65.71 19.17L61.51 20.78L59.46 20.90L60.39 22.93L62.01 25.37L59.39 25.54L56.65 25.18L53.55 24.75L49.11 24.52L44.66 24.86L41.11 25.57Z"/><circle cx="55.37" cy="16.12" r="1.5"/></g>
@@ -2361,7 +2417,7 @@ body.wcon{overflow:hidden;}
      talking to them. -->
 <div id="welcome" aria-hidden="true">
   <div class="wc-in">
-    <svg class="wc-mark" width="64" height="64" viewBox="0 0 100 100" fill="none" id="wcMark"></svg>
+    <div class="wc-mark" id="wcMark"></div>
     <div class="wc-rule"></div>
     <h1 class="wc-t">Welcome to the Forge</h1>
     <p class="wc-s">Where do you want to start?</p>
@@ -3146,7 +3202,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.90';
+var APPV='v4.91';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3977,14 +4033,11 @@ function dismissSplash(){
     return;
   }
   document.body.classList.add('held');
-  s.classList.add('turning');          // promote the layers...
-  void s.offsetWidth;                  // ...let that raster land...
-  requestAnimationFrame(function(){s.classList.add('out');});   // ...then turn
-  // rAF does not run while the page is hidden, and a launch can start hidden - opened from a
-  // notification, or restored into the background. The turn would then never be armed and the
-  // splash would sit there until the 1400 below cut it away. Same class, on a timer that runs
-  // regardless; adding it twice costs nothing. Every exit from the launch has to complete.
-  setTimeout(function(){s.classList.add('out');},80);
+  // No promotion step and no rAF arming. The exit is one class and a CSS transition on opacity
+  // and scale - there is nothing to raster ahead of it, and a launch that starts hidden (opened
+  // from a notification, restored from the background) cannot be left stranded by a frame
+  // callback that never runs, which is what the two-armings dance below used to guard against.
+  s.classList.add('out');
   sfxRiffle();
 
   setTimeout(function(){
@@ -3998,7 +4051,10 @@ function dismissSplash(){
     setTimeout(function(){document.body.classList.remove('arriving');},2000);
     // a dismiss during the launch must not leave the board held down
     setTimeout(function(){document.body.classList.remove('held');},60);
-  },1400);
+    // 1400 was the length of the page turn: three leaves and a board rotating away on staggered
+    // delays. The exit is a 340ms fade now, so waiting the old 1400 would be a second of blank
+    // panel between the launch leaving and the week arriving.
+  },380);
 }
 // The universal mark: one ring for every world, a different glyph in the middle. The
 // serpent is generated geometry rather than a drawn file, so it recolours per theme and
@@ -4019,6 +4075,46 @@ var OU_EYE={x:'55.37',y:'16.12',r:'1.5'};
 // Content spans x 10-97 and y 26-80, so its centre is 53.5,53 - that is what anvilAt puts
 // on the middle of the box. Nothing should hand-write that transform again.
 var ANVIL='M10 26L74 26C83 26 91 28 97 33C90 38 82 41 70 42L66 42C62 51 60 55 60 60C64 65 69 69 75 72L75 80L25 80L25 72C31 69 36 65 40 60C40 55 38 51 34 42L30 42L10 42Z';
+// ============================================================
+// THE LOGO - one definition, one place
+// ============================================================
+// Every place the app draws the brand mark reads from here, and every element that draws it
+// carries data-logo="anvil-hammer". To find the call sites: grep data-logo. To swap the mark
+// for a different vector: replace LOGO.vb and LOGO.body, and change LOGO.id so the tags in the
+// markup stop matching and point you at anything that was hand-rolled instead of asking here.
+// Nothing else in the app should contain logo geometry.
+// Drawn in currentColor so it takes the theme's own gold without being told, and with no
+// hard-coded size - callers set width/height and the viewBox does the rest.
+var LOGO={
+  id:'anvil-hammer',
+  vb:'0 0 100 100',
+  // The hammer is one group rotated as a unit, which is the only way the head and the handle
+  // stay joined if either is ever nudged. Sparks are struck metal, so they sit off the far
+  // edge of the face rather than around the whole mark.
+  body:
+    '<g transform="rotate(-30 46 24)">'+
+      '<rect x="29" y="14" width="25" height="16" rx="3.4"/>'+
+      '<rect x="52" y="19.2" width="37" height="6.4" rx="3.2"/>'+
+    '</g>'+
+    '<circle cx="15.5" cy="35" r="2.2"/>'+
+    '<circle cx="24" cy="27.5" r="1.7"/>'+
+    '<circle cx="62.5" cy="24" r="1.9"/>'+
+    '<path d="'+ANVIL+'"/>'
+};
+// cls and size are the caller's; fill is currentColor so the theme decides the colour.
+function logoSvg(cls,size){
+  return '<svg class="'+cls+'" data-logo="'+LOGO.id+'" viewBox="'+LOGO.vb+'" width="'+size+'" height="'+size+'" '+
+         'fill="currentColor" aria-hidden="true">'+LOGO.body+'</svg>';
+}
+// The launch wears it, and it is filled the moment the definition exists rather than off the
+// back of boot. This whole script block is parser-blocking, so nothing has painted yet - the
+// logo is in the markup before the first frame, which is the point. Filling it from boot would
+// put it a frame or two late, and a mark that pops in after the panel is the same class of
+// fault as the theme class landing late.
+(function(){
+  var L=document.getElementById('lxLogo');
+  if(L)L.innerHTML=logoSvg('lx-mark',104);
+})();
 // w is how wide the anvil should sit inside a 100-unit box; the scale follows from its own
 // width, so changing the path does not silently resize every mark that uses it.
 function anvilAt(w,attr){
@@ -8589,13 +8685,7 @@ var TUT_ALL=[
   // exercise being changed, so the ring is drawn around the exercise's details.
   // 'a' is in the block list to match bindExHold. Without it a tap on Instructions inside the
   // handed-over card opened an external page in the middle of the tour.
-  // endRest is claimed HERE, on the step straight after the pill's own, because the step before
-  // this one is the only one whose subject is the pill. It used to be claimed first by the export,
-  // eight steps further on, so the prop rest went on counting down behind seven steps that had
-  // nothing to do with it and the pill sat at the bottom of the screen for the whole middle of
-  // the tour. Stepping BACK re-arms it: scene 5 calls tutRest() again, so the pill is there when
-  // its own step is.
-  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-body',endRest:1,
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-body',
    block:'input,button,textarea,a,.chk,.hold,.ex-swap,.lvl,.exdrag',
    w:'Waiting for a long press',nudge:'Hold inside the ring. The grip, the arrows and the links are not part of it.',
    when:function(){return tutOn('exEditOvl');}},
@@ -8634,15 +8724,15 @@ var TUT_ALL=[
    // Between the tap and the export sheet the day seals itself. Get out of the way.
    hide:function(){return !tutOn('exportOvl')&&!document.getElementById('session').classList.contains('on');},
    when:function(){return tutOn('exportOvl');}},
-  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,endRest:1,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
+  {sel:'#exportOvl .sheet',pad:10,ovl:'exportOvl',top:true,nudge:'Tap NEXT to carry on.',act:function(){closeOvl('exportOvl');}},
   // Two steps, not one. What a completed day LOOKS like and what reopening the week DOES are
   // different facts, and the second only makes sense once you have seen the first.
-  {sel:'#weekCards .card[data-base="d1"]',pad:6,endRest:1,sweep:true,
+  {sel:'#weekCards .card[data-base="d1"]',pad:6,sweep:true,
    nudge:'Tap NEXT to carry on.'},
   // Ends here. Dragging a workout between days and the rack underneath were both steps once, and
   // both came out: a grip you drag is close enough to self-evident that spending two of sixteen
   // steps on it costs more attention than it buys.
-  {sel:'#foot .unsealbtn',pad:6,endRest:1,sweep:true,last:true,nudge:'Tap DONE to close the tour.'}
+  {sel:'#foot .unsealbtn',pad:6,sweep:true,last:true,nudge:'Tap DONE to close the tour.'}
 ];
 function tutOn(id){var e=document.getElementById(id);return !!(e&&e.classList.contains('on'));}
 function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e.value)||0:0;}
@@ -8874,10 +8964,18 @@ function tutEnd(){
 function tutGo(i){
   TUTI=i;if(i>TUTMAX)TUTMAX=i;
   TUTHIT=false;                    // each step gets its one action back
-  // The demo rest is a prop for one step, not a clock to sit through. This was "i>8", which tied
-  // it to a step NUMBER - so inserting a step anywhere before the export silently moved which
-  // step killed the timer. The steps that end it say so themselves now.
-  if(TUT_STEPS[i].endRest)stopTimer();
+  // The demo rest is a prop for ONE step - the pill's own - and belongs on no other.
+  // Two previous attempts at this both tied it to identity rather than to the rule. "i>8" tied
+  // it to a step number, so inserting a step moved which one killed the timer. Flagging the
+  // steps that end it was better but still hand-placed, and it broke the moment the short tour
+  // shipped: TUT_CORE is [0,1,4,5,12,13,14], the flag sat on TUT_ALL step 6, and 6 is not in
+  // that list - so on the tour a first run actually gets, the pill started on the rest step and
+  // nothing stopped it until the export. That is the timer sitting under the whole tutorial.
+  // Stated as the rule instead, it cannot be wrong for any subset: the rest runs on the pill's
+  // step and is stopped on every other. Found by index, in the list that is actually running.
+  var pill=-1;
+  for(var pz=0;pz<TUT_STEPS.length;pz++)if(TUT_STEPS[pz].sel==='#timerPill'){pill=pz;break;}
+  if(i!==pill)stopTimer();
   var st=TUT_STEPS[i],c=TUT_COPY[i];
   // A step must not fire on a condition that was ALREADY true when it arrived, or stepping
   // BACK would bounce straight forward again. Arriving satisfied disarms the step until the
@@ -9242,8 +9340,10 @@ function offerStart(){
   STARTPEND=false;
   var w=document.getElementById('welcome');
   if(!w){installStarter();renderHome();setTimeout(tutOffer,600);return;}   // never strand a first run
+  // The same mark the launch just showed, from the same definition - the welcome is the second
+  // half of one arrival, not a different screen that happens to follow.
   var m=document.getElementById('wcMark');
-  if(m)m.innerHTML=HEAD_GLYPH[curTheme()]||HEAD_GLYPH.dark;
+  if(m)m.innerHTML=logoSvg('wc-logo',68);
   w.setAttribute('aria-hidden','false');
   w.classList.add('on');
   document.body.classList.add('wcon');
