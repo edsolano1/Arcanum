@@ -131,12 +131,18 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .lvl{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:9px;
   border:1px solid color-mix(in srgb,var(--go) 45%,transparent);cursor:pointer;
   background:color-mix(in srgb,var(--go) 12%,transparent);color:var(--go);
-  animation:lvlpulse 2.8s ease-in-out infinite;transition:background .15s;}
+  position:relative;transition:background .15s;}
 .lvl svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
 .lvl:hover{background:color-mix(in srgb,var(--go) 24%,transparent);}
 .lvl:active{transform:scale(.94);}
-@keyframes lvlpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 28%,transparent);}
-  50%{box-shadow:0 0 13px 1px color-mix(in srgb,var(--go) 45%,transparent);}}
+/* box-shadow inside @keyframes is the other cause named at the top of the ground rules, and
+   this is where it was still living: a ready day sits on the board doing this forever. The lit
+   state is now a bare pseudo-element holding the wide shadow at full strength, and the pulse
+   is its opacity. Nothing under it repaints. */
+.lvl::after{content:'';position:absolute;inset:0;border-radius:9px;pointer-events:none;
+  box-shadow:0 0 13px 1px color-mix(in srgb,var(--go) 45%,transparent);
+  opacity:0;will-change:opacity;animation:lvlpulse 2.8s ease-in-out infinite;}
+@keyframes lvlpulse{0%,100%{opacity:0;}50%{opacity:1;}}
 /* while the transfer plays, the sheet's actions are out of reach - a tap that lands between
    the animation and the write leaves the two decisions fighting over the same targets */
 #lvlOvl.busy .sheet-btns{pointer-events:none;opacity:.4;}
@@ -237,8 +243,14 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
    when you catch it out of the corner of your eye. */
 .daybox.today > .dayglow{position:absolute;inset:-3.5px;border-radius:17px;overflow:hidden;
   pointer-events:none;z-index:-1;}
+/* The two arcs turn inside a rounded overflow:hidden box. Unpromoted, that clip has to be
+   re-applied to whatever is inside it on every frame either arc moves - and one of these is on
+   the board from the moment the launch ends until the day rolls over. Given their own layers,
+   the conic gradients are rastered once and the turn is a composited transform under a clip
+   the compositor applies for free. */
 .daybox.today > .dayglow::before,.daybox.today > .dayglow::after{content:'';position:absolute;
-  left:50%;top:50%;width:180%;aspect-ratio:1;transform-origin:0 0;}
+  left:50%;top:50%;width:180%;aspect-ratio:1;transform-origin:0 0;
+  will-change:transform;backface-visibility:hidden;}
 .daybox.today > .dayglow::before{
   background:conic-gradient(from 0turn,transparent 0 .02turn,color-mix(in srgb,var(--go) 70%,transparent) .09turn,#fff .15turn,color-mix(in srgb,var(--go) 70%,transparent) .21turn,transparent .3turn 1turn);
   animation:dayspin 4.2s linear infinite;}
@@ -593,17 +605,21 @@ body.light .tut-skip{--bad:#b1332c;}
    the screen. Cardio leads: it happens every day, the pump day almost never. */
 .sides{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
 .side{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--line);
-  border-radius:var(--r);background:var(--surface);cursor:pointer;transition:.15s;}
+  border-radius:var(--r);background:var(--surface);cursor:pointer;transition:.15s;position:relative;}
 .side:hover{border-color:color-mix(in srgb,var(--gold) 45%,var(--line));background:var(--surface2);}
 .side:active{transform:scale(.995);}
 .side-i{display:flex;color:var(--txt2);flex-shrink:0;}
 .side-i svg{width:19px;height:19px;display:block;}
 .side b{font-size:13.5px;font-weight:600;color:var(--txt);letter-spacing:.01em;}
 .side small{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--txt3);letter-spacing:.03em;white-space:nowrap;}
-.side.going{border-color:color-mix(in srgb,var(--go) 55%,var(--line));animation:walkgo 2.6s ease-in-out infinite;}
+.side.going{border-color:color-mix(in srgb,var(--go) 55%,var(--line));}
 .side.going .side-i,.side.going small{color:var(--go);}
-@keyframes walkgo{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--go) 22%,transparent);}
-  50%{box-shadow:0 0 14px 1px color-mix(in srgb,var(--go) 32%,transparent);}}
+/* same shape as .lvl above - a walk in progress is on screen for as long as the walk lasts,
+   which is exactly the case where a per-frame repaint is least affordable */
+.side.going::after{content:'';position:absolute;inset:-1px;border-radius:var(--r);pointer-events:none;
+  box-shadow:0 0 14px 1px color-mix(in srgb,var(--go) 32%,transparent);
+  opacity:0;will-change:opacity;animation:walkgo 2.6s ease-in-out infinite;}
+@keyframes walkgo{0%,100%{opacity:0;}50%{opacity:1;}}
 body.light .side{box-shadow:0 1px 3px rgba(16,20,24,.08);}
 /* The launch animation used to hand straight over to a fully drawn board. The board now
    arrives just behind it: the header first, then each card a beat after the one above it. */
@@ -936,12 +952,26 @@ body.forge::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:n
     radial-gradient(120% 80% at 50% 128%,rgba(255,96,16,.14),transparent 66%),
     radial-gradient(140% 100% at 50% 96%,transparent 30%,rgba(6,3,2,.72) 78%,#050201 100%),
     linear-gradient(180deg,#0b0604 0%,#0a0503 46%,#120703 76%,#1d0b03 100%);
+  filter:brightness(1.16) saturate(1.1);
   animation:moltenbreath 5.2s ease-in-out infinite;}
-/* molten iron does not hold one brightness - it swells and dulls as the air moves over it */
+/* molten iron does not hold one brightness - it swells and dulls as the air moves over it.
+   The swell used to BE the filter, animated. That is five stacked gradients across a fixed
+   full-viewport layer re-rastered on every frame, for as long as Forge is the theme and the
+   app is open - the largest single item on the per-frame bill and the reason the board sat at
+   half refresh once the launch let go of it.
+   Nothing about the look needs it. The layer is now painted ONCE at the top of its breath and
+   the swell is its opacity: this ground sits on html.forge's near-black, so dropping a hot
+   layer's alpha and dimming it land on the same pixel. .92/1.16 is .793 and 1.02/1.16 is .879,
+   which is where the two trough stops come from - the curve is the one that was there.
+   The scale runs .988 -> 1 rather than 1 -> 1.012 for the reason already written against the
+   Moonwell rings: a promoted layer scaled past 1 is rastered again at the larger size, so the
+   travel is spent going up to the size it was drawn at and never past it. Same 1.2% swell.
+   saturate is baked at its peak instead of tracking, which lifts the trough a hair - on a fire
+   this saturated already, it does not read. */
 @keyframes moltenbreath{
-  0%,100%{filter:brightness(.92) saturate(1);transform:scale(1);}
-  44%{filter:brightness(1.16) saturate(1.1);transform:scale(1.012);}
-  70%{filter:brightness(1.02) saturate(1.04);transform:scale(1.004);}}
+  0%,100%{opacity:.793;transform:scale(.988);}
+  44%{opacity:1;transform:scale(1);}
+  70%{opacity:.879;transform:scale(.992);}}
 @media(prefers-reduced-motion:reduce){body.forge::before{animation:none;}}
 
 /* a finished piece is blackened steel, not blue-grey stone */
@@ -1184,6 +1214,11 @@ body.booting #bg{opacity:0;}
    rectangle: a rotating rectangle sweeps its corners and its short edges through the frame,
    which on a wide screen reads as a spinning card. The mask stays on the parent so the fade
    holds still while the rings turn under it. */
+/* This mask costs a full-viewport re-composite on every frame the orrery turns inside it, and
+   the disc never stops. The fix is written out in the min-width:600px block below and is known
+   to work - it is not hoisted here because the orrery is Obsidian's ground, and themes are shut
+   until v5.0. Forge hides the disc and paints no rules, so it pays nothing for this either way.
+   When themes reopen, this is the first thing to lift out of that media query. */
 .bg-rules{-webkit-mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);
   mask-image:radial-gradient(125% 88% at 50% 10%,#000 26%,transparent 76%);}
 /* Sized to exactly reach the far corners and no further: 220vmax overshot so badly that the
@@ -1404,9 +1439,22 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
 /* The ground was drawn for a phone. On a tablet-sized panel the same layers cover four
    times the area, so the two full-viewport blend overlays stop reading back what is under
    them - a straight overlay at matched opacity looks the same and costs nothing. The motion
-   itself is left alone; Ambient motion in Settings is the switch for that. */
+   itself is left alone; Ambient motion in Settings is the switch for that.
+   Width was the wrong axis to hang it on. A blend mode on a full-viewport layer does not cost
+   in proportion to area - it costs by breaking the compositor's fast path outright, because
+   every layer beneath has to be flattened and read back before the blend can be applied. There
+   are two of these stacked, and the embers drift under both of them without pause, so folded
+   this was a whole-viewport readback on every frame the app was open.
+   Forge only, because themes are shut until v5.0 - and these are the values Forge already runs
+   at on the unfolded screen, so it is a look that has shipped rather than a new one. The other
+   three keep their blends below 600px until the theme work reopens. */
+body.forge::after{mix-blend-mode:normal;opacity:.05;}
+body.forge .bg-grain{mix-blend-mode:normal;}
 @media(min-width:600px){
+  /* the other three grounds still drop their blends here and nowhere else - Forge now does it
+     at every width, above */
   body::after{mix-blend-mode:normal;opacity:.05;}
+  .bg-grain{mix-blend-mode:normal;opacity:.035;}
   /* motes are dozens of separate animated elements; the hint gives each one its own layer,
      and the layer count itself is part of what starves the raster here */
   .bg-motes i{will-change:auto;}
@@ -1427,12 +1475,13 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
      painting var(--bg) over them at the inverse alpha land on the same pixel. The fade moves
      from a mask on the parent to a still gradient drawn above the disc - identical output,
      no render surface, nothing to re-raster when the disc moves.
-     Obsidian only: the other three grounds already drop this mask and hide the disc. */
+     Obsidian only: the other three grounds already drop this mask and hide the disc.
+     This wants hoisting out of the media query - a phone pays the same cost per frame - but
+     that is an Obsidian change and themes are shut until v5.0. */
   body:not(.light):not(.forge):not(.moon) .bg-rules{-webkit-mask-image:none;mask-image:none;}
   body:not(.light):not(.forge):not(.moon) .bg-rules::after{content:'';position:absolute;inset:0;
     pointer-events:none;
     background:radial-gradient(125% 88% at 50% 10%,transparent 26%,var(--bg) 76%);}
-  .bg-grain{mix-blend-mode:normal;opacity:.035;}
   /* A backdrop filter has to read back everything painted under it. Over a folded-open
      panel that is four times the pixels, sampled behind a scrim that already sits over
      several promoted layers - and Android gives up on parts of it, which is what left
@@ -1493,14 +1542,27 @@ body.moon .card-day::after{animation-duration:7.8s;}
 body.tut .card-day::after,body.tut .dayglow{display:none;}
 .card.sealed .card-day,body.light .card-day,body.light .srow.ispr .inp,
 body.booting .card-day,body.tut .card-day,body.tut .srow.ispr .inp{animation:none;}
-/* the mark keeps the same breath as the runes */
-.mark{animation:markbreath 6.4s ease-in-out infinite;}
-@keyframes markbreath{
-  0%,100%{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--gold) 18%,transparent));}
-  50%{filter:drop-shadow(0 0 7px color-mix(in srgb,var(--gold) 85%,transparent)) drop-shadow(0 0 20px color-mix(in srgb,var(--gold) 40%,transparent));}}
-body.forge .mark{animation-duration:4.4s;}
-body.moon .mark{animation-duration:9s;}
-body.light .mark,body.booting .mark{animation:none;}
+/* the mark keeps the same breath as the runes - and now by the same means.
+   This used to animate the filter itself, which is a re-raster of the glyph on the main
+   thread every single frame, forever, for as long as the app is open. body.booting held it
+   off during the launch and nothing turned it back off afterwards, so it switched ON at the
+   exact moment the launch ended - which is where the whole app fell from 120 to a locked 60.
+   filter is one of the two causes named at the top of the ground rules; it survived here
+   because a 36px logo looks too small to matter, and per-frame cost does not care how big
+   the element is.
+   Same fix as the runes: the lit copy is a second glyph stacked exactly over the first,
+   carrying the bright shadow as a STATIC filter, and only its opacity breathes. Both copies
+   draw the same fully opaque ink in the same place, so the overlap is invisible and all that
+   reads is the glow coming up and going down. One composited property, nothing repaints. */
+.markwrap{position:relative;flex-shrink:0;display:block;line-height:0;}
+.mark{filter:drop-shadow(0 0 3px color-mix(in srgb,var(--gold) 18%,transparent));}
+.markglow{position:absolute;left:0;top:0;pointer-events:none;opacity:0;will-change:opacity;
+  filter:drop-shadow(0 0 7px color-mix(in srgb,var(--gold) 85%,transparent)) drop-shadow(0 0 20px color-mix(in srgb,var(--gold) 40%,transparent));
+  animation:markbreath 6.4s ease-in-out infinite;}
+@keyframes markbreath{0%,100%{opacity:0;}50%{opacity:1;}}
+body.forge .markglow{animation-duration:4.4s;}
+body.moon .markglow{animation-duration:9s;}
+body.light .markglow,body.booting .markglow{animation:none;opacity:0;}
 /* Reduced motion still gets a lit rune - just a slower, shallower breath. Killing it
    outright was hiding the effect entirely on phones with battery saver on. */
 @media (prefers-reduced-motion:reduce){.card-day::after{animation-duration:11s;}.srow.ispr .inp{animation-duration:7s;}}
@@ -1892,7 +1954,7 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
 </div>
 <div id="home">
   <div class="brand">
-    <svg class="mark" width="36" height="36" viewBox="0 0 100 100" fill="none" id="mark"></svg>
+    <span class="markwrap"><svg class="mark" width="36" height="36" viewBox="0 0 100 100" fill="none" id="mark"></svg><svg class="mark markglow" width="36" height="36" viewBox="0 0 100 100" fill="none" id="markGlow" aria-hidden="true"></svg></span>
     <div class="brandtxt">
       <div class="wordmark">ARCANUM</div>
       <div class="tagline" id="tagline"></div>
@@ -2896,7 +2958,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.81';
+var APPV='v4.82';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3740,7 +3802,13 @@ var HEAD_GLYPH={
   moon: '<g transform="translate(50 50) scale(2.6) translate(-50 -50)"><path d="M50 36.5l2.9 10.6L63.5 50l-10.6 2.9L50 63.5l-2.9-10.6L36.5 50l10.6-2.9z" fill="var(--go)"/></g>'
 };
 function renderMark(){
-  document.getElementById('mark').innerHTML=HEAD_GLYPH[curTheme()]||HEAD_GLYPH.dark;
+  // Two copies: the mark itself, and the lit twin stacked over it whose opacity is the breath.
+  // Both carry the same glyph - if the twin is ever left empty the glow simply stops, which is
+  // why it is filled here rather than anywhere the theme can miss.
+  var g=HEAD_GLYPH[curTheme()]||HEAD_GLYPH.dark;
+  document.getElementById('mark').innerHTML=g;
+  var gl=document.getElementById('markGlow');
+  if(gl)gl.innerHTML=g;
 }
 // The ground behind the board. Only the watermark is redrawn on a theme change - rebuilding
 // the motes would restart every drift mid-flight.
