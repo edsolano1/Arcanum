@@ -2844,7 +2844,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.72';
+var APPV='v4.73';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3563,10 +3563,13 @@ lockSplash();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
-// Temporary while the app is being built: the launch animation is lovely and it costs a couple of
-// seconds on every single reload, which is the wrong trade when the loop is reload-look-reload.
-// Set to 0 to have it back.
-var SPLASH_ON=0;
+// Off while the app was being built - the launch is lovely and it costs a couple of seconds on
+// every reload, which is the wrong trade when the loop is reload-look-reload. Back on now.
+// (The note here used to say "set to 0 to have it back", which is backwards: 1 is on.)
+// Whatever this is set to, dismissSplash has to end the launch - both of its exits clear
+// body.booting. The 0 path did not, and that is what held the whole ground at opacity 0 for
+// three builds. See the comment in dismissSplash.
+var SPLASH_ON=1;
 function dismissSplash(){
   if(splashGone)return;splashGone=true;
   initAudio();
@@ -3594,6 +3597,11 @@ function dismissSplash(){
   s.classList.add('turning');          // promote the layers...
   void s.offsetWidth;                  // ...let that raster land...
   requestAnimationFrame(function(){s.classList.add('out');});   // ...then turn
+  // rAF does not run while the page is hidden, and a launch can start hidden - opened from a
+  // notification, or restored into the background. The turn would then never be armed and the
+  // splash would sit there until the 1400 below cut it away. Same class, on a timer that runs
+  // regardless; adding it twice costs nothing. Every exit from the launch has to complete.
+  setTimeout(function(){s.classList.add('out');},80);
   sfxRiffle();
 
   setTimeout(function(){
