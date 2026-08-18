@@ -3057,7 +3057,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.86';
+var APPV='v4.87';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4588,11 +4588,70 @@ var PERSONAL_NOTES={
 };
 var PERSONAL_REST_LABEL='Office day - no gym + optional 200-300 cal cardio';
 var STOCK_DAYS=['rest','d1','d2','d3','d4','pump','opt5','opt6'];
+// ---------- the starting point a new install is offered ----------
+// This is the second half of the change described above mergeCustom. The app shipped with one
+// particular person's training week, and a stranger opening it was handed that person's split
+// on that person's weekdays at that person's working weights. The first half turned the shipped
+// week into data so it could stop being the default; this is the default that replaces it.
+// Deliberately plain: three days, four lifts each, out of the commonest things in the library.
+// Every target is 0 - the weight is not a suggestion the app is making, it is a blank the first
+// session fills in. That also keeps the level-up arrow off the board on day one, because
+// readiness needs a logged session behind it and there is nothing to be ready against yet.
+// Tuesday, Thursday, Saturday: a day on, a day off, which is the least opinionated thing three
+// days can do to a week.
+var STARTER_DAYS=['s1','s2','s3'];
+var ST_SETS='0x10\n0x10\n0x10',ST_REST='90 sec';
+function stRow(id){return [id,{sets:ST_SETS,rest:ST_REST}];}
+var STARTER={
+  s1:{name:'Push',tag:'Gym',color:'#c8794a',time:'40 min',
+      sections:[{title:'Chest, shoulders and triceps',
+        tip:'Pick a weight you can finish all three sets with, and write it in as you go. The numbers are yours to set.',
+        ss:false,rows:['dbbench','dbfly','dblat','rope'].map(stRow)}]},
+  s2:{name:'Pull',tag:'Gym',color:'#5b8fb9',time:'40 min',
+      sections:[{title:'Back and biceps',
+        tip:'Same idea - the first session is where your numbers come from.',
+        ss:false,rows:['latpd','machrow','facepull','bbcurl'].map(stRow)}]},
+  s3:{name:'Legs',tag:'Gym',color:'#7a9a5b',time:'40 min',
+      sections:[{title:'Legs',
+        tip:'Leave a rep or two in the tank on the first go.',
+        ss:false,rows:['lpress','lext','slegcurl','stcalf'].map(stRow)}]}
+};
+// An empty week that dayMap will not quietly refill. Present-but-empty is the distinction:
+// dayMap rebuilds from the stock slots only when DB.days has NO keys at all.
+function blankWeek(){
+  DB.days={};DAYS.forEach(function(d){DB.days[d.k]=[];});
+  DB.extra=[];DB.plan=[];DB.slots={};
+}
+function installStarter(){
+  DB.custom=DB.custom||{};
+  STARTER_DAYS.forEach(function(id){DB.custom[id]=STARTER[id];});
+  blankWeek();
+  DB.days.tue=['s1'];DB.days.thu=['s2'];DB.days.sat=['s3'];
+  mergeCustom();
+  try{saveDB();}catch(e){}
+}
 var OWNKEY='arc_ownprogram';
+var STARTPEND=false;
 function ownProgram(){
   var done=false;try{done=localStorage.getItem(OWNKEY)==='1';}catch(e){}
   if(done)return;
   DB.custom=DB.custom||{};DB.exNotes=DB.exNotes||{};
+  // A brand-new install is not an upgrade, and this is the line the two have to be told apart on.
+  // Somebody upgrading has logs, or edited days, or a week with something in it, and their copy
+  // of the shipped program is the thing they have been training on - it has to be preserved
+  // exactly as it was. Somebody who has never opened this app has none of those, and handing
+  // them a stranger's split at a stranger's weights is the fault this whole change exists to fix.
+  // They get an empty week and a question instead. The personal notes and the personal rest
+  // label stay behind with the stock copy for the same reason.
+  var fresh=!(DB.logs&&DB.logs.length)&&!Object.keys(DB.custom).length&&
+            !(DB.days&&Object.keys(DB.days).some(function(k){return (DB.days[k]||[]).length;}));
+  if(fresh){
+    blankWeek();
+    STARTPEND=true;                        // boot asks once the launch has cleared
+    try{localStorage.setItem(OWNKEY,'1');}catch(e){}
+    try{saveDB();}catch(e){}
+    return;
+  }
   STOCK_DAYS.forEach(function(id){
     if(DB.custom[id])return;              // already edited into their own; leave it alone
     var w=W[id];if(!w)return;
@@ -9008,6 +9067,19 @@ function tutOffer(){
   var C=TUTC();
   ask(C.msg,function(){tutStart(1);},C.ttl,C.yes);   // first run gets the short one
 }
+// The one question a first run gets before anything else: does it want a week to start from, or
+// an empty one to build. Asked once, on the launch after ownProgram found nothing to preserve,
+// and it always hands over to the tour offer afterwards - whichever way it is answered, that is
+// still the first launch and the tour is still worth offering.
+function offerStart(){
+  STARTPEND=false;
+  var after=function(){renderHome();window.scrollTo(0,0);setTimeout(tutOffer,600);};
+  ask('Three plain days - push, pull and legs - with the weights left blank for you to fill in as you go. Or start with an empty week and build it yourself.',
+      function(){installStarter();after();},
+      'How do you want to start?','SET IT UP',
+      null,
+      {label:'EMPTY WEEK',fn:after});
+}
 
 // ---------- sandbox ----------
 // A whole working app with nothing real in it. The tour already proved the shape - swap DB out,
@@ -9054,7 +9126,11 @@ function sbStart(){
   document.body.classList.add('sbx');
   if(CUR){document.getElementById('session').classList.remove('on');CUR=null;}
   stopTimer();stopHold();resetHoldState();
-  dayMap();                           // the week a fresh install builds for itself
+  // The starter week, which is what a first run that answers SET IT UP actually gets. Swapping
+  // the library down to what ships was necessary but not sufficient: what ships is still one
+  // person's program, so a sandbox standing on it was still not a stranger's first screen.
+  installStarter();
+  dayMap();
   mergeCustom();renderHome();window.scrollTo(0,0);
   tutOffer();                         // and the first-run prompt, because this IS a first run
 }
@@ -9100,7 +9176,9 @@ function sbEnd(){
       else nativeAsk();
     }catch(e){}
   },1200);
-  setTimeout(tutOffer,1600);               // after the launch animation has cleared
+  // A first run is asked how it wants to start, and that hands over to the tour offer itself.
+  // Everyone else goes straight to the offer as before.
+  setTimeout(function(){if(STARTPEND)offerStart();else tutOffer();},1600);
   // And, if the week is finished, the offer to run it again. After the tour offer, and it stands
   // down if that one is up: two questions on one launch is one too many.
   setTimeout(offerReopen,2400);
