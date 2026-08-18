@@ -1732,8 +1732,19 @@ html.moon .sp-mark .gy-moon{display:block;}
 @keyframes fadein{to{opacity:1;}}
 @keyframes draw{to{stroke-dashoffset:0;}}
 @keyframes bloom{from{opacity:0;transform:scale(.3);}to{opacity:.85;transform:scale(1);}}
-.sp-word{font-family:'Marcellus',serif;font-size:26px;text-shadow:0 1px 0 rgba(0,0,0,.6);letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--txt);opacity:0;white-space:nowrap;}
-.sp-tag{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--txt3);opacity:0;white-space:nowrap;}
+/* Both carry an explicit numeric line-height, and that is the whole point of them having one.
+   Without it a line box is as tall as the font in it says it is, so the wordmark stood 45px in
+   the fallback and 38px once Big Shoulders Display arrived - the framed box sizes to its text,
+   so it shrank by seven pixels and everything inside it moved. That is the bump on the launch.
+   fready above already holds the words hidden until the fonts land, which covers the fast case
+   and was doing so all along; what it cannot cover is its own 700ms ceiling, and a phone asking
+   Google for three families goes past that regularly. Then the words appear in the fallback and
+   the swap lands afterwards, in full view. A line box measured in ems instead of in font metrics
+   is the same height whichever font wins the race, so the ceiling firing early stops mattering.
+   The glyphs still change width; the frame is a fixed width and the text is centred in it, so
+   that resolves symmetrically rather than as a jump. */
+.sp-word{font-family:'Marcellus',serif;font-size:26px;line-height:1.2;text-shadow:0 1px 0 rgba(0,0,0,.6);letter-spacing:.5em;text-indent:.5em;text-transform:uppercase;color:var(--txt);opacity:0;white-space:nowrap;}
+.sp-tag{font-family:var(--mono);font-size:10px;line-height:1.4;letter-spacing:.22em;text-transform:uppercase;color:var(--txt3);opacity:0;white-space:nowrap;}
 html.fready .sp-word{animation:spin2 .7s ease .28s forwards;}
 html.fready .sp-tag{animation:spin2 .7s ease .48s forwards;}
 @keyframes spin2{from{opacity:0;letter-spacing:.62em;}to{opacity:1;}}
@@ -2876,7 +2887,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.78';
+var APPV='v4.79';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
