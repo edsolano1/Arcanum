@@ -713,7 +713,21 @@ body.light #turn .tspine{background:linear-gradient(90deg,rgba(16,20,24,.3),tran
    is taken out of the picture entirely. visibility, not opacity - a hidden layer is not
    rastered at all, and on a folded-open panel that is the largest single thing Chrome was
    being asked to keep painting behind a menu it could already not finish. */
-body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
+/* But hiding it is not free, and the bill arrives on the way OUT. .ovl closes on display,
+   not on a transition, so the sheet vanishes and the whole ground - rules, watermark, wind,
+   rings, forty odd embers, grain, vignette - has to be rastered from nothing in that same
+   single frame. Measured on the phone, every sheet in the app: settings 58ms, backup 42ms,
+   timer 50ms, pump 58ms, walk 67ms, a workout day 50ms. Every one of them opened without
+   dropping a frame and cost one long frame to close. An A/B on the device with the ground
+   left visible put the same closes at 25ms.
+   The saving was always about the folded-open panel, where the ground is four times the area
+   and Chrome was already failing to finish it - that is what the comment above describes and
+   it is still true there. On a phone-sized screen it was buying nothing and charging a
+   dropped frame every time you backed out of anything, so it is scoped to the panel that
+   needed it. The freeze below stays everywhere: pausing costs nothing to undo. */
+@media(min-width:600px){
+  body:has(.ovl.on) #bg,body:has(.ovl.on) #home::before{visibility:hidden;}
+}
 /* and nothing under it needs to keep moving - the ground is behind a scrim, so freezing it
    while a sheet is open costs nothing visible and stops the invalidations underneath */
 body:has(.ovl.on) .bg-light,body:has(.ovl.on) .bg-motes i,body:has(.ovl.on) .bg-ripple i,
@@ -725,8 +739,11 @@ body:has(.ovl.on) .card-day::after,body:has(.ovl.on) .dayglow::before,body:has(.
    it. On a phone that is only waste. On a folded-open panel it is waste competing for the
    raster at the one moment the day is trying to arrive, which is why a day came in two
    pieces: the top band first, the rest a moment behind it. Same treatment as a sheet. */
-body:has(#session.on) #bg,body:has(#make.on) #bg,
-body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
+/* Same bill on the way out of a day, and the same scope - see the note on the sheet rule. */
+@media(min-width:600px){
+  body:has(#session.on) #bg,body:has(#make.on) #bg,
+  body:has(#session.on) #home::before,body:has(#make.on) #home::before{visibility:hidden;}
+}
 body:has(#session.on) .bg-light,body:has(#session.on) .bg-motes i,body:has(#session.on) .bg-ripple i,
 body:has(#session.on) .bg-rules,body:has(#session.on) .bg-rules > i,body:has(#session.on) .bg-wm svg,
 body:has(#session.on) .card-day::after,body:has(#session.on) .dayglow::before,body:has(#session.on) .dayglow::after,
@@ -2827,7 +2844,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.71';
+var APPV='v4.72';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3692,10 +3709,11 @@ function renderBg(){
   if(!m)return;
   // Density, not count. Closed this phone is 360x840 and unfolded it is 752x835 - it gains width,
   // not height - so the same forty four embers cover twice the area unfolded and read half as
-  // thick. Count follows the square root of the area rather than the area itself, and is capped:
-  // the big panel runs at 60Hz to the small one's 120, and every mote is a separate animated
-  // element, which this file already records as something that starves the raster there. Size
-  // carries the rest, so an ember is the same size RELATIVE to the screen on either.
+  // thick. Count follows the square root of the area rather than the area itself, and is capped,
+  // because every mote is a separate animated element and this file already records layer count
+  // as one of the things that starves the raster on the folded-open panel. Four times the area
+  // is the reason to be careful there, not the refresh rate - both screens do 120Hz. Size
+  // carries the rest, so an ember reads the same size RELATIVE to the screen on either.
   var A=innerWidth*innerHeight;
   var MN=Math.max(30,Math.min(56,Math.round(44*Math.sqrt(A/302400))));
   var MS=Math.max(1,Math.min(1.6,Math.min(innerWidth,innerHeight)/360));
