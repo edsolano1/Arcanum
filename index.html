@@ -33,6 +33,15 @@
     var th=(localStorage.getItem('baseline:theme')||'').replace(/^"|"$/g,'');
     if(th==='light'||th==='forge'||th==='moon')d.classList.add(th);
   }catch(e){}
+  // Motion goes on for the same reason and in the same breath as the theme: set it after the
+  // first paint and the ground draws once moving and then stops dead, which is worse than
+  // either setting on its own. Unset falls back to what the device asks for.
+  try{
+    var mo=localStorage.getItem('arc_motion');
+    if(mo!=='full'&&mo!=='breath'&&mo!=='still')
+      mo=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)?'still':'full';
+    if(mo!=='full')d.classList.add('mo-'+mo);
+  }catch(e){}
   try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);}catch(e){}
   setTimeout(go,700);
 })();
@@ -365,8 +374,12 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
 #tutPing{position:fixed;top:0;left:0;width:0;height:0;z-index:400;pointer-events:none;border-radius:12px;
   border:2px solid var(--go);opacity:0;}
 #tutPing::after{content:'';position:absolute;inset:-4px;border-radius:15px;pointer-events:none;
-  border:3px solid color-mix(in srgb,var(--go) 30%,transparent);
-  animation:tutping 1.5s ease-in-out infinite;}
+  border:3px solid color-mix(in srgb,var(--go) 30%,transparent);}
+/* The pulse is armed with the ring rather than declared on it. Unarmed, #tutPing is a 0x0 box
+   at opacity 0 that nothing can see - but the animation on its pseudo-element ran anyway, from
+   load until close, on every screen in the app, for a tour that was not running. Invisible is
+   not the same as absent: an animation on a hidden element still ticks. */
+#tutPing.on::after{animation:tutping 1.5s ease-in-out infinite;}
 #tutPing.on{opacity:1;}
 @keyframes tutping{0%,100%{transform:scale(1);opacity:.95;}
   50%{transform:scale(1.07);opacity:.2;}}
@@ -881,6 +894,8 @@ body.light .dayact.del{--bad:#b1332c;}
 .preset{padding:17px 6px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;transition:.15s;}
 .preset:hover{border-color:var(--go);color:var(--go);}
 .preset.sm{padding:12px 6px;font-size:12px;font-family:inherit;letter-spacing:.02em;}
+/* the chosen one in a row of presets - same lit treatment the sfx toggle uses when it is on */
+.preset.on{border-color:var(--go);color:var(--go);background:color-mix(in srgb,var(--go) 12%,var(--surface2));}
 .preset.mk-del{border-color:color-mix(in srgb,#c2554a 55%,var(--line));color:#c2554a;}
 .preset.mk-del:hover{border-color:#c2554a;color:#c2554a;}
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
@@ -1907,6 +1922,55 @@ html.light .sp-leaf::after,body.light .sp-leaf::after{background:linear-gradient
 html.light .sp-word,body.light .sp-word{color:#1c2430;text-shadow:0 1px 0 rgba(255,255,255,.8);}
 html.light .sp-tag,body.light .sp-tag{color:#5b6a7d;}
 html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
+
+/* ===== MOTION ===== how much of the ground is allowed to move.
+   Three settings, and the ladder is about WHAT moves rather than how fast:
+
+     Full    everything. No class - the default, and the app as drawn.
+     Breath  the ground holds still; the lit things still breathe.
+     Still   nothing ambient moves at all.
+
+   Breath is the one most people who dislike fluff actually want: the drifting embers, the
+   turning watermark and the wandering light are what read as busy, while a rune coming up
+   and going down is what tells you which day is today. Still is for when even that is too
+   much, and it is also what a device asking for reduced motion gets by default.
+
+   Nothing here touches feedback. Sheets still open, cards still arrive, a logged set still
+   pops, the page still turns. Those answer something you did; they are not ornament, and an
+   app that stops replying to taps feels broken rather than calm.
+
+   Written against :root rather than body so the class can go on before the body exists - it
+   is set in the head, next to the theme, or the ground draws once at full motion and then
+   stops. :root also carries enough specificity to beat the per-theme ground rules above
+   without !important, which body.mo-still would tie with and lose on source order alone. */
+
+/* ---- the ground holds still: Breath and Still both ---- */
+:root.mo-breath .bg-wm svg,:root.mo-still .bg-wm svg,
+:root.mo-breath .bg-rules,:root.mo-still .bg-rules,
+:root.mo-breath .bg-rules > i,:root.mo-still .bg-rules > i,
+:root.mo-breath .bg-ripple i,:root.mo-still .bg-ripple i,
+:root.mo-breath .bg-wind path,:root.mo-still .bg-wind path,
+:root.mo-breath .bg-light,:root.mo-still .bg-light,
+:root.mo-breath .bg-motes i,:root.mo-still .bg-motes i{animation:none;}
+/* Frozen at their start every mote sits at the top edge in a row, which reads as a seam rather
+   than as a still field - the same trap the reduced-motion rules already record. Each one keeps
+   the height it was passing through, so the ground still reads as embers hanging in the air. */
+:root.mo-breath .bg-motes i,:root.mo-still .bg-motes i{opacity:.42;transform:translateY(var(--ty));}
+/* the fire is drawn at the top of its breath, so held still it wants to sit near the top of it
+   rather than at the trough the keyframes start from */
+:root.mo-breath body.forge::before,:root.mo-still body.forge::before{animation:none;opacity:.94;transform:none;}
+
+/* ---- and on Still, nothing breathes either ---- */
+:root.mo-still .card-day::after,
+:root.mo-still .markglow,
+:root.mo-still .dayglow::before,:root.mo-still .dayglow::after,
+:root.mo-still .srow.ispr .inp,
+:root.mo-still .sbx-dot,
+:root.mo-still .side.going::after{animation:none;}
+/* the lit copies fade out entirely; what is left is the still glow already on the element */
+:root.mo-still .card-day::after,:root.mo-still .markglow{opacity:0;}
+/* the ready-day arrow is a control, not ornament - it keeps a steady lit ring instead of none */
+:root.mo-still .lvl::after{animation:none;opacity:.6;}
 </style>
 </head>
 <body class="booting">
@@ -2221,6 +2285,11 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
          happens. It never asks for audio focus, so it plays over whatever you are listening to and
          nothing pauses or ducks. -->
     <div class="footnote" style="margin:0 2px 8px">How you are told a rest is over while you are in another app. Android delivers it, so it lands whether or not Arcanum is on screen, and it plays over your music without pausing or lowering it. The countdown sits in the notification shade while the rest runs.</div>
+    <!-- Three settings rather than one switch: the thing most people want off is the ground
+         drifting, not the rune that tells them which day is today. -->
+    <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
+    <div class="presets" id="motionRow"></div>
+    <div class="footnote" style="margin-top:8px" id="motionNote"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2958,7 +3027,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.82';
+var APPV='v4.83';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5345,7 +5414,7 @@ function saveAndExit(){
 // guessed at.
 function backupBlob(){
   var s={};
-  ['arc_sfx','arc_alert10','arc_notif'].forEach(function(k){
+  ['arc_sfx','arc_alert10','arc_notif','arc_motion'].forEach(function(k){
     try{var v=localStorage.getItem(k);if(v!==null)s[k]=v;}catch(e){}
   });
   try{s[TKEY]=curTheme();}catch(e){}
@@ -5876,6 +5945,36 @@ function setAlertLvl(n,quiet){
   // Dragging fires this on every notch; playing the phrase each time would be a stutter, so
   // the sample waits until the finger comes off.
   if(!quiet&&!alertMuted())sfxRest();
+}
+// ---------- motion ----------
+// How much of the ground is allowed to move. The rules themselves are at the foot of the
+// stylesheet; this is only the switch and where it is kept.
+// The class is already on <html> by the time this runs - the head sets it before the first
+// paint - so MOTION reads back from the element rather than from storage a second time, and
+// the two can never disagree about what is on screen.
+var MOTIONS=[['full','Full','Everything moves: the ground drifts and the lit things breathe.'],
+             ['breath','Breath','The ground holds still. Runes, the mark and today’s ring still breathe.'],
+             ['still','Still','Nothing ambient moves. Taps still answer - sheets, cards and the page turn as they did.']];
+var MOTION=(function(){
+  var d=document.documentElement;
+  return d.classList.contains('mo-still')?'still':d.classList.contains('mo-breath')?'breath':'full';
+})();
+function setMotion(v){
+  if(v!=='full'&&v!=='breath'&&v!=='still')v='full';
+  MOTION=v;
+  try{localStorage.setItem('arc_motion',v);}catch(e){}
+  var d=document.documentElement;
+  d.classList.remove('mo-still','mo-breath');
+  if(v!=='full')d.classList.add('mo-'+v);
+  drawMotion();
+}
+function drawMotion(){
+  var e=document.getElementById('motionRow');if(!e)return;
+  e.innerHTML=MOTIONS.map(function(m){
+    return '<button class="preset sm'+(m[0]===MOTION?' on':'')+'" onclick="setMotion(\''+m[0]+'\')">'+m[1]+'</button>';
+  }).join('');
+  var n=document.getElementById('motionNote');
+  if(n)n.textContent=(MOTIONS.filter(function(m){return m[0]===MOTION;})[0]||MOTIONS[0])[2];
 }
 // Whether the app can mix with your music instead of stopping it rests entirely on one API
 // that may or may not be on this phone, and none of it can be told apart from a desk. So the
@@ -7571,7 +7670,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawAlertLvl();drawThemePick();drawNotifTog();
+  drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
   // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
@@ -8225,7 +8324,13 @@ var TUT_ALL=[
   // exercise being changed, so the ring is drawn around the exercise's details.
   // 'a' is in the block list to match bindExHold. Without it a tap on Instructions inside the
   // handed-over card opened an external page in the middle of the tour.
-  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-body',
+  // endRest is claimed HERE, on the step straight after the pill's own, because the step before
+  // this one is the only one whose subject is the pill. It used to be claimed first by the export,
+  // eight steps further on, so the prop rest went on counting down behind seven steps that had
+  // nothing to do with it and the pill sat at the bottom of the screen for the whole middle of
+  // the tour. Stepping BACK re-arms it: scene 5 calls tutRest() again, so the pill is there when
+  // its own step is.
+  {sel:'#exc-bench',pad:6,hit:'#exc-bench',ping:'#exc-bench .ex-body',endRest:1,
    block:'input,button,textarea,a,.chk,.hold,.ex-swap,.lvl,.exdrag',
    w:'Waiting for a long press',nudge:'Hold inside the ring. The grip, the arrows and the links are not part of it.',
    when:function(){return tutOn('exEditOvl');}},
