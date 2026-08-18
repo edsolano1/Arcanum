@@ -395,25 +395,12 @@ body.tut #weekCards .dayempty{padding:3px 4px 2px;font-size:11.5px;}
 /* the tagline is the first thing to go: it is the one line up there that says nothing the tour
    has not already said, and it is holding the whole week down the screen */
 body.tut #tagline{display:none;}
-/* Measured, finally, instead of guessed at: each ember was rendering 1.5px square at 0.26
-   opacity. Two pixels of a quarter-strength gradient. They were running the whole time and there
-   was nothing there to see, which is why brightening them twice changed nothing - brightness on
-   a two pixel dot is still a two pixel dot.
-   Size is the fix. Four to seven pixels with a real halo around each one, carried at closer to
-   full strength, so a coal reads as a coal. Same forty four, same rise, same drift. */
-body.forge .bg-motes i{
-  width:5px;height:5px;
-  filter:brightness(1.35) saturate(1.1);
-  box-shadow:0 0 7px 2px color-mix(in srgb,var(--gold) 60%,transparent),
-             0 0 16px 5px color-mix(in srgb,#ff6a12 34%,transparent);}
-body.forge .bg-motes i:nth-child(3n){width:7px;height:7px;}
-body.forge .bg-motes i:nth-child(4n){width:4px;height:4px;}
-/* and lifted off the floor of the opacity curve, so the dimmest part of a rise is still visible */
-@keyframes emberrise{
-  0%{transform:translateY(0) scale(.7);opacity:0;}
-  12%{opacity:.85;}
-  70%{opacity:.7;}
-  100%{transform:translateY(-88vh) scale(1.25);opacity:0;}}
+/* The Forge embers used to have a second home here, six hundred lines above the rules that
+   actually draw them, and it was doing nothing at all. A later @keyframes of the same name
+   replaces an earlier one outright, and the later box-shadow won on document order, so the
+   rewrite of the rise curve and the halo that was written here never reached the screen - the
+   embers went on running the original way while two builds in a row reported them changed.
+   Nothing lives here now. The motes are described once, beside the other three grounds. */
 /* The rest pill belongs to a session. On the week board it was a clock floating over a screen
    with nothing to time, and leaving a day mid-rest is not a reason to keep it hovering there.
    The countdown is in the notification shade the whole time, so nothing is lost by it going. */
@@ -1288,6 +1275,7 @@ body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,v
 
 /* motes: embers for Forge, snow for Frost, dust and moonlight for the other two */
 .bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
+  width:var(--sz);height:var(--sz);
   will-change:transform,opacity;
   opacity:0;animation:moterise var(--d) linear infinite;animation-delay:var(--dl);}
 /* the full set of flakes is only wanted in a storm - the other themes take the first 15 */
@@ -1301,20 +1289,31 @@ body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5)
 /* Obsidian's dust is lit, so it reads as drifting sparks rather than specks. Obsidian is the
    themeless default, hence the negation rather than a .dark class. */
 body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix(in srgb,var(--gold) 70%,transparent);}
-/* Embers, not dust: each one is a lit coal with a halo, it swells as it climbs, and it
-   flickers on its own clock so the field never pulses in unison. */
-body.forge .bg-motes i{background:radial-gradient(circle,#fff6dc 0%,#ffb43c 40%,#ff6a12 74%,rgba(255,90,10,0) 100%);
-  box-shadow:0 0 6px rgba(255,150,40,.9),0 0 16px rgba(255,88,10,.5);
-  animation:emberrise var(--d) linear infinite,emberflick var(--sw) ease-in-out infinite;
-  animation-delay:var(--dl),calc(var(--dl) / 3);}
+/* Embers, not dust: each one is a lit coal with a halo, and it swells as it climbs.
+   One animation now, and nothing in it that forces a render surface. The flicker used to be a
+   second animation on filter: blur() and brightness(), and a filter inside @keyframes is the
+   first item on the list this file already keeps of what has come back blank on a folded-open
+   panel - the same list that explains the black bands and the missing pieces of an open sheet.
+   Forty four elements each asking for their own filtered surface was the only layer on the
+   ground doing that, and it was the only layer that came up empty on the phone while the wind,
+   the grain and the glow beside it all drew. The flicker is waypoints in the rise's own
+   opacity curve instead: the same restless coal, no filter, no second clock.
+   Size comes off --sz, which is per-mote and random, so a Forge ember is roughly two and a
+   half to eight pixels and no two neighbours match. */
+body.forge .bg-motes i{width:calc(var(--sz) * 2.1);height:calc(var(--sz) * 2.1);
+  background:radial-gradient(circle,#fff6dc 0%,#ffb43c 42%,#ff6a12 76%,rgba(255,90,10,0) 100%);
+  box-shadow:0 0 7px rgba(255,168,60,.95),0 0 18px rgba(255,88,10,.55);
+  animation:emberrise var(--d) linear infinite;animation-delay:var(--dl);}
 @keyframes emberrise{
   0%{transform:translateY(104vh) translateX(0) scale(.6);opacity:0;}
-  9%{opacity:1;}
-  62%{opacity:.85;}
+  8%{opacity:1;}
+  21%{opacity:.62;}
+  34%{opacity:1;}
+  48%{opacity:.72;}
+  61%{opacity:.96;}
+  76%{opacity:.6;}
+  88%{opacity:.82;}
   100%{transform:translateY(-10vh) translateX(6vw) scale(1.25);opacity:0;}}
-@keyframes emberflick{
-  0%,100%{filter:blur(.35px) brightness(.85);}
-  50%{filter:blur(.5px) brightness(1.75);}}
 body.moon .bg-motes i{background:radial-gradient(circle,rgba(255,255,255,.9) 0%,rgba(226,220,255,.55) 55%,rgba(200,196,255,0) 100%);box-shadow:none;}
 @keyframes moterise{
   0%{transform:translateY(108vh) translateX(0);opacity:0;}
@@ -1339,7 +1338,11 @@ body.light .bg-vig{background:radial-gradient(128% 104% at 50% 26%,transparent 4
 /* battery saver and reduced motion keep the ground, lose the travel */
 @media(prefers-reduced-motion:reduce){
   .bg-wm svg,.bg-motes i,.bg-rules > i{animation:none;}
-  .bg-motes i{opacity:.22;}
+  /* Frozen, every mote sat at top:0 - forty four dots in a row along the top edge at a fifth
+     strength, which is not a still ember field, it is a seam. Each one carries the height it
+     happened to be passing through, so with the motion off the ground still reads as embers
+     hanging in the air rather than as nothing at all. */
+  .bg-motes i{opacity:.42;transform:translateY(var(--ty));}
   .bg-light{animation:bgbreath 12s ease-in-out infinite;}
 }
 /* The flicker scaffolding that lived here is gone: the per-layer freeze switches, the frame
@@ -2804,7 +2807,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.68';
+var APPV='v4.69';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3628,8 +3631,15 @@ function renderBg(){
   // 15 slow motes for the other three themes; the rest only show in Frost, where the ground
   // is a storm rather than a drift. CSS hides 16-onward everywhere else.
   for(var i=0;i<44;i++){
+    // Size leaves here as a variable rather than as width and height. Written inline as width it
+    // was out of reach: an inline declaration outranks every selector in the stylesheet, so each
+    // theme's attempt to grow its motes to something readable was overruled by this one line, and
+    // every "make them bigger" change was a no-op that measured fine and looked identical.
+    // As a custom property the sheet gets the last word, which is where the decision about how
+    // big an ember reads belongs. --ty is the height a mote holds when it is not climbing.
     var s=(1.1+Math.random()*2.6).toFixed(2);
-    h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;width:'+s+'px;height:'+s+'px;'+
+    h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;--sz:'+s+'px;'+
+       '--ty:'+(4+Math.random()*88).toFixed(1)+'vh;'+
        '--d:'+(17+Math.random()*23).toFixed(1)+'s;--dl:-'+(Math.random()*34).toFixed(1)+'s;'+
        '--sw:'+(2.6+Math.random()*3.4).toFixed(1)+'s"></i>';
   }
