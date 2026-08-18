@@ -322,7 +322,19 @@ body.light .daybox.today > .dayglow::after{animation-duration:4.8s;opacity:.45;}
 #tutHole.sweep,#tutHole.sweep > i{transition:top .62s cubic-bezier(.32,.86,.36,1),
   left .62s cubic-bezier(.32,.86,.36,1),width .62s cubic-bezier(.32,.86,.36,1),
   height .62s cubic-bezier(.32,.86,.36,1);}
-@media(prefers-reduced-motion:reduce){#tutHole.sweep,#tutHole.sweep > i{transition:none;}}
+/* Measured on the phone: the highlight moved between steps as a single-frame cut, up to 639px at
+   once - three quarters of the closed screen, instantly. Nothing was dropped and nothing was slow;
+   the tour held a flat 8.3ms frame the whole way. It was a cut where the eye expects a move, and
+   that is what reads as a skip.
+   Glide is armed for the length of a step change and taken straight off again, because the same
+   geometry is rewritten on EVERY frame that a target moves - a transition left on permanently
+   would make the ring lag behind anything it tracks through a scroll. Shorter than the sweep:
+   this is the ring following the step, not the tour announcing a journey. */
+#tutHole.glide,#tutHole.glide > i{transition:top .28s cubic-bezier(.32,.86,.36,1),
+  left .28s cubic-bezier(.32,.86,.36,1),width .28s cubic-bezier(.32,.86,.36,1),
+  height .28s cubic-bezier(.32,.86,.36,1);}
+@media(prefers-reduced-motion:reduce){#tutHole.sweep,#tutHole.sweep > i,
+  #tutHole.glide,#tutHole.glide > i{transition:none;}}
 /* The pulsing ring sits on the one control the step wants tapped, so a lit panel still
    points at something specific. The pulse is a scaling pseudo-ring rather than an animated
    box-shadow: a shadow is a paint property, so that ring was repainting every frame it was
@@ -1275,7 +1287,7 @@ body.light .bg-light{background:radial-gradient(closest-side,color-mix(in srgb,v
 
 /* motes: embers for Forge, snow for Frost, dust and moonlight for the other two */
 .bg-motes i{position:absolute;display:block;border-radius:50%;background:var(--gold);
-  width:var(--sz);height:var(--sz);
+  width:calc(var(--sz) * var(--mscale,1));height:calc(var(--sz) * var(--mscale,1));
   will-change:transform,opacity;
   opacity:0;animation:moterise var(--d) linear infinite;animation-delay:var(--dl);}
 /* the full set of flakes is only wanted in a storm - the other themes take the first 15 */
@@ -1289,31 +1301,39 @@ body.light .bg-motes i{background:#c3d2e2;box-shadow:0 0 4px rgba(96,124,156,.5)
 /* Obsidian's dust is lit, so it reads as drifting sparks rather than specks. Obsidian is the
    themeless default, hence the negation rather than a .dark class. */
 body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix(in srgb,var(--gold) 70%,transparent);}
-/* Embers, not dust: each one is a lit coal with a halo, and it swells as it climbs.
-   One animation now, and nothing in it that forces a render surface. The flicker used to be a
-   second animation on filter: blur() and brightness(), and a filter inside @keyframes is the
-   first item on the list this file already keeps of what has come back blank on a folded-open
-   panel - the same list that explains the black bands and the missing pieces of an open sheet.
-   Forty four elements each asking for their own filtered surface was the only layer on the
-   ground doing that, and it was the only layer that came up empty on the phone while the wind,
-   the grain and the glow beside it all drew. The flicker is waypoints in the rise's own
-   opacity curve instead: the same restless coal, no filter, no second clock.
-   Size comes off --sz, which is per-mote and random, so a Forge ember is roughly two and a
-   half to eight pixels and no two neighbours match. */
-body.forge .bg-motes i{width:calc(var(--sz) * 2.1);height:calc(var(--sz) * 2.1);
-  background:radial-gradient(circle,#fff6dc 0%,#ffb43c 42%,#ff6a12 76%,rgba(255,90,10,0) 100%);
-  box-shadow:0 0 7px rgba(255,168,60,.95),0 0 18px rgba(255,88,10,.55);
+/* Coals, not lights. A perfect circle with a soft glow reads as a floating dot however hot you
+   make it - what says ember is that it is a torn fleck rather than a disc, that it tumbles as it
+   goes, that it wanders instead of rising on rails, and that it cools on the way up: white at the
+   core near the fire, orange in the middle of the climb, a dull red cinder by the top.
+   All of it is carried by ONE animation moving transform and opacity only. The cooling is not a
+   colour animation and not a filter: the fleck is painted once as a hot gradient, and the fade to
+   ash is the opacity curve taking the bright core out from under a shadow that stays red. Paint
+   properties and filters are the two things this file already records as having come back blank
+   on the folded-open panel, and forty four elements is the wrong place to spend either.
+   --dx is a per-mote drift direction so the field does not lean one way, and --sp marks the third
+   of them that gutter out early instead of all reaching the top together. */
+body.forge .bg-motes i{width:calc(var(--sz) * 2.1 * var(--mscale,1));
+  height:calc(var(--sz) * 2.1 * var(--mscale,1));
+  border-radius:54% 42% 58% 46%;
+  background:radial-gradient(circle at 42% 36%,#fffdf4 0%,#ffe391 16%,#ff9f34 42%,#f2551a 71%,rgba(140,28,4,0) 100%);
+  box-shadow:0 0 6px rgba(255,152,52,.72),0 0 15px rgba(255,72,10,.42);
   animation:emberrise var(--d) linear infinite;animation-delay:var(--dl);}
+/* Transform and opacity are interpolated across the frames that declare them, independently, so
+   the wander and the guttering are written on their own clocks inside the single animation. */
 @keyframes emberrise{
-  0%{transform:translateY(104vh) translateX(0) scale(.6);opacity:0;}
-  8%{opacity:1;}
-  21%{opacity:.62;}
-  34%{opacity:1;}
-  48%{opacity:.72;}
-  61%{opacity:.96;}
-  76%{opacity:.6;}
-  88%{opacity:.82;}
-  100%{transform:translateY(-10vh) translateX(6vw) scale(1.25);opacity:0;}}
+  0%{transform:translate3d(0,104vh,0) rotate(0deg) scale(.5);opacity:0;}
+  5%{opacity:1;}
+  17%{transform:translate3d(calc(var(--dx,0) * 2.2vw),84vh,0) rotate(46deg) scale(.82);}
+  22%{opacity:.55;}
+  31%{opacity:1;}
+  38%{transform:translate3d(calc(var(--dx,0) * -1.6vw),62vh,0) rotate(-38deg) scale(1);}
+  46%{opacity:.6;}
+  57%{opacity:.92;}
+  61%{transform:translate3d(calc(var(--dx,0) * 3.4vw),40vh,0) rotate(72deg) scale(1.1);}
+  71%{opacity:calc(.5 - var(--sp,0) * .5);}
+  82%{transform:translate3d(calc(var(--dx,0) * 1.2vw),18vh,0) rotate(28deg) scale(1.18);}
+  86%{opacity:calc(.62 - var(--sp,0) * .62);}
+  100%{transform:translate3d(calc(var(--dx,0) * 4.6vw),-10vh,0) rotate(96deg) scale(1.24);opacity:0;}}
 body.moon .bg-motes i{background:radial-gradient(circle,rgba(255,255,255,.9) 0%,rgba(226,220,255,.55) 55%,rgba(200,196,255,0) 100%);box-shadow:none;}
 @keyframes moterise{
   0%{transform:translateY(108vh) translateX(0);opacity:0;}
@@ -2807,7 +2827,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.70';
+var APPV='v4.71';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -2833,6 +2853,37 @@ function persistNow(){
   try{localStorage.setItem(KEY+':bak',JSON.stringify({t:Date.now(),db:DB}));}catch(e){}
 }
 function saveDB(){persistNow();}
+// The app is a page that never navigates. Opening it from the launcher resumes the WebView with
+// whatever it was already showing, so a build pushed since is not picked up until the process
+// happens to die - which is why a fix can be live on the site, reachable from the phone own
+// network, and still not on the screen. Measured exactly that: the site was serving v4.70 and the
+// app was showing v4.69 out of its cache, and no amount of reopening it changed that.
+// On the way back to the foreground the live copy is asked for its version, and a different one
+// is taken. Never mid-anything: a reload during a session, a sheet or the tour throws away what
+// is on screen for a cosmetic gain, so it waits for the board to be idle and takes it then.
+var VERCHK=0;
+function checkVersion(){
+  // The check costs a fetch of the whole page - there is no smaller thing on the site that
+  // states the version, and inventing one would be a third place to remember to bump. A minute
+  // between checks makes that a non-event on wifi and close to one on cellular, and the app is
+  // opened a handful of times a day, not continuously.
+  if(Date.now()-VERCHK<60000)return;
+  VERCHK=Date.now();
+  if(TUTON||CUR||document.querySelector('.ovl.on'))return;
+  fetch('./index.html?v='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():null;})
+    .then(function(t){
+      if(!t)return;
+      var m=t.match(/var APPV=.([^']+)./);
+      if(!m||m[1]===APPV)return;
+      if(TUTON||CUR||document.querySelector('.ovl.on'))return;   // re-checked: the fetch took time
+      persistNow();location.reload();
+    }).catch(function(){});
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible')checkVersion();
+});
+window.addEventListener('focus',checkVersion);
+setTimeout(checkVersion,5000);
 // only for keystroke-rate callers (the notes box)
 function saveSoon(){clearTimeout(saveT);saveT=setTimeout(persistNow,400);}
 ['visibilitychange','pagehide','freeze','blur'].forEach(function(ev){
@@ -3604,7 +3655,7 @@ function renderMark(){
 }
 // The ground behind the board. Only the watermark is redrawn on a theme change - rebuilding
 // the motes would restart every drift mid-flight.
-var motesBuilt=false;
+var motesBuilt=false,MOTEW=0;
 function renderBg(){
   var wm=document.querySelector('.bg-wm');
   if(wm)wm.innerHTML='<svg viewBox="0 0 100 100" fill="none">'+ouroboros('currentColor','var(--bg)',false)+'</svg>';
@@ -3638,11 +3689,23 @@ function renderBg(){
     rp.innerHTML=rh;
   }
   var m=document.querySelector('.bg-motes');
-  if(!m||motesBuilt)return;
+  if(!m)return;
+  // Density, not count. Closed this phone is 360x840 and unfolded it is 752x835 - it gains width,
+  // not height - so the same forty four embers cover twice the area unfolded and read half as
+  // thick. Count follows the square root of the area rather than the area itself, and is capped:
+  // the big panel runs at 60Hz to the small one's 120, and every mote is a separate animated
+  // element, which this file already records as something that starves the raster there. Size
+  // carries the rest, so an ember is the same size RELATIVE to the screen on either.
+  var A=innerWidth*innerHeight;
+  var MN=Math.max(30,Math.min(56,Math.round(44*Math.sqrt(A/302400))));
+  var MS=Math.max(1,Math.min(1.6,Math.min(innerWidth,innerHeight)/360));
+  if(motesBuilt&&MOTEW===innerWidth)return;
+  MOTEW=innerWidth;
+  document.documentElement.style.setProperty('--mscale',MS.toFixed(2));
   var h='';
   // 15 slow motes for the other three themes; the rest only show in Frost, where the ground
   // is a storm rather than a drift. CSS hides 16-onward everywhere else.
-  for(var i=0;i<44;i++){
+  for(var i=0;i<MN;i++){
     // Size leaves here as a variable rather than as width and height. Written inline as width it
     // was out of reach: an inline declaration outranks every selector in the stylesheet, so each
     // theme's attempt to grow its motes to something readable was overruled by this one line, and
@@ -3652,11 +3715,23 @@ function renderBg(){
     var s=(1.1+Math.random()*2.6).toFixed(2);
     h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;--sz:'+s+'px;'+
        '--ty:'+(4+Math.random()*88).toFixed(1)+'vh;'+
+       '--dx:'+(Math.random()*2-1).toFixed(2)+';'+
+       '--sp:'+(Math.random()<.34?1:0)+';'+
        '--d:'+(17+Math.random()*23).toFixed(1)+'s;--dl:-'+(Math.random()*34).toFixed(1)+'s;'+
        '--sw:'+(2.6+Math.random()*3.4).toFixed(1)+'s"></i>';
   }
   m.innerHTML=h;motesBuilt=true;
 }
+// Folding changes the viewport by more than any layout rule can absorb - 360x840 closed against
+// 752x835 open, wider and no taller - and the ember field is built for an area, so it is rebuilt
+// for the new one. Keyed on width, which is the axis that actually moves here. Debounced, because
+// a fold fires a burst of resizes and rebuilding the field on each one is forty odd elements
+// thrown away and remade several times over.
+var BGRT=null;
+window.addEventListener('resize',function(){
+  clearTimeout(BGRT);
+  BGRT=setTimeout(function(){if(MOTEW!==innerWidth)renderBg();},220);
+});
 
 // The app is Arcanum. Every other theme is its own place, so each wears its own name on
 // the home screen - the mark underneath is what says it is still the same app.
@@ -8181,8 +8256,9 @@ function tutEnd(){
   TUTON=false;
   document.body.classList.remove('tut');
   tutShift(null);   // put back any sheet the tour pushed down
-  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);cancelAnimationFrame(TUTPAN);
+  clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);clearTimeout(TUTGL);cancelAnimationFrame(TUTPAN);
   document.getElementById('tutHole').classList.remove('sweep');
+  document.getElementById('tutHole').classList.remove('glide');
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
   });
@@ -8232,10 +8308,18 @@ function tutGo(i){
     // the move hard to follow, and the pan itself now runs at half the pace it did.
     tutStray(i);
     var PAN=900;
-    tutScroll(false,PAN);
     clearTimeout(TUTSW2);
-    TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
-  }else tutScroll();
+    // The wait exists so the sweep lands at the END of the travel rather than on top of it.
+    // But tutScroll declines to move when the target is already on screen, and then the wait was
+    // still served: on the closed phone Finish is already in view, so the ring cut onto it, sat
+    // there settled for nine hundred milliseconds, and only then bloomed open and closed again
+    // onto the exact spot it was already on - a finished transition replayed after a dead pause,
+    // which is the hiccup. No journey, no wait: the sweep goes now and is the only move the step
+    // makes. Which of the two happens depends on the screen, which is why it is asked rather
+    // than assumed - the same step travels on one size and does not on another.
+    if(tutScroll(false,PAN))TUTSW2=setTimeout(function(){if(TUTON&&TUTI===i)tutSweep();},PAN+60);
+    else tutSweep();
+  }else{tutGlide();tutScroll();}
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
   // down - and a scroll worked out before that happened lands nowhere near the target. The
@@ -8402,7 +8486,15 @@ function tutBox(el,box,p){
 // full-viewport box is planted with transitions off and the placement cache cleared, so the
 // very next frame writes the step's real target with transitions armed and CSS carries it in.
 // Nothing here chooses the target - tutPlace does that, exactly as it always has.
-var TUTSW=null,TUTSC=null,TUTSW2=null;
+var TUTSW=null,TUTSC=null,TUTSW2=null,TUTGL=null;
+// Armed for one step change, then off, so per-frame tracking stays exact. See the glide rule.
+function tutGlide(){
+  var hole=document.getElementById('tutHole');
+  if(!hole.classList.contains('on'))return;   // nothing to glide FROM: it is arriving, not moving
+  hole.classList.add('glide');
+  clearTimeout(TUTGL);
+  TUTGL=setTimeout(function(){hole.classList.remove('glide');},340);
+}
 function tutSweep(){
   var hole=document.getElementById('tutHole'),vw=window.innerWidth,vh=window.innerHeight;
   hole.classList.remove('sweep');
@@ -8503,18 +8595,21 @@ function tutPan(sc,delta,ms){
   }
   TUTPAN=requestAnimationFrame(step);
 }
+// Returns whether it actually travelled. The sweep is timed against that journey, and on a screen
+// where the target is already in view there is no journey to time - see tutGo.
 function tutScroll(instant,ms){
   var el=tutEls(TUT_STEPS[TUTI].sel)[0];
-  if(!el)return;
+  if(!el)return false;
   var r=el.getBoundingClientRect(),want=r.top-window.innerHeight*0.30;
-  if(Math.abs(want)<50)return;
+  if(Math.abs(want)<50)return false;
   var sc=el.closest('.ovl')||el.closest('#session')||el.closest('#make');
-  if(ms){tutPan(sc,want,ms);return;}
+  if(ms){tutPan(sc,want,ms);return true;}
   var beh=instant?'auto':'smooth';
   try{
     if(sc)sc.scrollTo({top:sc.scrollTop+want,behavior:beh});
     else window.scrollTo({top:window.scrollY+want,behavior:beh});
   }catch(e){}
+  return true;
 }
 function tutSeen(){try{localStorage.setItem(KEY+':tut','1');}catch(e){}}
 function tutWasSeen(){try{return !!localStorage.getItem(KEY+':tut');}catch(e){return true;}}
