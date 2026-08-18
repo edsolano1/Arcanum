@@ -897,14 +897,20 @@ body.light .dayact.del{--bad:#b1332c;}
 /* Per-set editing. Shut, it is one quiet line of text - the common case is three sets of one
    number and this must not get in the way of it. Open, it is a numbered row per set, and the
    summary above dims because the lines are what gets saved from then on. */
+/* What the set is counted in, asked first because it decides what the rest of the row means.
+   Full width and on its own line - it is the question the others hang off, not a peer of them. */
+.mk-meas{display:flex;align-items:center;gap:10px;margin:9px 0 2px;}
+.mk-meas > span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--txt3);flex-shrink:0;}
+.mk-meas .mk-sel{flex:1;min-width:0;}
 .mk-perset{margin-top:8px;}
+.mk-ps-head{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.mk-ps-lbl{flex:1;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--txt3);}
 .mk-ps-t{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   color:var(--txt3);cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--line);}
 .mk-ps-t:hover{color:var(--go);border-color:var(--go);}
 .mk-perset.open .mk-ps-t{color:var(--go);border-color:color-mix(in srgb,var(--go) 50%,var(--line));}
-.mk-perset.open ~ .mk-rf,.mk-row:has(.mk-perset.open) .mk-rf label:nth-child(1),
-.mk-row:has(.mk-perset.open) .mk-rf label:nth-child(2),
-.mk-row:has(.mk-perset.open) .mk-rf label:nth-child(3){opacity:.4;}
 .mk-ps-list{margin-top:9px;display:flex;flex-direction:column;gap:7px;}
 .mk-ps-row{display:flex;align-items:center;gap:8px;}
 .mk-ps-n{font-family:var(--mono);font-size:10px;color:var(--txt3);width:16px;flex-shrink:0;text-align:right;}
@@ -3330,7 +3336,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.103';
+var APPV='v4.104';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5050,11 +5056,27 @@ function ownProgram(){
   try{saveDB();}catch(e){}
 }
 function mkEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function mkLine(r){return r.hold?((r.r||30)+' sec'):((r.w||0)+'x'+(r.r||0));}
+// One set, written the way its unit is written. Reps-only goes out as 0xN because that is what
+// the shipped bodyweight entries are and what parseTarget already reads back as weightless.
+function mkLine(r){
+  var u=(r.unit||(r.hold?'sec':'wr'));
+  if(u==='sec')return (r.r||45)+' sec';
+  if(u==='min')return (r.r||20)+' min';
+  if(u==='cal')return (r.r||200)+' cal';
+  if(u==='reps')return '0x'+(r.r||10);
+  return (r.w||0)+'x'+(r.r||0);
+}
 function mkParse(sets){
-  var L=String(sets||'0x10').split('\n'),f=L[0]||'0x10',o={n:L.length||1,hold:false,w:0,r:10};
-  if(/sec/i.test(f)){o.hold=true;o.r=parseInt(f,10)||30;}
-  else{var p=f.split('x');o.w=parseFloat(p[0])||0;o.r=parseInt(p[1],10)||0;}
+  var L=String(sets||'0x10').split('\n'),f=L[0]||'0x10',o={n:L.length||1,hold:false,w:0,r:10,unit:'wr'};
+  // The unit is read off the line rather than assumed. This only ever recognised seconds, so a
+  // day measured in minutes or calories - and the library ships both, "30+ min" and "200 cal" -
+  // arrived in the builder as a weight of nothing by a rep count of nothing.
+  var m=f.match(/(sec|min|cal)/i);
+  if(m){o.unit=m[1].toLowerCase();o.hold=true;o.r=parseInt(f,10)||0;}
+  else{
+    var p=f.split('x');o.w=parseFloat(p[0])||0;o.r=parseInt(p[1],10)||0;
+    o.unit=o.w?'wr':'reps';
+  }
   return o;
 }
 function mkNote(msg,title){ask(msg,function(){},title||'Hold on',"OK",null,null);}
@@ -5249,7 +5271,7 @@ function openMake(base,editId,blank,want){
             // first, and 55x12/55x12/55x10 came back as three twelves. Silent, and on a tenth of
             // the library. Held here and re-emitted untouched unless the numbers are edited.
             var raw=String(ov.sets||base2.sets||"").split("\n");
-            out.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,
+            out.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,unit:p.unit,
                       lines:raw,base:{n:p.n,w:p.w,r:p.r,hold:p.hold},
                       rest:(ov.rest!==undefined?ov.rest:base2.rest)||'',g:g});
           });
@@ -5353,12 +5375,10 @@ function mkRender(){
        '<div class="mk-rt"><span class="mk-rn">'+mkEsc(nm)+'</span>'+
          (g?'':'<span class="mk-link" onclick="mkJoin('+i+')" title="Run this with another exercise">'+PLUS+'SUPERSET</span>')+
          '<div class="mk-x" onclick="mkDelRow('+i+')" title="Remove"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div></div>'+
+       mkMeasureUI(r,i)+
        '<div class="mk-rf">'+
-         '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+',\'n\',this.value)"></label>'+
-         (r.hold?'':'<label class="mk-f"><span>Weight</span><input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+(r.w||0)+'" oninput="mkSet('+i+',\'w\',this.value)"></label>')+
-         '<label class="mk-f"><span>'+(r.hold?'Seconds':'Reps')+'</span><input class="mk-num" type="number" inputmode="numeric" value="'+(r.r||0)+'" oninput="mkSet('+i+',\'r\',this.value)"></label>'+
-         '<label class="mk-f"><span>Count</span><div class="btn" onclick="mkToggleHold('+i+')">'+(r.hold?'TIME':'REPS')+'</div></label>'+
-         '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkSet('+i+',\'rest\',this.value)">'+
+         '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+',&#39;n&#39;,this.value)"></label>'+
+         '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkSet('+i+',&#39;rest&#39;,this.value)">'+
            (MK_REST.indexOf(r.rest)<0?[r.rest].concat(MK_REST):MK_REST).map(function(v){
              return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkEsc(v||'none')+'</option>';}).join('')+
          '</select></label>'+
@@ -5392,41 +5412,89 @@ function mkSet(i,k,v){
 // is. Expanded is one row per set, which is what a top set, a back-off or a pyramid needs. A row
 // that already varies opens expanded and has no collapse - hiding a difference is how it got
 // overwritten last time. MATCH ALL is the deliberate way back, and it says what it does.
+// ---------- how a set is counted ----------
+// This used to be a REPS/TIME button sitting after the Reps field it governed, which is the wrong
+// way round: what a set is measured in decides which fields make sense, so it has to be asked
+// first. It was also only two answers, while the app has always stored five - parseTarget reads
+// seconds, minutes and calories, and the shipped library uses all three ("200 cal", "30+ min").
+// Weight-less reps are stored as 0xN, which is exactly what the bodyweight entries already do.
+// Bodyweight and assisted are NOT here: they are properties of the exercise, not of the set, and
+// they live on the library entry as bw and inv.
+var MK_MEASURES=[['wr','Weight and reps','145 x 8'],['reps','Reps only','x 15'],
+                 ['sec','Seconds','45 sec'],['min','Minutes','20 min'],['cal','Calories','200 cal']];
+function mkUnitOf(r){
+  if(r.unit)return r.unit;
+  return r.hold?'sec':'wr';        // rows built before this existed carried a hold flag
+}
+function mkUnitLabel(u){
+  for(var k=0;k<MK_MEASURES.length;k++)if(MK_MEASURES[k][0]===u)return MK_MEASURES[k][1];
+  return MK_MEASURES[0][1];
+}
+function mkMeasureUI(r,i){
+  var u=mkUnitOf(r);
+  return '<div class="mk-meas"><span>Counted in</span>'+
+    '<select class="mk-sel" onchange="mkSetUnit('+i+',this.value)">'+
+      MK_MEASURES.map(function(m){
+        return '<option value="'+m[0]+'"'+(u===m[0]?' selected':'')+'>'+m[1]+'</option>';
+      }).join('')+
+    '</select></div>';
+}
+function mkSetUnit(i,v){
+  var r=MK.rows[i];if(!r)return;
+  r.unit=v;r.hold=(v==='sec'||v==='min'||v==='cal');
+  // Changing what a set is measured in makes the old numbers meaningless - 145x8 is not 145
+  // seconds - so the row resets to a sensible starting value for the new unit rather than
+  // carrying a figure that means something else now.
+  if(v==='sec'&&(!r.r||r.r<5))r.r=45;
+  else if(v==='min'&&(!r.r||r.r<1))r.r=20;
+  else if(v==='cal'&&(!r.r||r.r<10))r.r=200;
+  else if((v==='wr'||v==='reps')&&(!r.r||r.r>60))r.r=10;
+  if(v!=='wr')r.w=0;
+  r.custom=0;r.lines=mkLinesUniform(r);
+  mkRender();
+}
 function mkLinesUniform(r){
   var L=[],k;for(k=0;k<(r.n||1);k++)L.push(mkLine(r));return L;
 }
 // The per-set face of a row. Drawn under the summary rather than instead of it, so the two are
 // never on screen disagreeing about which is in charge - open it and the summary greys, because
 // from that moment the lines are what gets saved.
+// The numbers live HERE now, under the per-set control, and nowhere else. They used to be
+// duplicated as Weight and Reps fields up in the summary row as well, which meant two places on
+// screen claiming to say what a set was - and when they disagreed, nothing said which won.
+// Shut, this is one row labelled "All sets". Open, it is one row per set. Same shape either way,
+// so opening it does not rearrange the screen, it just gives you more of the same thing.
 function mkSetsUI(r,i){
-  var varies=mkVaries(r),open=r.exp||varies;
+  var u=mkUnitOf(r),varies=mkVaries(r),open=r.exp||varies;
+  var unitTxt=u==='sec'?'sec':u==='min'?'min':u==='cal'?'cal':'reps';
+  var L=open?mkLinesFor(r):[mkLine(r)];
   var h='<div class="mk-perset'+(open?' open':'')+'">'+
-        '<span class="mk-ps-t" onclick="mkExpand('+i+')">'+
-          (open&&varies?'MATCH ALL SETS':(open?'ONE FOR ALL SETS':'SET EACH ONE'))+'</span>';
-  if(open){
-    var L=mkLinesFor(r);
-    h+='<div class="mk-ps-list">';
-    L.forEach(function(ln,k){
-      var c=mkLineVal(ln,r.hold);
-      h+='<div class="mk-ps-row"><span class="mk-ps-n">'+(k+1)+'</span>'+
-         (r.hold?'':'<input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+c.w+'" oninput="mkSetLine('+i+','+k+',\'w\',this.value)">'+
-                    '<span class="mk-ps-x">&times;</span>')+
-         '<input class="mk-num" type="number" inputmode="numeric" value="'+c.r+'" oninput="mkSetLine('+i+','+k+',\'r\',this.value)">'+
-         '<span class="mk-ps-u">'+(r.hold?'sec':'reps')+'</span></div>';
-    });
-    h+='</div>';
-  }
-  return h+'</div>';
+        '<div class="mk-ps-head">'+
+          '<span class="mk-ps-lbl">'+(open?(varies?'Each set':'Every set'):'All sets')+'</span>'+
+          '<span class="mk-ps-t" onclick="mkExpand('+i+')">'+
+            (varies?'MATCH ALL SETS':(open?'ONE FOR ALL':'SET EACH ONE'))+'</span>'+
+        '</div><div class="mk-ps-list">';
+  L.forEach(function(ln,k){
+    var c=mkLineVal(ln,u);
+    var wIn=open?('mkSetLine('+i+','+k+',&#39;w&#39;,this.value)'):('mkSet('+i+',&#39;w&#39;,this.value)');
+    var rIn=open?('mkSetLine('+i+','+k+',&#39;r&#39;,this.value)'):('mkSet('+i+',&#39;r&#39;,this.value)');
+    h+='<div class="mk-ps-row">'+(open?'<span class="mk-ps-n">'+(k+1)+'</span>':'')+
+       (u==='wr'?'<input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+c.w+'" oninput="'+wIn+'">'+
+                 '<span class="mk-ps-x">&times;</span>':'')+
+       '<input class="mk-num" type="number" inputmode="numeric" value="'+c.r+'" oninput="'+rIn+'">'+
+       '<span class="mk-ps-u">'+unitTxt+'</span></div>';
+  });
+  return h+'</div></div>';
 }
 function mkLinesFor(r){
   var out=(r.lines||[]).slice(0,r.n||1);
   while(out.length<(r.n||1))out.push(mkLine(r));
   return out;
 }
-function mkLineVal(str,hold){
+function mkLineVal(str,u){
   var s=String(str||'');
-  if(hold||/sec/i.test(s))return {hold:true,w:0,r:parseInt(s,10)||30};
-  var p=s.split('x');return {hold:false,w:parseFloat(p[0])||0,r:parseInt(p[1],10)||0};
+  if(u==='sec'||u==='min'||u==='cal'||/(sec|min|cal)/i.test(s))return {w:0,r:parseInt(s,10)||0};
+  var p=s.split('x');return {w:parseFloat(p[0])||0,r:parseInt(p[1],10)||0};
 }
 // Does this row actually differ set to set? Asked of the lines rather than trusted from a flag,
 // so a row can never claim to vary while showing three identical numbers.
@@ -5454,12 +5522,6 @@ function mkSetLine(i,k,f,v){
   if(f==='w')c.w=parseFloat(v)||0;else c.r=parseInt(v,10)||0;
   r.lines[k]=r.hold?((c.r||30)+' sec'):((c.w||0)+'x'+(c.r||0));
   r.custom=1;
-}
-function mkToggleHold(i){
-  var r=MK.rows[i];if(!r)return;
-  r.hold=!r.hold;if(r.hold&&r.r<10)r.r=30;
-  r.custom=0;r.lines=mkLinesUniform(r);
-  mkRender();
 }
 // Everything sharing a group id, in the order they sit in the list.
 function mkGroupRows(g){return MK.rows.filter(function(r){return r.g===g;});}
@@ -5568,7 +5630,7 @@ function mkAddEx(id){
   var p=mkParse(EX[id].sets);
   // Same as the load path: an exercise whose library entry varies between sets keeps that when it
   // is added, rather than being flattened on the way in.
-  MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,
+  MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,unit:p.unit,
     lines:String(EX[id].sets||"").split("\n"),base:{n:p.n,w:p.w,r:p.r,hold:p.hold},
     rest:EX[id].rest||'',g:null});
   closeOvl('mkPickOvl');mkRender();
