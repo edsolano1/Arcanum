@@ -1416,28 +1416,42 @@ body:not(.light):not(.forge):not(.moon) .bg-motes i{box-shadow:0 0 5px color-mix
    on the folded-open panel, and forty four elements is the wrong place to spend either.
    --dx is a per-mote drift direction so the field does not lean one way, and --sp marks the third
    of them that gutter out early instead of all reaching the top together. */
-body.forge .bg-motes i{width:calc(var(--sz) * 2.1 * var(--mscale,1));
-  height:calc(var(--sz) * 2.1 * var(--mscale,1));
-  border-radius:54% 42% 58% 46%;
-  background:radial-gradient(circle at 42% 36%,#fffdf4 0%,#ffe391 16%,#ff9f34 42%,#f2551a 71%,rgba(140,28,4,0) 100%);
-  box-shadow:0 0 6px rgba(255,152,52,.72),0 0 15px rgba(255,72,10,.42);
+/* A round fleck with a glow is a bubble however hot you paint it, and that is what these were.
+   An ember is a small bright thing moving fast enough to smear along its own path, so it is an
+   ELLIPSE, better than twice as long as it is wide, and the length runs with the travel - the
+   body carries --ln, the same lean the path takes. The gradient runs down its length rather than
+   out from a centre: bright at the leading end, falling away behind it, which is a trail rather
+   than a ball with a highlight. */
+body.forge .bg-motes i{width:calc(var(--sz) * 1.15 * var(--mscale,1));
+  height:calc(var(--sz) * 2.85 * var(--mscale,1));
+  border-radius:50%;
+  background:linear-gradient(180deg,#fffdf4 0%,#ffe391 17%,#ff9f34 45%,#f2551a 73%,rgba(140,28,4,0) 100%);
+  box-shadow:0 0 5px rgba(255,152,52,.6),0 0 13px rgba(255,72,10,.34);
   animation:emberrise var(--d) linear infinite;animation-delay:var(--dl);}
 /* Transform and opacity are interpolated across the frames that declare them, independently, so
    the wander and the guttering are written on their own clocks inside the single animation. */
+/* The rotation is now a CONSTANT - the ember's lean, held the whole way up. It used to run
+   0 -> 46 -> -38 -> 72 -> 28 -> 96deg, which is a fleck tumbling end over end, and tumbling is
+   what a light hollow thing does. A spark thrown off hot metal holds its attitude.
+   The sideways travel accelerates instead of wandering: 0, 4, 10, 16, 21, 26vw. Near the fire
+   the updraft owns it and it goes almost straight up; the higher it gets the more the wind has
+   it, which is the shape the physics actually describes. Every ember leans the same way, so the
+   field reads as one wind rather than as forty four independent opinions.
+   Still transform and opacity only, so the cost is unchanged - and measured on the phone at
+   120Hz with zero janky frames, the cost of the whole ground is nil. */
 @keyframes emberrise{
-  0%{transform:translate3d(0,104vh,0) rotate(0deg) scale(.5);opacity:0;}
-  5%{opacity:1;}
-  17%{transform:translate3d(calc(var(--dx,0) * 2.2vw),84vh,0) rotate(46deg) scale(.82);}
-  22%{opacity:.55;}
-  31%{opacity:1;}
-  38%{transform:translate3d(calc(var(--dx,0) * -1.6vw),62vh,0) rotate(-38deg) scale(1);}
-  46%{opacity:.6;}
-  57%{opacity:.92;}
-  61%{transform:translate3d(calc(var(--dx,0) * 3.4vw),40vh,0) rotate(72deg) scale(1.1);}
-  71%{opacity:calc(.5 - var(--sp,0) * .5);}
-  82%{transform:translate3d(calc(var(--dx,0) * 1.2vw),18vh,0) rotate(28deg) scale(1.18);}
-  86%{opacity:calc(.62 - var(--sp,0) * .62);}
-  100%{transform:translate3d(calc(var(--dx,0) * 4.6vw),-10vh,0) rotate(96deg) scale(1.24);opacity:0;}}
+  0%{transform:translate3d(0,104vh,0) rotate(var(--ln,16deg)) scale(.5);opacity:0;}
+  6%{opacity:1;}
+  23%{transform:translate3d(calc(var(--dx,1) * 4vw),80vh,0) rotate(var(--ln,16deg)) scale(.82);}
+  30%{opacity:.6;}
+  40%{opacity:1;}
+  44%{transform:translate3d(calc(var(--dx,1) * 10vw),57vh,0) rotate(var(--ln,16deg)) scale(1);}
+  55%{opacity:.68;}
+  66%{transform:translate3d(calc(var(--dx,1) * 16vw),35vh,0) rotate(var(--ln,16deg)) scale(1.09);}
+  72%{opacity:calc(.62 - var(--sp,0) * .62);}
+  86%{transform:translate3d(calc(var(--dx,1) * 21vw),13vh,0) rotate(var(--ln,16deg)) scale(1.15);}
+  88%{opacity:calc(.5 - var(--sp,0) * .5);}
+  100%{transform:translate3d(calc(var(--dx,1) * 26vw),-10vh,0) rotate(var(--ln,16deg)) scale(1.2);opacity:0;}}
 body.moon .bg-motes i{background:radial-gradient(circle,rgba(255,255,255,.9) 0%,rgba(226,220,255,.55) 55%,rgba(200,196,255,0) 100%);box-shadow:none;}
 @keyframes moterise{
   0%{transform:translateY(108vh) translateX(0);opacity:0;}
@@ -2462,11 +2476,6 @@ body.wcon{overflow:hidden;}
     <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
     <div class="presets" id="motionRow"></div>
     <div class="footnote" style="margin-top:8px" id="motionNote"></div>
-    <!-- TEMPORARY, and it goes as soon as the launch bump is understood. See the launch trace
-         note beside lockSplash for what the columns are. -->
-    <div class="sfx-lbl" style="margin-top:14px"><span>Launch trace</span></div>
-    <div class="footnote" style="margin:0 2px 6px">ms &middot; window &middot; splash &middot; frame &middot; markTop &middot; wordH &middot; flags &mdash; one line per change during the launch. Flags are html.forge / body.forge / fready. Screenshot this.</div>
-    <div id="ltrace" style="font-family:var(--mono);font-size:10.5px;line-height:1.55;color:var(--txt2);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:9px 10px;white-space:pre;overflow-x:auto;margin-bottom:12px"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -3208,7 +3217,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.95';
+var APPV='v4.96';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3961,59 +3970,6 @@ function lockSplash(){
   if(h>0&&h>=window.innerHeight)s.style.height=h+'px';
 }
 lockSplash();
-// ---------- launch trace ----------
-// TEMPORARY. Five fixes have gone at the launch bump and every one of them was a theory about
-// what moves; none of them measured it. This measures it. It watches the four numbers that could
-// move the mark - the window, the visual viewport, the splash box and the frame's own height -
-// and writes a line ONLY when one of them changes, so what comes out is a list of events rather
-// than a wall of samples. It reads geometry on an already-running frame and allocates nothing
-// unless something moved, and it stops itself after three seconds.
-// The result is shown in Settings under Launch trace, to be read off the screen in a screenshot.
-// It comes out the moment the bump is understood.
-var LTRACE=[];
-(function(){
-  var t0=(window.performance&&performance.now)?performance.now():Date.now(),last='',n=0;
-  function row(){
-    var s=document.getElementById('splash');
-    // The new launch's own elements. These were still pointed at .sp-frame/.sp-mark/.sp-word
-    // after the rebuild, which is how the old board was caught still rendering - but it also
-    // means the columns were describing something the eye was no longer looking at.
-    var f=s&&s.querySelector('.lx-in'),m=s&&s.querySelector('.lx-logo'),
-        w=s&&s.querySelector('.lx-word');
-    var fr=f?f.getBoundingClientRect():null,mk=m?m.getBoundingClientRect():null,
-        wr=w?w.getBoundingClientRect():null;
-    // Which classes have landed, as three bits: html.forge, body.forge, html.fready. The bump
-    // was one of these arriving a paint late and resizing the wordmark under a centred box, so
-    // a height that moves next to a bit that flips names its own cause.
-    var d=document.documentElement,b=document.body;
-    var fl=(d.classList.contains('forge')?'1':'0')+
-           ((b&&b.classList.contains('forge'))?'1':'0')+
-           (d.classList.contains('fready')?'1':'0');
-    var v=[Math.round(window.innerHeight),
-           s?Math.round(s.getBoundingClientRect().height):-1,
-           fr?Math.round(fr.height):-1,
-           mk?Math.round(mk.top):-1,
-           wr?Math.round(wr.height):-1,
-           fl].join(' ');
-    if(v!==last){
-      last=v;
-      LTRACE.push(Math.round(((window.performance&&performance.now)?performance.now():Date.now())-t0)+' '+v);
-      if(LTRACE.length>24)LTRACE.shift();
-    }
-    // A timer rather than rAF on purpose: rAF does not run while the page is hidden, and the
-    // note in dismissSplash records that a launch can start hidden - opened from a notification,
-    // or restored into the background. That is exactly a launch whose trace we would want.
-    if(++n<190)setTimeout(row,16);
-  }
-  // Deferred by a tick rather than called outright. This whole script block is parser-blocking,
-  // so a sample taken partway down it measures a DOM the browser has not painted and never will
-  // - the logo is injected further down the same block, and reading before that showed the
-  // launch growing 76 -> 180 when nothing of the sort reaches the screen. The first sample now
-  // lands after the block, which is the first state that can actually be seen.
-  setTimeout(row,0);
-  ['resize','orientationchange'].forEach(function(e){window.addEventListener(e,row);});
-  if(window.visualViewport){try{window.visualViewport.addEventListener('resize',row);}catch(e){}}
-})();
 document.documentElement.style.background=                 // no pale gutter if the viewport grows mid-turn
   document.documentElement.classList.contains('forge')?'#080403':
   document.documentElement.classList.contains('light')?'#e6eaf1':'#04050a';
@@ -4264,10 +4220,16 @@ function renderBg(){
     // every "make them bigger" change was a no-op that measured fine and looked identical.
     // As a custom property the sheet gets the last word, which is where the decision about how
     // big an ember reads belongs. --ty is the height a mote holds when it is not climbing.
-    var s=(1.1+Math.random()*2.6).toFixed(2);
+    var s=(1.1+Math.random()*2.6).toFixed(2),dx;
     h+='<i style="left:'+(Math.random()*100).toFixed(1)+'%;top:0;--sz:'+s+'px;'+
        '--ty:'+(4+Math.random()*88).toFixed(1)+'vh;'+
-       '--dx:'+(Math.random()*2-1).toFixed(2)+';'+
+       // ONE wind. This was Math.random()*2-1, so every ember got its own direction and the
+       // field drifted apart instead of leaning together - which is exactly why it read as
+       // bubbles rather than sparks. Same sign for all of them now; the spread is how hard each
+       // one is caught, not which way. --ln leans the ember's own body to match, because a
+       // streak that travels one way while pointing another reads as a floating object.
+       '--dx:'+(dx=0.7+Math.random()*0.8).toFixed(2)+';'+
+       '--ln:'+(11+dx*6).toFixed(1)+'deg;'+
        '--sp:'+(Math.random()<.34?1:0)+';'+
        '--d:'+(17+Math.random()*23).toFixed(1)+'s;--dl:-'+(Math.random()*34).toFixed(1)+'s;'+
        '--sw:'+(2.6+Math.random()*3.4).toFixed(1)+'s"></i>';
@@ -8060,8 +8022,6 @@ function openTimerSheet(){
 function openSettings(){
   initAudio();
   drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();
-  var lt=document.getElementById('ltrace');
-  if(lt)lt.textContent=LTRACE.length?LTRACE.join('\n'):'(nothing moved during the launch)';
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
   // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
