@@ -2896,7 +2896,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.80';
+var APPV='v4.81';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -8411,6 +8411,16 @@ function tutEnd(){
   clearInterval(TUTPOLL);cancelAnimationFrame(TUTRAF);clearTimeout(tutNT);clearTimeout(TUTSW);clearTimeout(TUTSC);clearTimeout(TUTSW2);clearTimeout(TUTGL);cancelAnimationFrame(TUTPAN);
   document.getElementById('tutHole').classList.remove('sweep');
   document.getElementById('tutHole').classList.remove('glide');
+  // Taking the .on class off makes these invisible, not absent. opacity:0 is still a painted,
+  // composited element, and the four scrim rectangles keep whatever geometry the last step left
+  // on them - measured on the phone after a tour: the hole 336x66 and the first scrim rectangle
+  // 360x715, near enough the whole screen, all position:fixed and all still in the tree. They go
+  // back to the zero size the CSS starts them at.
+  // Honest about what this is: collapsing them did NOT move the frame numbers when it was tested
+  // on the device, so it is not the answer to anything that was reported. It is simply wrong to
+  // leave a viewport-sized fixed layer behind, and this file already records layer count as one
+  // of the things that starves the raster on the folded-open panel.
+  tutShrink();
   ['editOvl','exportOvl','askOvl','swapOvl','lvlOvl'].forEach(function(id){
     if(document.getElementById(id))closeOvl(id);
   });
@@ -8639,6 +8649,18 @@ function tutBox(el,box,p){
 // very next frame writes the step's real target with transitions armed and CSS carries it in.
 // Nothing here chooses the target - tutPlace does that, exactly as it always has.
 var TUTSW=null,TUTSC=null,TUTSW2=null,TUTGL=null;
+// Back to the zero size the stylesheet starts them at. _k is the placement cache and has to go
+// with them, or the next tour compares against geometry that is no longer on the element and
+// skips the first write.
+function tutShrink(){
+  var h=document.getElementById('tutHole'),p=document.getElementById('tutPing');
+  [h,p].forEach(function(e){
+    if(!e)return;
+    e.style.top='0px';e.style.left='0px';e.style.width='0px';e.style.height='0px';
+    e._k=null;
+  });
+  if(h)[].forEach.call(h.children,function(c){c.style.cssText='';});
+}
 // Armed for one step change, then off, so per-frame tracking stays exact. See the glide rule.
 function tutGlide(){
   var hole=document.getElementById('tutHole');
