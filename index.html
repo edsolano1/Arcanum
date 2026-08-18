@@ -3146,7 +3146,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.89';
+var APPV='v4.90';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3868,9 +3868,35 @@ setTimeout(function(){dismissSplash();},3600);
 // arrives correctly centred the whole thing appears to jump upward. That is the move up.
 // Pinned edges are short in neither direction and step in neither. The only thing kept from
 // the old version is the overflow clip.
+// SIXTH answer, and the first one written from the device instead of about it. The launch trace
+// off the phone, at 360x840:
+//
+//   ms  win splash frame mark wordH flags
+//   1   754 754    298   275  35    101
+//   51  754 754    298   275  35    111   <- body.forge lands, nothing moves (v4.88 holds)
+//   68  840 840    298   318  35    111   <- the WINDOW grows, and the mark moves half of it
+//
+// The window is handed to the WebView at 754 and becomes 840 about 68ms later, as the system
+// bars stop taking room and start being laid over a cover-fit page. 86px onto the window, and
+// centred content moves by half of it: 43px, which is the bump - and the reason it reads as up
+// and then back down is that the first paint lands before this trace's first sample, at the
+// full 840, so the eye sees 840 -> 754 -> 840 and the mark ride 318 -> 275 -> 318.
+//
+// So every previous answer was chasing the right effect with the wrong constant. bottom:0 tracks
+// the window. 100vh tracks it too - vh is resolved against the initial containing block, and that
+// IS what resizes here, which is why v4.85 changed nothing. What does not move is screen.height:
+// measured on the phone it reads 840 throughout, which is exactly where the window ends up.
+// Set once, at first paint, and never touched again - re-measuring is what made this box step in
+// the first place, and that lesson stands; it is the number that was wrong, not the timing.
+// The box then hangs 86px below the window for those 68ms. Nothing can see that: the splash is
+// flat colour there and the html background behind it is set to the same one.
+// Guarded so a screen smaller than the window can never shrink the box - CSS 100vh stays as the
+// fallback for anything that reports screen oddly.
 function lockSplash(){
   var s=document.getElementById('splash');if(!s)return;
   s.style.overflow='hidden';
+  var h=(window.screen&&screen.height)||0;
+  if(h>0&&h>=window.innerHeight)s.style.height=h+'px';
 }
 lockSplash();
 // ---------- launch trace ----------
