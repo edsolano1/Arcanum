@@ -917,10 +917,26 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-ps-head{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
 .mk-ps-lbl{flex:1;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
   text-transform:uppercase;color:var(--txt3);}
+/* A two-state control has to look like one in BOTH states. Shut, this was a bare grey outline
+   next to an open state that carried the accent - so it read as "nothing here" rather than as
+   the other half of a switch. Both states are now filled and lit; which one you are in is the
+   colour, not the presence of colour. */
 .mk-ps-t{display:inline-block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
-  color:var(--txt3);cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--line);}
-.mk-ps-t:hover{color:var(--go);border-color:var(--go);}
-.mk-perset.open .mk-ps-t{color:var(--go);border-color:color-mix(in srgb,var(--go) 50%,var(--line));}
+  cursor:pointer;padding:4px 9px;border-radius:6px;transition:.14s;
+  color:var(--txt2);border:1px solid var(--line);
+  background:color-mix(in srgb,var(--txt3) 12%,transparent);}
+.mk-ps-t:hover{color:var(--txt);border-color:var(--txt3);}
+.mk-perset.open .mk-ps-t{
+  color:var(--go);border-color:color-mix(in srgb,var(--go) 55%,var(--line));
+  background:color-mix(in srgb,var(--go) 15%,transparent);}
+.mk-perset.open .mk-ps-t:hover{border-color:var(--go);}
+/* the custom rest entry, inline where the dropdown was */
+.mk-rest-c{display:flex;align-items:center;gap:5px;}
+.mk-rest-c .mk-num{width:44px;min-width:0;}
+.mk-rest-c em{font-family:var(--mono);font-size:9.5px;font-style:normal;color:var(--txt3);}
+.mk-rest-ok{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--go);
+  background:transparent;border:1px solid color-mix(in srgb,var(--go) 45%,var(--line));
+  border-radius:6px;padding:5px 8px;cursor:pointer;}
 .mk-ps-list{margin-top:9px;display:flex;flex-direction:column;gap:7px;}
 .mk-ps-row{display:flex;align-items:center;gap:8px;}
 .mk-ps-n{font-family:var(--mono);font-size:10px;color:var(--txt3);width:16px;flex-shrink:0;text-align:right;}
@@ -948,6 +964,17 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-tick{color:var(--go);font-size:14px;flex-shrink:0;}
 /* Order controls, quiet until wanted. Both ends stay on screen and go dim rather than vanishing -
    a control that disappears as the thing it moves reaches the end reads as a bug. */
+/* On the work screen the day states what it is in one line instead of four fields. The settings
+   are a door, not a gate - they sit beside the name rather than in front of the list. */
+.mk-head{display:flex;align-items:center;gap:9px;padding:0 0 4px;margin-bottom:14px;
+  border-bottom:1px solid var(--line);}
+.mk-head-n{font-size:16px;font-weight:600;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mk-head-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--txt3);border:1px solid var(--line);border-radius:5px;padding:2px 6px;flex-shrink:0;}
+.mk-head-b{margin-left:auto;flex-shrink:0;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  color:var(--txt3);background:transparent;border:1px solid var(--line);border-radius:7px;
+  padding:6px 9px;cursor:pointer;transition:.14s;}
+.mk-head-b:hover{color:var(--go);border-color:var(--go);}
 .mk-mv{display:inline-flex;gap:3px;flex-shrink:0;}
 .mk-mvb{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
   padding:0;border-radius:7px;border:1px solid var(--line);background:transparent;
@@ -2532,8 +2559,12 @@ body.wcon{overflow:hidden;}
   <div class="sheet" style="max-width:400px">
     <h3 id="askTitle">Are you sure?</h3>
     <p id="askMsg"></p>
-    <div class="sheet-btns" id="askAltRow" style="display:none">
-      <div class="btn btn-go" id="askAlt"></div>
+    <!-- The alternate is an alternate: it reads BELOW the main answer and does not take the lit
+         treatment. It used to sit above it wearing btn-go while the primary had its emphasis
+         explicitly removed, so on "Add it every week?" the highlighted button on top was JUST
+         TODAY - the answer the question was not asking for. -->
+    <div class="sheet-btns" id="askAltRow" style="display:none;order:2">
+      <div class="btn" id="askAlt"></div>
     </div>
     <div class="sheet-btns">
       <div class="btn" id="askNo" onclick="closeOvl('askOvl')">CANCEL</div>
@@ -2615,6 +2646,9 @@ body.wcon{overflow:hidden;}
     <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
     <div class="presets" id="motionRow"></div>
     <div class="footnote" style="margin-top:8px" id="motionNote"></div>
+    <div class="sfx-lbl" style="margin-top:14px"><span>Sounds</span></div>
+    <div id="sfxKeys"></div>
+    <div class="footnote" style="margin:0 2px 10px">Everything else the app does &mdash; pages, cards, the launch &mdash; stays as it is. Alert volume below sets how loud the rest alert lands, and zero is silence.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2682,7 +2716,8 @@ body.wcon{overflow:hidden;}
 
 <div class="ovl" id="mkCexOvl">
   <div class="sheet" style="max-width:420px">
-    <h3>Your own exercise</h3>
+    <h3 id="mkCexTtl">Add your own exercise</h3>
+    <p id="mkCexKind"></p>
     <p>It joins the library and can be used on any day. Progress and personal bests track it like any other lift.</p>
     <input class="mk-in" id="mkCexName" placeholder="Exercise name" autocomplete="off">
     <input class="mk-in" id="mkCexNote" placeholder="Setup note (optional)" style="margin-top:9px" autocomplete="off">
@@ -2921,14 +2956,17 @@ function edAdded(wk){
 // The old headings carried rest times and muscle notes that the card itself now shows,
 // and they went stale the moment a block was regrouped. A heading only says what kind of
 // block it is; the rest line and Instructions carry everything else.
-function secTitle(sec){return sec.ss?'Superset':'Straight sets';}
+// A run gets a heading because it is a claim about two exercises that has to be visible. A lone
+// exercise gets none: "Straight sets" and "Added to this day" were captions on the obvious, and
+// the colour and bracket already carry the only distinction that matters.
+function secTitle(sec){return sec.ss?'Superset':'';}
 function edRowMap(wk){
   var m={},w=W[wk];
   if(!w)return m;
   w.sections.forEach(function(sec){edRows(wk,sec).forEach(function(r){
     m[typeof r==='string'?r:r[0]]={row:r,title:secTitle(sec),ss:!!sec.ss};
   });});
-  edAdded(wk).forEach(function(id){m[id]={row:id,title:'Added to this day',ss:false};});
+  edAdded(wk).forEach(function(id){m[id]={row:id,title:'',ss:false};});
   return m;
 }
 function edBlocksDefault(wk){
@@ -2939,9 +2977,9 @@ function edBlocksDefault(wk){
     if(!rows.length)return;
     var ids=rows.map(function(r){return typeof r==='string'?r:r[0];});
     if(sec.ss)out.push({k:ids[0],title:'Superset',ss:true,ids:ids,rows:rows});
-    else ids.forEach(function(id,n){out.push({k:id,title:'Straight sets',ss:false,ids:[id],rows:[rows[n]]});});
+    else ids.forEach(function(id,n){out.push({k:id,title:'',ss:false,ids:[id],rows:[rows[n]]});});
   });
-  edAdded(wk).forEach(function(id){out.push({k:id,title:'Added to this day',ss:false,ids:[id],rows:[id]});});
+  edAdded(wk).forEach(function(id){out.push({k:id,title:'',ss:false,ids:[id],rows:[id]});});
   return out;
 }
 function edBlocks(wk){
@@ -3372,7 +3410,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.108';
+var APPV='v4.109';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4875,7 +4913,12 @@ function toggleSet(id,i,rest,unit){
       // gold and flared, because it is the best you have done it; what it stops doing is
       // sounding like one. A fanfare for turning up is a fanfare that means nothing by the
       // third exercise of a new program, which is when it fires most.
-      if(gr==='pr'){sfxPR();vib([40,60,40,60,140]);}
+      // The tour keeps the ordinary sound. A record fanfare is the reward for beating something,
+      // and in the tour you have beaten nothing - the sample data just happens to grade that way.
+      // Hearing it as your FIRST completion sound teaches the wrong thing twice over: it sets the
+      // fanfare as the normal noise, and it spends the moment before there is anything to spend
+      // it on. The flare still shows; only the sound is held back.
+      if(gr==='pr'&&!TUTON){sfxPR();vib([40,60,40,60,140]);}
       else{sfxLog();vib(35);}
       if(cb){
         cb.classList.remove('flare','pr');void cb.offsetWidth;
@@ -4953,7 +4996,28 @@ function doSwap(k){
 // ============================================================
 var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a0','#e0b667','#ff9152','#66718c'];
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',rows:[]};
-var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','2-3 min'];
+// "2-3 min" was the last entry and it is not a rest time, it is two rest times with a hyphen -
+// the timer has to pick one and the user never said which. Replaced with a real 3 min, and past
+// that a custom entry rather than a longer guess-list: anything over three minutes is somebody
+// doing something specific, and a list cannot anticipate it.
+var MK_REST=['','30 sec','45 sec','60 sec','90 sec','2 min','3 min'];
+// Stored in seconds because that is what parseRest reads; shown as m:ss because that is what a
+// clock looks like. 150 sec and 2:30 are the same rest, and only one of them is readable.
+// True when this value is a length none of the presets already covers.
+function mkRestExtra(v){
+  if(MK_REST.indexOf(v)>=0)return false;
+  var s=parseRest(v);
+  for(var i=0;i<MK_REST.length;i++)if(parseRest(MK_REST[i])===s)return false;
+  return true;
+}
+function mkRestLabel(v){
+  if(!v)return 'NONE';
+  var s=parseRest(v);
+  if(!s)return String(v).toUpperCase();
+  if(s<60)return s+' SEC';
+  var m=Math.floor(s/60),r=s%60;
+  return r?(m+':'+(r<10?'0':'')+r):(m+' MIN');
+}
 function MKTXT(){
   // "Work this day again" was the offender: it opens the day EDITOR, and nothing in those three
   // words says so. Plain verbs until the app is settled.
@@ -5163,7 +5227,7 @@ var PLUS='<svg viewBox="0 0 20 20"><path d="M10 4.5v11M4.5 10h11"/></svg>';
 // takes. Same model as holding a card - this just makes it findable.
 // Straight into the editor. There is no weekday left to pick on the way in, and the editor
 // already carries the only choice that remains: on the plan, or in the bank.
-function openNewDay(k){openMake(null,null,false,k);}
+function openNewDay(k){openMake(null,null,false,k);MK.shellOpen=true;mkRender();}
 // Lands in the first day with room. Without a free day there is nowhere to put it, and saying so
 // beats silently dropping it back on the rack.
 function planAdd(id,k){
@@ -5209,6 +5273,50 @@ var MOVE_BUSY='That day has a session open, so it cannot move. Seal it or finish
 // row objects as the old one, so editing either would edit both.
 // It opens on the copy rather than saving it quietly. A duplicate you cannot see is a duplicate
 // you make twice, and the first thing anybody does with one is rename it.
+// Custom rest, entered where it is used rather than behind a dialog. Minutes and seconds because
+// that is how anybody says it, written as one number of seconds because that is what parseRest
+// and the timer read.
+function mkRestPick(i,v){
+  var r=MK.rows[i];if(!r)return;
+  if(v==='__c'){r.restEdit=1;if(!parseRest(r.rest))r.rest='2 min';mkRender();return;}
+  mkSet(i,'rest',v);mkTouch();
+}
+function mkRestPart(i,part,v){
+  var r=MK.rows[i];if(!r)return;
+  var t=parseRest(r.rest),m=Math.floor(t/60),s=t%60;
+  if(part==='m')m=Math.max(0,Math.min(30,parseInt(v,10)||0));
+  else s=Math.max(0,Math.min(59,parseInt(v,10)||0));
+  var tot=m*60+s;
+  r.rest=tot?(tot+' sec'):'';
+  mkTouch();
+}
+function mkRestDone(i){var r=MK.rows[i];if(r)r.restEdit=0;mkRender();}
+function mkShell(open){MK.shellOpen=!!open;mkRender();document.getElementById('make').scrollTop=0;}
+// Making the day is now its own step, and it ends by writing an EMPTY day. An empty day is a
+// legitimate state under this flow - it is what a day is for the seconds between naming it and
+// filling it - so mkSave's "add at least one exercise" no longer applies at this point.
+function mkCreate(){
+  if(!MK.name.trim()){mkNote('Name the day first — it goes on the card.');return;}
+  mkCommit(true);
+  MK.shellOpen=false;
+  mkRender();
+  document.getElementById('make').scrollTop=0;
+}
+// Every change from here is an edit to a day that exists, so it is written straight through.
+// Debounced, because this fires on every keystroke in a weight field; persistNow is a full
+// serialise and doing it per character would be felt.
+// This is the whole of the autosave item: the fold made it possible, because before the day was
+// saved there was nothing to write to and the work lived only in the page.
+var mkT=null;
+function mkTouch(){
+  if(!MK.id)return;
+  clearTimeout(mkT);
+  mkT=setTimeout(function(){
+    if(!MK.id)return;
+    DB.custom[MK.id]=mkBuild();
+    mergeCustom();saveDB();renderHome();
+  },500);
+}
 function mkDuplicate(id){
   var src=DB.custom[id]||W[id];
   if(!src){mkNote('There is nothing here to copy yet.');return;}
@@ -5312,7 +5420,7 @@ function openMake(base,editId,blank,want){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
         color:w.color||MK_COLS[0],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
-        kind:w.kind||null,
+        kind:w.kind||null,shellOpen:false,
       // Sections flatten into one list. An ss section hands its rows a shared group id, which is
       // the whole of what "these run together" means now - the box is gone, the relationship
       // stays, and a day built before this change opens with its supersets intact.
@@ -5340,7 +5448,7 @@ function openMake(base,editId,blank,want){
         return out;
       })()};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',
+    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',shellOpen:false,
       rows:[]};
   }
   // A day saved before kinds existed has none recorded, so it is read off the work itself. Done
@@ -5356,9 +5464,25 @@ function openMake(base,editId,blank,want){
 function closeMake(){document.getElementById('make').classList.remove('on');syncPumpBtn();}
 
 // ---------- render ----------
+// The builder was one screen doing two jobs: settling what the DAY is - name, kind, weekday,
+// colour - and then filling it with work. Stacked on one scroll that reads as a form you have to
+// get through before you are allowed to start, and it is why the screen felt dated while the
+// exercise list itself was fine.
+// Split. Making a day answers the four questions and saves; from that moment the day EXISTS and
+// everything after is an edit to something real, which is also where autosave comes from - there
+// is now something to save to. Editing an existing day skips straight to the work, with the four
+// questions behind a control rather than in front of the list.
 function mkRender(){
   var h='',T=MKTXT();
-  document.getElementById('mkSub').textContent=MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets';
+  var shell=!!MK.shellOpen,making=shell&&!MK.id;
+  document.getElementById('mkSub').textContent=
+    making?'New day':(MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets');
+  if(!shell){
+    h+='<div class="mk-head"><span class="mk-head-n">'+(mkEsc(MK.name)||'Untitled day')+'</span>'+
+       '<span class="mk-head-k">'+(MK.kind==='cardio'?'Cardio':'Lifting')+'</span>'+
+       '<button class="mk-head-b" onclick="mkShell(true)">DAY SETTINGS</button></div>';
+  }
+  if(shell){
   h+='<div class="mk-lbl">Name</div>'+
      '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
   // What KIND of work this is, asked once for the whole workout rather than per exercise. Lifting
@@ -5430,6 +5554,19 @@ function mkRender(){
        '<input type="color" value="'+MK.color+'" oninput="MK.color=this.value;mkRender()" style="position:absolute;inset:-4px;opacity:0;cursor:pointer">'+
        '<svg viewBox="0 0 20 20" style="width:14px;height:14px;position:absolute;left:7px;top:7px;fill:none;stroke:rgba(0,0,0,.55);stroke-width:2;stroke-linecap:round"><path d="M10 5v10M5 10h10"/></svg></label>';
   h+='</div>';
+  }
+  // Making a day stops here: four questions and a button. The work comes next, on a day that by
+  // then exists, so nothing typed into it is riding on remembering to save.
+  if(making){
+    h+='<button class="finishbtn" style="margin-top:20px" onclick="mkCreate()">CREATE THIS DAY</button>';
+    document.getElementById('mkBody').innerHTML=h;
+    return;
+  }
+  if(shell){
+    h+='<button class="finishbtn" style="margin-top:20px" onclick="mkShell(false)">DONE</button>';
+    document.getElementById('mkBody').innerHTML=h;
+    return;
+  }
   h+='<div class="mk-lbl">The work</div>';
   // ---------- the work: one flat list ----------
   // Blocks are gone. They were a container you had to create before you could put anything in it,
@@ -5465,10 +5602,23 @@ function mkRender(){
        mkMeasureUI(r,i)+
        '<div class="mk-rf">'+
          '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+',&#39;n&#39;,this.value)"></label>'+
-         '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkSet('+i+',&#39;rest&#39;,this.value)">'+
-           (MK_REST.indexOf(r.rest)<0?[r.rest].concat(MK_REST):MK_REST).map(function(v){
-             return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkEsc(v||'none')+'</option>';}).join('')+
-         '</select></label>'+
+         (r.restEdit
+           ? '<label class="mk-f"><span>Rest</span><span class="mk-rest-c">'+
+               '<input class="mk-num" type="number" inputmode="numeric" min="0" max="30" value="'+Math.floor(parseRest(r.rest)/60)+'" oninput="mkRestPart('+i+',&#39;m&#39;,this.value)">'+
+               '<em>m</em>'+
+               '<input class="mk-num" type="number" inputmode="numeric" min="0" max="59" value="'+(parseRest(r.rest)%60)+'" oninput="mkRestPart('+i+',&#39;s&#39;,this.value)">'+
+               '<em>s</em>'+
+               '<button class="mk-rest-ok" onclick="mkRestDone('+i+')">OK</button>'+
+             '</span></label>'
+           : '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkRestPick('+i+',this.value)">'+
+               // A value outside the presets keeps its own option, but only if it is genuinely a
+               // different length. Matching by string alone put a second "2 MIN" at the top of
+               // every list carrying a legacy "2-3 min", which reads as a bug rather than as the
+               // old value being honoured.
+               (mkRestExtra(r.rest)?[r.rest].concat(MK_REST):MK_REST).map(function(v){
+                 return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkRestLabel(v)+'</option>';}).join('')+
+               '<option value="__c">CUSTOM&hellip;</option>'+
+             '</select></label>')+
        '</div>'+mkSetsUI(r,i)+'</div>';
     if(tail)h+='</div>';
   });
@@ -5489,6 +5639,7 @@ function mkSet(i,k,v){
   // rewritten to match rather than left behind to contradict it. This is the one place the
   // detail is allowed to be lost, and it is lost because the user just said so.
   r.custom=0;r.lines=mkLinesUniform(r);
+  mkTouch();
   if(r.exp)mkRender();
 }
 // ---------- one line per set ----------
@@ -5647,7 +5798,7 @@ function mkSetLine(i,k,f,v){
   var c=mkLineVal(r.lines[k],r.hold);
   if(f==='w')c.w=parseFloat(v)||0;else c.r=parseInt(v,10)||0;
   r.lines[k]=r.hold?((c.r||30)+' sec'):((c.w||0)+'x'+(c.r||0));
-  r.custom=1;
+  r.custom=1;mkTouch();
 }
 // Everything sharing a group id, in the order they sit in the list.
 function mkGroupRows(g){return MK.rows.filter(function(r){return r.g===g;});}
@@ -5681,14 +5832,14 @@ function mkMove(i,dir){
   // the run rather than moving it. Only when there is no member that way does the run itself go.
   if(b.g&&i+dir>=b.s&&i+dir<=b.e){
     var t=MK.rows[i];MK.rows[i]=MK.rows[i+dir];MK.rows[i+dir]=t;
-    mkRender();return;
+    mkTouch();mkRender();return;
   }
   var nb=B[bi+dir];
   if(!nb)return;
   var mine=MK.rows.slice(b.s,b.e+1),theirs=MK.rows.slice(nb.s,nb.e+1);
   var lo=Math.min(b.s,nb.s),hi=Math.max(b.e,nb.e);
   MK.rows.splice.apply(MK.rows,[lo,hi-lo+1].concat(dir<0?mine.concat(theirs):theirs.concat(mine)));
-  mkRender();
+  mkTouch();mkRender();
 }
 // Ends are shown but dead, so the control does not appear and disappear as things move past it.
 function mkCanMove(i,dir){
@@ -5704,8 +5855,8 @@ function mkTidyGroups(){
   MK.rows.forEach(function(r){if(r.g)seen[r.g]=(seen[r.g]||0)+1;});
   MK.rows.forEach(function(r){if(r.g&&seen[r.g]<2)r.g=null;});
 }
-function mkDelRow(i){MK.rows.splice(i,1);mkTidyGroups();mkRender();}
-function mkUnlink(g){MK.rows.forEach(function(r){if(r.g===g)r.g=null;});mkRender();}
+function mkDelRow(i){MK.rows.splice(i,1);mkTidyGroups();mkTouch();mkRender();}
+function mkUnlink(g){MK.rows.forEach(function(r){if(r.g===g)r.g=null;});mkTouch();mkRender();}
 // ---------- running exercises together ----------
 // Three was the old ceiling and it was the wrong shape of limit: a superset is two, a triset is
 // three, and a circuit is however many you can get round before you are back at the start. Six is
@@ -5766,7 +5917,7 @@ function mkJoinDone(){
   var at=MK.rows.indexOf(a);
   MK.rows.splice.apply(MK.rows,[at+1,0].concat(moved));
   mkJoinI=null;mkJoinSel=null;
-  closeOvl('mkSSOvl');mkRender();
+  closeOvl('mkSSOvl');mkTouch();mkRender();
 }
 
 // ---------- the exercise picker ----------
@@ -5810,11 +5961,17 @@ function mkAddEx(id){
   MK.rows.push({id:id,n:p.n,w:p.w,r:p.r,hold:p.hold,unit:p.unit,
     lines:String(EX[id].sets||"").split("\n"),base:{n:p.n,w:p.w,r:p.r,hold:p.hold},
     rest:EX[id].rest||'',g:null});
-  closeOvl('mkPickOvl');mkRender();
+  closeOvl('mkPickOvl');mkTouch();mkRender();
 }
 var mkCexId=null;
 function mkNewEx(){
   mkCexId=null;
+  // It inherits the workout's kind rather than asking - that was answered at the top of the same
+  // screen. Saying so here is the difference between inheriting and guessing.
+  var kk=document.getElementById('mkCexKind');
+  if(kk)kk.textContent=(MK.kind==='cardio')
+    ? 'It joins your cardio list and is counted in minutes or calories, like the rest of this workout.'
+    : 'It joins your lifting list and is counted in weight, reps or a hold, like the rest of this workout.';
   document.getElementById('mkCexName').value='';
   document.getElementById('mkCexNote').value='';
   document.getElementById('mkCexLink').value='';
@@ -5911,13 +6068,18 @@ function mkBuild(){
 function mkSave(){
   if(!MK.name.trim()){mkNote('Name the day first \u2014 it goes on the card.');return;}
   var w=mkBuild();
-  if(!w.sections.length){mkNote('Add at least one exercise before saving.');return;}
+  // An empty day is legal under the fold - see mkCreate. It is what a day IS for the seconds
+  // between naming it and filling it, and refusing to save one would strand exactly that state.
   // Nothing gets displaced any more - a day joins the plan, it does not evict whatever was
   // standing on a weekday - so the whole replace-warning path goes with the week.
   mkCommit();
 }
-function mkCommit(){
+// stay=true is the create step: write the day and place it, but hold the screen open so the work
+// can go in. Without it, making a day would save and close, and you would have to reopen the
+// thing you just made in order to put anything in it.
+function mkCommit(stay){
   var id=MK.id||('cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36));
+  MK.id=id;
   DB.custom[id]=mkBuild();
   mergeCustom();
   // Already on a day: leave it where it is rather than moving it for having been edited.
@@ -5925,7 +6087,8 @@ function mkCommit(){
   else{ planDropSilent(id);DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id); }
   saveDB();
   try{sfxLog();}catch(e){}
-  closeMake();renderHome();
+  renderHome();
+  if(!stay)closeMake();
 }
 
 // ---------- finish + export ----------
@@ -6347,7 +6510,7 @@ function saveAndExit(){
 // guessed at.
 function backupBlob(){
   var s={};
-  ['arc_sfx','arc_alert10','arc_notif','arc_motion'].forEach(function(k){
+  ['arc_sfx','arc_alert10','arc_notif','arc_motion','arc_sfxoff'].forEach(function(k){
     try{var v=localStorage.getItem(k);if(v!==null)s[k]=v;}catch(e){}
   });
   try{s[TKEY]=curTheme();}catch(e){}
@@ -6661,7 +6824,7 @@ function ask(msg,onYes,title,yesLabel,onNo,alt){
   if(alt){
     ar.style.display='';a.textContent=alt.label;
     a.onclick=function(){closeOvl('askOvl');alt.fn();};
-    y.classList.remove('btn-go');
+    y.classList.add('btn-go');
   }else{
     ar.style.display='none';a.onclick=null;
     y.classList.add('btn-go');
@@ -6861,6 +7024,36 @@ function LT(){return curTheme()==='light';}
 // would strand anyone who had muted it there permanently, with the only control that could undo
 // it gone. Alert volume is the one switch for this now, and 0 on that slider is silence.
 var SFX_ON=1;
+// ---------- which sounds play ----------
+// Three switches, not a list of thirteen. The app makes a lot of noises and almost all of them
+// are texture - a page turning, a card lifting - that nobody wants to manage one by one. What
+// people actually want off is a specific event that keeps happening: the rest alert going off in
+// a quiet gym, the tick on every logged set, the fanfare on every record.
+// There is no MUTE ALL here on purpose. Alert volume already goes to zero, and a second control
+// that silences everything would be two switches for one decision.
+var SFX_KEYS=[['rest','Rest alert','When a rest runs out'],
+              ['log','Set logged','The tick when a set is kept'],
+              ['pr','Record','The flourish when you beat one']];
+var SFX_OFF=(function(){
+  try{return JSON.parse(localStorage.getItem('arc_sfxoff')||'{}')||{};}catch(e){return {};}
+})();
+function sfxAllowed(k){return !SFX_OFF[k];}
+function sfxToggle(k){
+  SFX_OFF[k]=!SFX_OFF[k];
+  if(!SFX_OFF[k])delete SFX_OFF[k];
+  try{localStorage.setItem('arc_sfxoff',JSON.stringify(SFX_OFF));}catch(e){}
+  drawSfxKeys();
+  // played back on the way ON, so switching one on tells you what you have just switched on
+  if(!SFX_OFF[k]){try{k==='rest'?sfxRestTest():k==='pr'?sfxPR():sfxLog();}catch(e){}}
+}
+function drawSfxKeys(){
+  var e=document.getElementById('sfxKeys');if(!e)return;
+  e.innerHTML=SFX_KEYS.map(function(s){
+    var on=sfxAllowed(s[0]);
+    return '<div class="sfx-lbl"><span>'+s[1]+'<small>'+s[2]+'</small></span>'+
+      '<span class="sfx-tog'+(on?' on':'')+'" onclick="sfxToggle(\''+s[0]+'\')">'+(on?'ON':'OFF')+'</span></div>';
+  }).join('');
+}
 // 0 low, 1 normal, 2 high, 3 mute. Only the rest alert uses this - the rest of the
 // palette stays where it is so the room still sounds like a room. Mute silences the
 // alert only; the buzz still fires, which is the whole point of muting it.
@@ -7141,6 +7334,7 @@ function sfx(fn){
 function vib(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 // set logged - low struck weight in a stone room
 function sfxLog(){
+  if(!sfxAllowed('log'))return;
   if(FG())return sfx(function(t){anvil(t,1180,0.42,0.55);});
   if(MW())return sfx(function(t){glass(t,196,0.9,0.16,0.2);});
   // Tundra kept borrowing this one, and it is the app's most-heard sound - which is most of why
@@ -7180,6 +7374,7 @@ function sfxUndo(){
 });}
 // personal record - something in the room notices
 function sfxPR(){
+  if(!sfxAllowed('pr'))return;
   // Beating a record is the one moment worth a different instrument entirely - not the
   // hammer again, but blades meeting.
   if(FG()&&swdBuf&&SFX_ON){initAudio();if(actx){playClip(swdBuf,actx.currentTime+0.02,{vol:0.95});return;}}
@@ -7411,6 +7606,7 @@ function stopRestSrcs(){
   restSrcs.length=0;
 }
 function sfxRest(){
+  if(!sfxAllowed('rest'))return;
   if(!SFX_ON||alertMuted())return;
   initAudio();
   if(!actx)return;
@@ -8616,7 +8812,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();
+  drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();drawSfxKeys();
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
   // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
