@@ -3410,7 +3410,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.109';
+var APPV='v4.110';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5623,7 +5623,11 @@ function mkRender(){
     if(tail)h+='</div>';
   });
   h+='<div class="mk-add" onclick="mkPick()">+ Exercise</div>';
-  h+='<button class="finishbtn" style="margin-top:20px" onclick="mkSave()">'+(MK.id?'SAVE THIS DAY':T.save)+'</button>';
+  // Not "save" any more. The day has been written continuously since it was created, so a button
+  // promising to save it is telling you the work is at risk until you press it - which is exactly
+  // backwards, and the reason people press save twice and still worry. It closes; that is all it
+  // has done since the fold, and now it says so.
+  h+='<button class="finishbtn" style="margin-top:20px" onclick="mkSave()">'+(MK.id?'DONE':T.save)+'</button>';
   // Everything the hold menu used to carry lives down here now, with the rest of the day's
   // settings, where you can see what you are changing. Only for a day that already exists - there
   // is nothing to mark optional or delete about one you have not saved yet.
