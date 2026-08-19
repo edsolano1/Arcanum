@@ -2779,12 +2779,28 @@ var EX = {
   mfly:     {name:"Machine Fly",note:"Pec deck - slight bend in elbows, squeeze at the front",sets:"90x18\n90x18\n90x18",rest:"60 sec"},
   lowchest: {name:"Cable Lower Chest Raise",note:"Low-to-high - arm mostly straight, 10-15 degree bend only",sets:"17x15\n17x15\n17x15",rest:"60 sec"},
   pullover: {name:"DB Pullover",note:"One DB, both hands under top plate - lie across bench, lower behind head",sets:"45x12\n45x12\n45x12",rest:"60 sec"},
-  walk:     {name:"Power Walk",note:"30 minutes minimum - outdoor preferred, hilly route. Zone 2: conversational pace",sets:"30+ min",rest:""},
+  walk:     {cardio:1,name:"Power Walk",note:"30 minutes minimum - outdoor preferred, hilly route. Zone 2: conversational pace",sets:"30+ min",rest:""},
   hipflex:  {name:"Hip Flexor Stretch (kneeling)",note:"One knee on floor, other foot forward - sink hips forward and down",sets:"90 sec each",rest:""},
   chestdr:  {name:"Chest Doorway Stretch",note:"Arms at 90 degrees against doorframe, lean forward gently",sets:"2 min",rest:""},
   pigeon:   {name:"Pigeon Pose",note:"Front shin parallel to your body, lean forward over it",sets:"90 sec each",rest:""},
   hamstr:   {name:"Hamstring Floor Stretch",note:"Seated, one leg extended - reach toward foot, back flat",sets:"90 sec each",rest:""},
-  stairs:   {name:"Stairmaster",note:"Steady climbing pace - swap to a stationary bike if anything in the knee complains",sets:"200 cal",rest:""}
+  stairs:   {cardio:1,name:"Stairmaster",note:"Steady climbing pace - swap to a stationary bike if anything in the knee complains",sets:"200 cal",rest:""},
+  // ---------- cardio ----------
+  // Kept apart from the lifts by a flag rather than by living in another object, because
+  // everything that reads EX - the picker, swaps, the session grid, the export - already reads
+  // one library and should not have to learn about two. cardio:1 is what the builder filters on.
+  // Defaults are in minutes or calories, which is what the machines themselves count in, and no
+  // rest: a cardio piece is one continuous effort, and where intervals are wanted the sets and
+  // SET EACH ONE controls already say it.
+  treadrun: {cardio:1,name:"Treadmill Run",note:"Steady pace you could hold a broken conversation at",sets:"20 min",rest:""},
+  treadwalk:{cardio:1,name:"Incline Treadmill Walk",note:"Speed low, incline high - no holding the rails",sets:"30 min",rest:""},
+  cbike:    {cardio:1,name:"Stationary Bike",note:"Resistance high enough that the legs, not the momentum, are doing it",sets:"200 cal",rest:""},
+  ellip:    {cardio:1,name:"Elliptical",note:"Push and pull the handles - it is a whole body machine or it is nothing",sets:"20 min",rest:""},
+  rower:    {cardio:1,name:"Rowing Machine",note:"Legs, then back, then arms - and the reverse coming forward",sets:"2000 cal",rest:""},
+  jumprope: {cardio:1,name:"Jump Rope",note:"Small hops, wrists doing the turning",sets:"10 min",rest:""},
+  outrun:   {cardio:1,name:"Outdoor Run",note:"Route and pace are yours - log the time",sets:"30 min",rest:""},
+  swim:     {cardio:1,name:"Swim",note:"Any stroke - count the time in the water, not the lengths",sets:"30 min",rest:""},
+  assault:  {cardio:1,name:"Air Bike",note:"Arms and legs together. Brutal in short doses",sets:"100 cal",rest:""}
 };
 
 // Movement pattern groups - drives "comparable" swaps
@@ -2802,7 +2818,7 @@ var GRP={
   dblat:'delt-side',clat:'delt-side',revfly:'delt-rear',
   bike:'core',hollow:'core',legraise:'core',hipraise:'core',plank:'core',
   wcurl:'forearm',rwcurl:'forearm',hang:'forearm',
-  walk:'cardio',stairs:'cardio',
+  walk:'cardio',stairs:'cardio',treadrun:'cardio',treadwalk:'cardio',cbike:'cardio',ellip:'cardio',rower:'cardio',jumprope:'cardio',outrun:'cardio',swim:'cardio',assault:'cardio',
   hipflex:'mobility',chestdr:'mobility',pigeon:'mobility',hamstr:'mobility'
 };
 
@@ -3346,7 +3362,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.106';
+var APPV='v4.107';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3544,7 +3560,7 @@ var NOPAGE={hipraise:1,hang:1,hollow:1,p_hollow:1,stepup:1,chestdr:1,pigeon:1};
 // of a web search - a real page on the real site, one tap from the exercise.
 // Shrinking list - every entry here is an exercise still awaiting a looked-up page.
 
-var NOREF={walk:1,stairs:1};   // not exrx exercises; no link beats a wrong one
+var NOREF={walk:1,stairs:1,treadrun:1,treadwalk:1,cbike:1,ellip:1,rower:1,jumprope:1,outrun:1,swim:1,assault:1};   // not exrx exercises; no link beats a wrong one
 // The library exactly as it SHIPS, before a single thing of yours has been merged into it.
 // mergeCustom writes DB.custom and DB.cex straight into W and EX and only ever adds - which is
 // right for the real week and wrong for the sandbox, whose entire job is to show what somebody
@@ -5671,8 +5687,13 @@ function mkPick(){
 }
 function mkPickList(){
   var q=(document.getElementById('mkSearch').value||'').toLowerCase(),mine=[],lib=[];
+  // The list follows the workout's kind. Offering a bench press while building a cardio piece is
+  // offering something that cannot be counted in the units that workout uses, and offering a
+  // treadmill on a lifting day is the same fault the other way round.
+  var wantCardio=(MK.kind==='cardio');
   for(var k in EX){
     if(k.indexOf('p_')===0)continue;
+    if(!!EX[k].cardio!==wantCardio)continue;
     if(q&&EX[k].name.toLowerCase().indexOf(q)<0)continue;
     (DB.cex[k]?mine:lib).push(k);
   }
@@ -5748,7 +5769,14 @@ function mkSaveCex(){
     mkPickList();mkRender();return;
   }
   var id='cx'+Date.now().toString(36);
-  DB.cex[id]={name:n,note:note,link:link,sets:'0x10\n0x10\n0x10',rest:'60 sec',custom:1};
+  // An exercise invented while building a cardio workout is a cardio exercise, and it is given
+  // a cardio default rather than three sets of ten - which is not a thing a treadmill does. The
+  // kind is taken from the workout being built rather than asked, because it has already been
+  // answered at the top of the same screen and asking twice is how the two disagree.
+  var isCardio=(MK.kind==='cardio');
+  DB.cex[id]=isCardio
+    ? {cardio:1,name:n,note:note,link:link,sets:'20 min',rest:'',custom:1}
+    : {name:n,note:note,link:link,sets:'0x10\n0x10\n0x10',rest:'60 sec',custom:1};
   if(inv)DB.cex[id].inv=1;
   mergeCustom();saveDB();
   closeOvl('mkCexOvl');
