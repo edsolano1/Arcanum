@@ -903,6 +903,29 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-meas > span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
   color:var(--txt3);flex-shrink:0;}
 .mk-meas .mk-sel{flex:1;min-width:0;}
+/* fits its contents rather than the card, which is what left the row mostly blank */
+.mk-meas .mk-sel.auto{flex:0 1 auto;width:auto;min-width:0;}
+/* Not a control. It is a fact about the exercise, so it reads as text - the bordered chip beside
+   the name looked like a button, and a button that does nothing when you press it is worse than
+   no button. It also only ever appeared on assisted machines, which from the outside looked like
+   it appearing on the first item at random. */
+.mk-inv{font-size:11px;line-height:1.35;color:var(--gold);opacity:.85;
+  border:0;padding:0;background:none;letter-spacing:0;font-family:var(--sans);}
+/* a set's own rest, on the set's own line */
+.mk-sr{display:inline-flex;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;
+  padding:5px 9px 5px 7px;border-radius:8px;border:1px solid var(--line);background:transparent;
+  color:var(--txt3);cursor:pointer;transition:.14s;
+  font-family:var(--mono);font-size:10px;letter-spacing:.04em;}
+.mk-sr svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+.mk-sr:hover{color:var(--go);border-color:color-mix(in srgb,var(--go) 45%,var(--line));}
+.mk-sr.open{cursor:default;gap:4px;padding:5px 7px;border-color:color-mix(in srgb,var(--go) 45%,var(--line));}
+.mk-sr em{font-family:var(--mono);font-size:9px;font-style:normal;color:var(--txt3);}
+.mk-num.sm{width:42px;flex:0 0 42px;padding-left:6px;padding-right:4px;}
+/* "Set 1" needs room that a bare digit did not */
+.mk-ps-n{font-family:var(--mono);font-size:10px;letter-spacing:.05em;color:var(--txt3);
+  width:auto;min-width:52px;flex-shrink:0;text-align:left;}
+.mk-ps-row{flex-wrap:wrap;}
 /* Two answers, side by side, weighted the same - the app has no opinion about which kind of work
    a day is, and asking it as a pair of tiles rather than a dropdown means both are readable at a
    glance instead of one being hidden behind the other. */
@@ -1040,10 +1063,10 @@ body.light .dayact.del{--bad:#b1332c;}
   stroke-linecap:round;stroke-linejoin:round;}
 .mk-x:hover{color:#e0736b;border-color:color-mix(in srgb,#e0736b 40%,transparent);
   background:color-mix(in srgb,#e0736b 10%,transparent);}
-/* assisted work, said on the row rather than left to be discovered from a grade */
-.mk-inv{flex-shrink:0;font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
-  color:var(--gold);border:1px solid color-mix(in srgb,var(--gold) 40%,var(--line));
-  border-radius:5px;padding:2px 5px;}
+/* .mk-inv is declared once, above, as text. The bordered chip that used to be declared HERE was
+   later in the sheet and therefore winning - the third time a duplicate class has quietly beaten
+   its own replacement in this file. Worth checking for before styling anything that already
+   exists. */
 /* both halves named, one lit */
 .mk-ps-sw{display:inline-flex;align-items:center;gap:5px;}
 .mk-ps-sw i{font-style:normal;color:var(--txt3);font-size:10px;}
@@ -3504,7 +3527,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.114';
+var APPV='v4.115';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4884,9 +4907,9 @@ function renderSession(){
         }else{
           html+='<input class="inp wide" id="r-'+id+'-'+i+'" readonly value="'+vr+'" onclick="openEdit(\''+id+'\','+i+',\'r\')">'+
                 '<span class="unit">'+(t.unit||(r.bw?'reps':''))+'</span><input type="hidden" id="w-'+id+'-'+i+'" value="0">';
-          if(t.unit==='sec')html+='<button class="hold" id="hb-'+id+'-'+i+'" title="Time this hold" data-ic onclick="toggleHold(\''+id+'\','+i+','+(t.r||0)+',\''+(r.rest||'').replace(/'/g,'')+'\')"><svg viewBox="0 0 20 20"><path d="M6 3.5l10 6.5-10 6.5z"/></svg></button>';
+          if(t.unit==='sec')html+='<button class="hold" id="hb-'+id+'-'+i+'" title="Time this hold" data-ic onclick="toggleHold(\''+id+'\','+i+','+(t.r||0)+',\''+restAt(r.rest,i).replace(/'/g,'')+'\')"><svg viewBox="0 0 20 20"><path d="M6 3.5l10 6.5-10 6.5z"/></svg></button>';
         }
-        html+='<button class="chk" onclick="toggleSet(\''+id+'\','+i+',\''+(r.rest||'').replace(/'/g,'')+'\',\''+(t.unit||'')+'\')">'+chkSvg()+'</button></div>';
+        html+='<button class="chk" onclick="toggleSet(\''+id+'\','+i+',\''+restAt(r.rest,i).replace(/'/g,'')+'\',\''+(t.unit||'')+'\')">'+chkSvg()+'</button></div>';
       });
       html+='</div>';
       if(r.rest)html+='<div class="ex-rest">Rest '+r.rest+'</div>';
@@ -5720,7 +5743,6 @@ function mkRender(){
          // exercises, so it follows the other list of exercises.
          (g?'':mkGripSvg())+
          '<span class="mk-rn">'+mkEsc(nm)+'</span>'+
-         ((EX[r.id]&&EX[r.id].inv)?'<span class="mk-inv" title="Assisted: less weight means you did more of it">LESS IS MORE</span>':'')+
          '<span class="mk-acts">'+
            // A chain, because that is what linking two things looks like. The word SUPERSET was
            // doing double duty as a label and a button, and it read as a heading.
@@ -5730,7 +5752,6 @@ function mkRender(){
              '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg></button>'+
          '</span></div>'+
        mkMeasureUI(r,i)+
-       mkRestUI(r,i)+
        mkSetsUI(r,i)+'</div>';
        '</div>'+mkSetsUI(r,i)+'</div>';
     if(tail)h+='</div>';
@@ -5826,12 +5847,19 @@ function mkMeasureUI(r,i){
   // rewritten quietly.
   var known=false;opts.forEach(function(m){if(m[0]===u)known=true;});
   if(!known)opts=opts.concat([[u,mkUnitOf(r)+' (kept)']]);
+  // The select used to stretch across the whole card for a two-word value, so the row was mostly
+  // empty space with a label stranded at one end. It fits its contents now, and the room that
+  // frees up carries the one other fact about how this exercise counts: whether it runs backwards.
   return '<div class="mk-meas"><span>Counted in</span>'+
-    '<select class="mk-sel" onchange="mkSetUnit('+i+',this.value)">'+
+    '<select class="mk-sel auto" onchange="mkSetUnit('+i+',this.value)">'+
       opts.map(function(m){
         return '<option value="'+m[0]+'"'+(u===m[0]?' selected':'')+'>'+m[1]+'</option>';
       }).join('')+
-    '</select></div>';
+    '</select>'+
+    ((EX[r.id]&&EX[r.id].inv)
+      ? '<span class="mk-inv" title="An assisted machine: the number is how much help you are taking, so less of it means you did more of the work">assisted &middot; less is more</span>'
+      : '')+
+    '</div>';
 }
 function mkSetUnit(i,v,quiet){
   var r=MK.rows[i];if(!r)return;
@@ -5892,10 +5920,44 @@ function mkSets(i,d){
   if(mkVaries(r))r.custom=1;
   mkTouch();mkRender();
 }
+// Rest belongs to the SET, not to the exercise. It was one value handed to every set in the row,
+// so "ninety seconds, then a minute, then thirty" could not be said at all - and that is an
+// ordinary thing to want on a top set. Stored parallel to the sets: one line and it applies to
+// all of them, one line each and they differ. Old workouts carry a single value and keep working
+// without being touched.
+var MK_GLASS='<svg viewBox="0 0 20 20"><path d="M6 3h8M6 17h8M6.5 3c0 3.5 3.5 4.5 3.5 7s-3.5 3.5-3.5 7M13.5 3c0 3.5-3.5 4.5-3.5 7s3.5 3.5 3.5 7"/></svg>';
+function mkRestsFor(r){
+  var n=r.n||1,parts=String(r.rest||'').split('\n');
+  var out=[],k;
+  for(k=0;k<n;k++)out.push(parts.length>1?(parts[k]!==undefined?parts[k]:parts[parts.length-1]):(parts[0]||''));
+  return out;
+}
+function mkRestWrite(r,arr){
+  var same=arr.every(function(x){return x===arr[0];});
+  r.rest=same?(arr[0]||''):arr.join('\n');
+}
+function mkSetRest(i,k,part,v){
+  var r=MK.rows[i];if(!r)return;
+  var A=mkRestsFor(r),t=parseRest(A[k]),m=Math.floor(t/60),s=t%60;
+  if(part==='m')m=Math.max(0,Math.min(30,parseInt(v,10)||0));
+  else s=Math.max(0,Math.min(59,parseInt(v,10)||0));
+  var tot=m*60+s;
+  A[k]=tot?(tot+' sec'):'';
+  mkRestWrite(r,A);mkTouch();
+}
+function mkSetRestOpen(i,k){
+  var r=MK.rows[i];if(!r)return;
+  var A=mkRestsFor(r);
+  if(!parseRest(A[k])){A[k]='90 sec';mkRestWrite(r,A);}
+  r.restEdit=(r.restEdit===k+1)?0:k+1;
+  mkRender();
+}
 function mkSetsUI(r,i){
   var u=mkUnitOf(r),varies=mkVaries(r),open=r.exp||varies;
   var unitTxt=u==='sec'?'sec':u==='min'?'min':u==='cal'?'cal':'reps';
+  var wUnit=u==='wr'?'lb':'';
   var L=open?mkLinesFor(r):[mkLine(r)];
+  var RS=mkRestsFor(r);
   // Both halves on screen with the slash between them, because a switch that shows only the
   // state you are NOT in is a button, and you have to press it to find out what it does. Naming
   // both and lighting one says where you are and where you can go in the same glance.
@@ -5911,11 +5973,26 @@ function mkSetsUI(r,i){
     var c=mkLineVal(ln,u);
     var wIn=open?('mkSetLine('+i+','+k+',&#39;w&#39;,this.value)'):('mkSet('+i+',&#39;w&#39;,this.value)');
     var rIn=open?('mkSetLine('+i+','+k+',&#39;r&#39;,this.value)'):('mkSet('+i+',&#39;r&#39;,this.value)');
-    h+='<div class="mk-ps-row">'+(open?'<span class="mk-ps-n">'+(k+1)+'</span>':'')+
+    var rest=RS[k]||'',editing=(r.restEdit===k+1);
+    h+='<div class="mk-ps-row">'+
+       // The word, not a bare digit. There is a reps column an inch away, so a lone 3 at the
+       // start of the line is a number among numbers - it has to say which kind it is.
+       '<span class="mk-ps-n">'+(open?'Set '+(k+1):'All sets')+'</span>'+
        (u==='wr'?'<input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+c.w+'" oninput="'+wIn+'">'+
-                 '<span class="mk-ps-x">&times;</span>':'')+
+                 '<span class="mk-ps-u">'+wUnit+'</span><span class="mk-ps-x">&times;</span>':'')+
        '<input class="mk-num" type="number" inputmode="numeric" value="'+c.r+'" oninput="'+rIn+'">'+
-       '<span class="mk-ps-u">'+unitTxt+'</span></div>';
+       '<span class="mk-ps-u">'+unitTxt+'</span>'+
+       // and this set's own rest, on the line it belongs to
+       (editing
+         ? '<span class="mk-sr open">'+
+             '<input class="mk-num sm" type="number" inputmode="numeric" min="0" max="30" value="'+Math.floor(parseRest(rest)/60)+'" oninput="mkSetRest('+i+','+k+',&#39;m&#39;,this.value)">'+
+             '<em>m</em>'+
+             '<input class="mk-num sm" type="number" inputmode="numeric" min="0" max="59" value="'+(parseRest(rest)%60)+'" oninput="mkSetRest('+i+','+k+',&#39;s&#39;,this.value)">'+
+             '<em>s</em>'+
+             '<button class="mk-rest-ok" onclick="mkSetRestOpen('+i+','+k+')">OK</button></span>'
+         : '<button class="mk-sr" onclick="mkSetRestOpen('+i+','+k+')" title="Rest after this set">'+MK_GLASS+
+             '<span>'+(parseRest(rest)?mkRestLabel(rest):'none')+'</span></button>')+
+       '</div>';
   });
   // Under the last set, faint, so it reads as the end of the list rather than as another control
   // competing with the ones above it.
@@ -8545,6 +8622,13 @@ function toggleHold(id,i,target,rest){
   },200);
 }
 var timerInt=null;
+// One rest per set when the row carries a list, otherwise the single value for all of them.
+// Everything downstream - the pill, the notification, the tour - already takes a rest string, so
+// this is the only place that has to know a row can now hold several.
+function restAt(rest,i){
+  var p=String(rest||'').split('\n');
+  return p.length>1?(p[i]!==undefined?p[i]:p[p.length-1]):(p[0]||'');
+}
 function parseRest(t){
   if(!t)return 0;
   var m=String(t).match(/(\d+(?:\.\d+)?)/);
