@@ -903,7 +903,16 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-meas > span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
   color:var(--txt3);flex-shrink:0;}
 .mk-meas .mk-sel{flex:1;min-width:0;}
-.mk-cardio-note{font-size:11px;line-height:1.5;color:var(--txt3);margin:0 0 4px 2px;}
+/* Two answers, side by side, weighted the same - the app has no opinion about which kind of work
+   a day is, and asking it as a pair of tiles rather than a dropdown means both are readable at a
+   glance instead of one being hidden behind the other. */
+.mk-kinds{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mk-kind{padding:12px 11px;border-radius:11px;border:1px solid var(--line);background:var(--surface2);
+  cursor:pointer;transition:.15s;}
+.mk-kind b{display:block;font-size:14px;font-weight:600;color:var(--txt);}
+.mk-kind small{display:block;margin-top:3px;font-size:10.5px;line-height:1.4;color:var(--txt3);}
+.mk-kind.sel{border-color:var(--mkc);background:color-mix(in srgb,var(--mkc) 13%,var(--surface2));}
+.mk-kind.sel b{color:var(--mkc);}
 .mk-perset{margin-top:8px;}
 .mk-ps-head{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
 .mk-ps-lbl{flex:1;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
@@ -3337,7 +3346,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.105';
+var APPV='v4.106';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5253,6 +5262,7 @@ function openMake(base,editId,blank,want){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
         color:w.color||MK_COLS[0],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+        kind:w.kind||null,
       // Sections flatten into one list. An ss section hands its rows a shared group id, which is
       // the whole of what "these run together" means now - the box is gone, the relationship
       // stays, and a day built before this change opens with its supersets intact.
@@ -5280,9 +5290,13 @@ function openMake(base,editId,blank,want){
         return out;
       })()};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',
+    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',
       rows:[]};
   }
+  // A day saved before kinds existed has none recorded, so it is read off the work itself. Done
+  // here rather than in either branch above because it needs the rows, and only one of the two
+  // branches builds them from sections.
+  if(!MK.kind)MK.kind=mkKindOf(MK.rows);
   document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
   mkRender();
   document.getElementById('make').scrollTop=0;
@@ -5297,6 +5311,18 @@ function mkRender(){
   document.getElementById('mkSub').textContent=MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets';
   h+='<div class="mk-lbl">Name</div>'+
      '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
+  // What KIND of work this is, asked once for the whole workout rather than per exercise. Lifting
+  // is counted in weight, reps or a hold; cardio is counted in minutes or calories. Those are two
+  // different questions and mixing them inside one workout was what put minutes on a set picker.
+  // Nothing is lost by splitting: a weekday holds up to DAY_MAX workouts, so a day that was lifts
+  // then a Stairmaster becomes two entries on the same day, in order, which is also how it is
+  // actually done - the shipped d4 already called its last section "Cardio finisher".
+  h+='<div class="mk-lbl">What kind</div><div class="mk-kinds" style="--mkc:'+MK.color+'">';
+  MK_KINDS.forEach(function(k){
+    h+='<div class="mk-kind'+(MK.kind===k[0]?' sel':'')+'" onclick="mkSetKind(\''+k[0]+'\')">'+
+       '<b>'+k[1]+'</b><small>'+k[2]+'</small></div>';
+  });
+  h+='</div>';
   // Seven weekday chips and an OFF became two: a day is either on the plan or waiting in the
   // bank. Where it sits in the order is set by moving it, not by picking a weekday here.
   // What you DO with the day, up here under its name, rather than three full-width buttons at the
@@ -5421,41 +5447,65 @@ function mkSet(i,k,v){
 // Weight-less reps are stored as 0xN, which is exactly what the bodyweight entries already do.
 // Bodyweight and assisted are NOT here: they are properties of the exercise, not of the set, and
 // they live on the library entry as bw and inv.
-// Minutes and calories came off this list. They are how CARDIO is counted, and cardio is not a
-// set - it is one continuous effort that happens before the lifting or after it, or on its own
-// day. The shipped program already worked that way without anyone deciding to: the Stairmaster
-// is the seventh of seven sections on d4 and the section is literally called "Cardio finisher",
-// and the Power Walk is the rest day rather than a row inside a lifting day. The only thing that
-// looked like mid-workout cardio was the "bike" in d4 section five, and that is a Bicycle Crunch.
-// They are still READ - see mkParse, and see mkMeasureUI, which puts the current unit back on the
-// list for a row that already uses one. A day carrying the Stairmaster opens saying Calories and
-// round-trips as "200 cal"; it simply cannot be newly chosen for a set.
-var MK_MEASURES=[['wr','Weight and reps','145 x 8'],['reps','Reps only','x 15'],
-                 ['sec','Seconds','45 sec']];
-var MK_CARDIO={min:'Minutes (cardio)',cal:'Calories (cardio)'};
+// A workout is one kind of work or the other, and the kind decides what its exercises can be
+// counted in. That is the whole reason minutes ended up on a set picker: two different questions
+// were being asked in one place. Lifting is weight, reps or a hold; cardio is minutes or calories.
+// Splitting costs nothing, because a weekday already holds up to DAY_MAX workouts - a day that
+// was lifts then a Stairmaster becomes two entries on the same day, in the order they are done.
+// The shipped program had already arrived at this on its own: d4's last section is called
+// "Cardio finisher", and the Power Walk is the rest day rather than a row inside a lifting day.
+var MK_KINDS=[['lift','Lifting','Weight, reps or a hold'],
+              ['cardio','Cardio','Minutes or calories']];
+var MK_MEASURE_SETS={
+  lift:  [['wr','Weight and reps'],['reps','Reps only'],['sec','Seconds']],
+  cardio:[['min','Minutes'],['cal','Calories'],['sec','Seconds']]
+};
+function mkMeasures(){return MK_MEASURE_SETS[MK.kind]||MK_MEASURE_SETS.lift;}
+// Which kind a day already is, for one opened before this existed. Read off the work rather than
+// defaulted, so the Power Walk and the Stairmaster come back as cardio instead of as lifting with
+// an impossible unit.
+function mkKindOf(rows){
+  if(!rows||!rows.length)return 'lift';
+  for(var i=0;i<rows.length;i++){
+    var u=rows[i].unit||'';
+    if(u!=='min'&&u!=='cal')return 'lift';
+  }
+  return 'cardio';
+}
+function mkSetKind(k){
+  if(MK.kind===k)return;
+  MK.kind=k;
+  // Every row is moved onto a unit its new kind can express. A lift counted in calories, or a
+  // cardio piece counted in weight, is not a thing - so rather than leave rows carrying a unit
+  // the picker cannot show, they are converted to that kind's first measure.
+  var allowed={};mkMeasures().forEach(function(m){allowed[m[0]]=1;});
+  MK.rows.forEach(function(r,i){if(!allowed[mkUnitOf(r)])mkSetUnit(i,mkMeasures()[0][0],true);});
+  mkRender();
+}
 function mkUnitOf(r){
   if(r.unit)return r.unit;
   return r.hold?'sec':'wr';        // rows built before this existed carried a hold flag
 }
 function mkUnitLabel(u){
-  for(var k=0;k<MK_MEASURES.length;k++)if(MK_MEASURES[k][0]===u)return MK_MEASURES[k][1];
-  return MK_CARDIO[u]||MK_MEASURES[0][1];
+  var M=mkMeasures();
+  for(var k=0;k<M.length;k++)if(M[k][0]===u)return M[k][1];
+  return M[0][1];
 }
 function mkMeasureUI(r,i){
-  var u=mkUnitOf(r),opts=MK_MEASURES.slice();
-  // A row already counted in minutes or calories keeps that on the list, for itself only, so it
-  // shows the truth and can round-trip. Change it away and the option goes with it - which is the
-  // right asymmetry: nothing new arrives measured as cardio, nothing existing is silently rewritten.
-  if(MK_CARDIO[u])opts=opts.concat([[u,MK_CARDIO[u],'']]);
+  var u=mkUnitOf(r),opts=mkMeasures().slice();
+  // If a row somehow carries a unit outside its kind - a day edited by hand, an import - it is
+  // shown rather than silently swapped, and only for that row. Being wrong loudly beats being
+  // rewritten quietly.
+  var known=false;opts.forEach(function(m){if(m[0]===u)known=true;});
+  if(!known)opts=opts.concat([[u,mkUnitOf(r)+' (kept)']]);
   return '<div class="mk-meas"><span>Counted in</span>'+
     '<select class="mk-sel" onchange="mkSetUnit('+i+',this.value)">'+
       opts.map(function(m){
         return '<option value="'+m[0]+'"'+(u===m[0]?' selected':'')+'>'+m[1]+'</option>';
       }).join('')+
-    '</select></div>'+
-    (MK_CARDIO[u]?'<div class="mk-cardio-note">Cardio sits on its own, before the lifting or after it. Give it its own day rather than a slot between lifts.</div>':'');
+    '</select></div>';
 }
-function mkSetUnit(i,v){
+function mkSetUnit(i,v,quiet){
   var r=MK.rows[i];if(!r)return;
   r.unit=v;r.hold=(v==='sec'||v==='min'||v==='cal');
   // Changing what a set is measured in makes the old numbers meaningless - 145x8 is not 145
@@ -5467,7 +5517,7 @@ function mkSetUnit(i,v){
   else if((v==='wr'||v==='reps')&&(!r.r||r.r>60))r.r=10;
   if(v!=='wr')r.w=0;
   r.custom=0;r.lines=mkLinesUniform(r);
-  mkRender();
+  if(!quiet)mkRender();
 }
 function mkLinesUniform(r){
   var L=[],k;for(k=0;k<(r.n||1);k++)L.push(mkLine(r));return L;
@@ -5709,7 +5759,7 @@ function mkSaveCex(){
 function mkBuild(){
   return {
     name:MK.name.trim(),tag:MK.tag||'Yours',color:MK.color,time:MK.time||'~9:00 PM',
-    custom:1,made:MK.made||Date.now(),
+    custom:1,made:MK.made||Date.now(),kind:MK.kind||'lift',
     // The flat list becomes sections again on the way out, so nothing downstream - the session
     // grid, the export, the level-up walk - has to learn a new shape. A run of rows sharing a
     // group id is one ss:true section; everything else is a section of its own. Order in the list
