@@ -1053,6 +1053,16 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-ps-h:hover{color:var(--txt2);}
 .mk-ps-h.on{color:var(--go);border-color:color-mix(in srgb,var(--go) 50%,var(--line));
   background:color-mix(in srgb,var(--go) 14%,transparent);}
+/* Adding a second workout to a day that already has one. Deliberately quieter than the empty-day
+   offer: that one is an invitation to start, this one is a way to add, and a full-width dashed
+   panel under a card you can already see would compete with the card. */
+.daymore{display:flex;align-items:center;justify-content:center;height:30px;margin:2px 0 4px;
+  border-radius:9px;cursor:pointer;color:var(--txt3);
+  border:1px dashed color-mix(in srgb,var(--go) 26%,var(--line));transition:.15s;}
+.daymore:hover{color:var(--go);border-color:color-mix(in srgb,var(--go) 55%,var(--line));
+  background:color-mix(in srgb,var(--go) 7%,transparent);}
+.daymore svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;}
+body.tut .daymore{display:none;}
 .mk-mv{display:inline-flex;gap:3px;flex-shrink:0;}
 .mk-mvb{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
   padding:0;border-radius:7px;border:1px solid var(--line);background:transparent;
@@ -3490,7 +3500,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.112';
+var APPV='v4.113';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4031,7 +4041,16 @@ function dayBox(d,nx,n0){
   // as a dead end and the only way in was the New day button at the very bottom of the page -
   // which is not where somebody looking at an empty Tuesday is looking. It builds into this day.
   if(!ids.length)h+='<div class="dayempty dayadd" onclick="openNewDay(\''+d.k+'\')">'+PLUS+'Add a workout</div>';
-  else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
+  else{
+    ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
+    // A day with something on it had no way to take a second one. The offer only existed while
+    // the day was EMPTY, so a Tuesday that already held a lift was a closed door - and a weekday
+    // holds up to DAY_MAX, which is the whole reason splitting lifts from cardio works at all.
+    // Quieter than the empty-day version: the day already reads as having something in it, so
+    // this is a way to add rather than an invitation to start.
+    if(ids.length<DAY_MAX)
+      h+='<div class="daymore" onclick="openNewDay(\''+d.k+'\')" title="Add another workout to '+d.n+'">'+PLUS+'</div>';
+  }
   return h+'</div>';
 }
 // A kept day has no weekday and no slot, so it carries the day's own name where the weekday
@@ -5101,12 +5120,17 @@ function mkRestLabel(v){
 function MKTXT(){
   // "Work this day again" was the offender: it opens the day EDITOR, and nothing in those three
   // words says so. Plain verbs until the app is settled.
-  if(GENERIC)return {t:'New day',save:'SAVE THIS DAY',hint:'Hold a day to edit it',
-    act:'Edit this day',mk:'NEW DAY',xl:'Saved days',xa:'Take it off the week',xc:'SAVED'};
-  if(LT())return {t:'Stake a day',save:'STAKE THIS DAY',hint:'Hold a day to stake your own',act:'Stake this day again',mk:'STAKE A NEW DAY',xl:'Cached days',xa:'Cache it off the plan',xc:'CACHED'};
-  if(MW())return {t:'Draw a day',save:'DRAW THIS DAY',hint:'Hold a day to draw it anew',act:'Draw this day again',mk:'DRAW A NEW DAY',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
-  if(FG())return {t:'Forge a day',save:'FORGE THIS DAY',hint:'Hold a day to work it',act:'Work this day again',mk:'FORGE A NEW DAY',xl:'On the rack',xa:'Rack it off the plan',xc:'RACKED'};
-  return {t:'Inscribe a day',save:'INSCRIBE THIS DAY',hint:'Hold a day to inscribe your own',act:'Inscribe this day again',mk:'INSCRIBE A NEW DAY',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
+  // And the noun was wrong throughout. The days already exist - Sunday to Saturday, seven of
+  // them, and you cannot add one. What you add is a WORKOUT, which goes on a day, and inside a
+  // workout are exercises. Calling the workout a "day" made the weekday and the thing standing
+  // on it the same word, which is why "add a new day" read as nonsense next to a week that
+  // already had all its days.
+  if(GENERIC)return {t:'New workout',save:'SAVE THIS WORKOUT',hint:'Hold a workout to edit it',
+    act:'Edit this workout',mk:'NEW WORKOUT',xl:'Saved workouts',xa:'Take it off the week',xc:'SAVED'};
+  if(LT())return {t:'Stake a workout',save:'STAKE THIS WORKOUT',hint:'Hold a workout to stake your own',act:'Stake this workout again',mk:'STAKE A NEW WORKOUT',xl:'Cached days',xa:'Cache it off the plan',xc:'CACHED'};
+  if(MW())return {t:'Draw a workout',save:'DRAW THIS WORKOUT',hint:'Hold a workout to draw it anew',act:'Draw this workout again',mk:'DRAW A NEW WORKOUT',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
+  if(FG())return {t:'Forge a workout',save:'FORGE THIS WORKOUT',hint:'Hold a workout to work it',act:'Work this workout again',mk:'FORGE A NEW WORKOUT',xl:'On the rack',xa:'Rack it off the plan',xc:'RACKED'};
+  return {t:'Inscribe a workout',save:'INSCRIBE THIS WORKOUT',hint:'Hold a workout to inscribe your own',act:'Inscribe this workout again',mk:'INSCRIBE A NEW WORKOUT',xl:'Kept days',xa:'Keep it off the plan',xc:'KEPT'};
 }
 function effWk(wk){return (DB.slots&&DB.slots[wk])||wk;}
 function baseOf(wk){for(var s in (DB.slots||{}))if(DB.slots[s]===wk)return s;return wk;}
@@ -5376,7 +5400,7 @@ function mkShell(open){MK.shellOpen=!!open;mkRender();document.getElementById('m
 // legitimate state under this flow - it is what a day is for the seconds between naming it and
 // filling it - so mkSave's "add at least one exercise" no longer applies at this point.
 function mkCreate(){
-  if(!MK.name.trim()){mkNote('Name the day first — it goes on the card.');return;}
+  if(!MK.name.trim()){mkNote('Name the workout first — it goes on the card.');return;}
   mkCommit(true);
   MK.shellOpen=false;
   mkRender();
@@ -5401,8 +5425,8 @@ function mkDuplicate(id){
   var src=DB.custom[id]||W[id];
   if(!src){mkNote('There is nothing here to copy yet.');return;}
   var copy;
-  try{copy=JSON.parse(JSON.stringify(src));}catch(e){mkNote('That day could not be copied.');return;}
-  copy.name=(copy.name||'Day').replace(/^Optional: /,'')+' copy';
+  try{copy=JSON.parse(JSON.stringify(src));}catch(e){mkNote('That workout could not be copied.');return;}
+  copy.name=(copy.name||'Workout').replace(/^Optional: /,'')+' copy';
   copy.custom=1;copy.made=Date.now();
   var nid='cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36);
   DB.custom[nid]=copy;
@@ -5413,7 +5437,7 @@ function mkDuplicate(id){
   if(DB.extra.indexOf(nid)<0)DB.extra.push(nid);
   saveDB();renderHome();
   openMake(null,nid);
-  mkNote('Copied. It is on the shelf until you give it a day.','Copy made');
+  mkNote('Copied. It is on the shelf until you put it on a day.','Copy made');
 }
 function mkActions(id){
   var mine=!!(DB.custom&&DB.custom[id]);
@@ -5556,15 +5580,15 @@ function mkRender(){
   var h='',T=MKTXT();
   var shell=!!MK.shellOpen,making=shell&&!MK.id;
   document.getElementById('mkSub').textContent=
-    making?'New day':(MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets');
+    making?'New workout':(MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets');
   if(!shell){
-    h+='<div class="mk-head"><span class="mk-head-n">'+(mkEsc(MK.name)||'Untitled day')+'</span>'+
+    h+='<div class="mk-head"><span class="mk-head-n">'+(mkEsc(MK.name)||'Untitled workout')+'</span>'+
        '<span class="mk-head-k">'+(MK.kind==='cardio'?'Cardio':'Lifting')+'</span>'+
-       '<button class="mk-head-b" onclick="mkShell(true)">DAY SETTINGS</button></div>';
+       '<button class="mk-head-b" onclick="mkShell(true)">WORKOUT SETTINGS</button></div>';
   }
   if(shell){
   h+='<div class="mk-lbl">Name</div>'+
-     '<input class="mk-in" placeholder="Give your day a name" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
+     '<input class="mk-in" placeholder="Name this workout" value="'+mkEsc(MK.name)+'" oninput="MK.name=this.value">';
   // What KIND of work this is, asked once for the whole workout rather than per exercise. Lifting
   // is counted in weight, reps or a hold; cardio is counted in minutes or calories. Those are two
   // different questions and mixing them inside one workout was what put minutes on a set picker.
@@ -5587,7 +5611,7 @@ function mkRender(){
     var cv=wkVar(MK.open),e0=wkDefault(MK.open),back=(e0&&e0.v==='rest')?'rest':'';
     var mdone=!!loggedThisWeek()[MK.open];
     var mine=!!(DB.custom&&DB.custom[MK.open]);
-    h+='<div class="mk-lbl">This day</div><div class="dayacts">';
+    h+='<div class="mk-lbl">This workout</div><div class="dayacts">';
     // Done without logging it. The week should not sit open because the app has no proof.
     h+='<button class="dayact'+(mdone?' on':'')+'" onclick="'+(mdone?'unmarkDayDone':'markDayDone')+'(\''+MK.open+'\')">'+
        '<svg viewBox="0 0 20 20">'+(mdone
@@ -5602,9 +5626,9 @@ function mkRender(){
          :'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M6.5 10.2l2.6 2.6 4.4-5"/>')+
        '</svg>Required</button>';
     if(mine){
-      h+='<button class="dayact" title="Make a copy of this day" onclick="mkDuplicate(\''+MK.open+'\')">'+
+      h+='<button class="dayact" title="Make a copy of this workout" onclick="mkDuplicate(\''+MK.open+'\')">'+
          '<svg viewBox="0 0 20 20"><path d="M7 7V4.5h8.5V13H13M4.5 7H13v8.5H4.5z"/></svg>Duplicate</button>';
-      h+='<button class="dayact del" title="Delete this day" onclick="mkDelete(\''+MK.open+'\')">'+
+      h+='<button class="dayact del" title="Delete this workout" onclick="mkDelete(\''+MK.open+'\')">'+
          '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg>'+
          '</button>';
     }
@@ -5638,7 +5662,7 @@ function mkRender(){
   // Making a day stops here: four questions and a button. The work comes next, on a day that by
   // then exists, so nothing typed into it is riding on remembering to save.
   if(making){
-    h+='<button class="finishbtn" style="margin-top:20px" onclick="mkCreate()">CREATE THIS DAY</button>';
+    h+='<button class="finishbtn" style="margin-top:20px" onclick="mkCreate()">CREATE THIS WORKOUT</button>';
     document.getElementById('mkBody').innerHTML=h;
     return;
   }
@@ -6266,7 +6290,7 @@ function mkBuild(){
   };
 }
 function mkSave(){
-  if(!MK.name.trim()){mkNote('Name the day first \u2014 it goes on the card.');return;}
+  if(!MK.name.trim()){mkNote('Name the workout first \u2014 it goes on the card.');return;}
   var w=mkBuild();
   // An empty day is legal under the fold - see mkCreate. It is what a day IS for the seconds
   // between naming it and filling it, and refusing to save one would strand exactly that state.
