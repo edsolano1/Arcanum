@@ -3527,7 +3527,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.115';
+var APPV='v4.116';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4804,7 +4804,10 @@ function openWNow(wk){
   document.getElementById('timerPill').style.setProperty('--tc',dayC(wk));
   document.getElementById('sTitle').textContent=w.name.replace('Optional: ','');
   renderSession();
-  sv.scrollTop=0;sv.classList.add('on');
+  // .on first: while the screen is display:none the scrollTop write is a no-op and
+  // Chromium restores the previous session's offset the moment it becomes visible -
+  // which is how a fresh day opened halfway down the page.
+  sv.classList.add('on');sv.scrollTop=0;
   syncPumpBtn();
 }
 function rowFor(swaps,row,wk){
