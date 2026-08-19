@@ -2649,16 +2649,20 @@ body.wcon{overflow:hidden;}
   <div class="sheet" style="max-width:400px">
     <h3 id="askTitle">Are you sure?</h3>
     <p id="askMsg"></p>
-    <!-- The alternate is an alternate: it reads BELOW the main answer and does not take the lit
-         treatment. It used to sit above it wearing btn-go while the primary had its emphasis
-         explicitly removed, so on "Add it every week?" the highlighted button on top was JUST
-         TODAY - the answer the question was not asking for. -->
-    <div class="sheet-btns" id="askAltRow" style="display:none;order:2">
-      <div class="btn" id="askAlt"></div>
+    <!-- The main answer, alone on the top row so it is full width and unmistakably the answer the
+         question is asking for. The alternate and CANCEL share the row beneath it, equal and
+         quiet.
+         The previous attempt at this set order:2 on the alternate row and stopped there, which
+         did nothing at all: order only applies to a flex or grid child and .sheet is neither. So
+         JUST TODAY stayed on top - and being alone in its row it stretched to full width while
+         EVERY WEEK shared its row with CANCEL and came out at half. 354px against 173, with the
+         big one being the answer nobody asked about. Structure, not a property. -->
+    <div class="sheet-btns">
+      <div class="btn btn-go" id="askYes">CONFIRM</div>
     </div>
     <div class="sheet-btns">
       <div class="btn" id="askNo" onclick="closeOvl('askOvl')">CANCEL</div>
-      <div class="btn btn-go" id="askYes">CONFIRM</div>
+      <div class="btn" id="askAlt" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -3500,7 +3504,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.113';
+var APPV='v4.114';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5095,6 +5099,19 @@ function doSwap(k){
 // ============================================================
 var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a0','#e0b667','#ff9152','#66718c'];
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',rows:[]};
+// The next colour nobody is using, or the least-used one if they all are. Colour still does a
+// job on the week board - it is how you tell one card from another at a glance - it just is not
+// a question worth asking someone who came here to write down a workout.
+function mkNextColor(){
+  var used={};
+  for(var k in (DB.custom||{}))if(DB.custom[k]&&DB.custom[k].color)used[DB.custom[k].color]=(used[DB.custom[k].color]||0)+1;
+  var best=MK_COLS[0],low=Infinity;
+  for(var i=0;i<MK_COLS.length;i++){
+    var c=used[MK_COLS[i]]||0;
+    if(c<low){low=c;best=MK_COLS[i];if(!c)break;}
+  }
+  return best;
+}
 // "2-3 min" was the last entry and it is not a rest time, it is two rest times with a hyphen -
 // the timer has to pick one and the user never said which. Replaced with a real 3 min, and past
 // that a custom entry rather than a longer guess-list: anything over three minutes is somebody
@@ -5552,7 +5569,9 @@ function openMake(base,editId,blank,want){
         return out;
       })()};
   }else{
-    MK={id:null,name:'',color:MK_COLS[Math.floor(Math.random()*MK_COLS.length)],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',shellOpen:false,
+    // Walked rather than random: random repeats, and two workouts running the same colour on
+    // adjacent days is exactly the collision a picker existed to let people fix by hand.
+    MK={id:null,name:'',color:mkNextColor(),slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',shellOpen:false,
       rows:[]};
   }
   // A day saved before kinds existed has none recorded, so it is read off the work itself. Done
@@ -5650,15 +5669,12 @@ function mkRender(){
   });
   h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>SAVED</b><small>'+T.xl+'</small></div>';
   h+='</div>';
-  h+='<div class="mk-lbl">Its color</div><div class="mk-cols">';
-  MK_COLS.forEach(function(c){
-    h+='<div class="mk-col'+(MK.color===c?' sel':'')+'" style="background:'+c+'" onclick="MK.color=\''+c+'\';mkRender()"></div>';
-  });
-  h+='<label class="mk-col'+(MK_COLS.indexOf(MK.color)<0?' sel':'')+'" style="background:'+MK.color+';position:relative;overflow:hidden" title="Any color">'+
-       '<input type="color" value="'+MK.color+'" oninput="MK.color=this.value;mkRender()" style="position:absolute;inset:-4px;opacity:0;cursor:pointer">'+
-       '<svg viewBox="0 0 20 20" style="width:14px;height:14px;position:absolute;left:7px;top:7px;fill:none;stroke:rgba(0,0,0,.55);stroke-width:2;stroke-linecap:round"><path d="M10 5v10M5 10h10"/></svg></label>';
-  h+='</div>';
   }
+  // The colour picker is gone. Choosing one is a decision with no wrong answer, which is the
+  // worst kind to put in front of somebody who came here to write down a workout - and it was
+  // the last thing on a screen they wanted to leave. Assigned on creation instead, walking the
+  // palette so consecutive workouts do not come out the same, and still editable in the data if
+  // it ever needs to be.
   // Making a day stops here: four questions and a button. The work comes next, on a day that by
   // then exists, so nothing typed into it is riding on remembering to save.
   if(making){
@@ -7044,15 +7060,16 @@ function ask(msg,onYes,title,yesLabel,onNo,alt){
   document.getElementById('askTitle').textContent=title||'Are you sure?';
   document.getElementById('askMsg').textContent=msg;
   var y=document.getElementById('askYes'),n=document.getElementById('askNo');
-  var a=document.getElementById('askAlt'),ar=document.getElementById('askAltRow');
+  var a=document.getElementById('askAlt');
+  // The alternate lives in the bottom row beside CANCEL now, so there is no row to show or hide -
+  // only the button itself. The primary always keeps the lit treatment; it is the answer.
   if(alt){
-    ar.style.display='';a.textContent=alt.label;
+    a.style.display='';a.textContent=alt.label;
     a.onclick=function(){closeOvl('askOvl');alt.fn();};
-    y.classList.add('btn-go');
   }else{
-    ar.style.display='none';a.onclick=null;
-    y.classList.add('btn-go');
+    a.style.display='none';a.onclick=null;a.textContent='';
   }
+  y.classList.add('btn-go');
   n.onclick=function(){closeOvl('askOvl');if(onNo)onNo();};
   if(onYes){
     y.textContent=yesLabel||'CONFIRM';n.style.display='';
