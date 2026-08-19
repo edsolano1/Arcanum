@@ -903,6 +903,7 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-meas > span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
   color:var(--txt3);flex-shrink:0;}
 .mk-meas .mk-sel{flex:1;min-width:0;}
+.mk-cardio-note{font-size:11px;line-height:1.5;color:var(--txt3);margin:0 0 4px 2px;}
 .mk-perset{margin-top:8px;}
 .mk-ps-head{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
 .mk-ps-lbl{flex:1;font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
@@ -3336,7 +3337,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.104';
+var APPV='v4.105';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5420,24 +5421,39 @@ function mkSet(i,k,v){
 // Weight-less reps are stored as 0xN, which is exactly what the bodyweight entries already do.
 // Bodyweight and assisted are NOT here: they are properties of the exercise, not of the set, and
 // they live on the library entry as bw and inv.
+// Minutes and calories came off this list. They are how CARDIO is counted, and cardio is not a
+// set - it is one continuous effort that happens before the lifting or after it, or on its own
+// day. The shipped program already worked that way without anyone deciding to: the Stairmaster
+// is the seventh of seven sections on d4 and the section is literally called "Cardio finisher",
+// and the Power Walk is the rest day rather than a row inside a lifting day. The only thing that
+// looked like mid-workout cardio was the "bike" in d4 section five, and that is a Bicycle Crunch.
+// They are still READ - see mkParse, and see mkMeasureUI, which puts the current unit back on the
+// list for a row that already uses one. A day carrying the Stairmaster opens saying Calories and
+// round-trips as "200 cal"; it simply cannot be newly chosen for a set.
 var MK_MEASURES=[['wr','Weight and reps','145 x 8'],['reps','Reps only','x 15'],
-                 ['sec','Seconds','45 sec'],['min','Minutes','20 min'],['cal','Calories','200 cal']];
+                 ['sec','Seconds','45 sec']];
+var MK_CARDIO={min:'Minutes (cardio)',cal:'Calories (cardio)'};
 function mkUnitOf(r){
   if(r.unit)return r.unit;
   return r.hold?'sec':'wr';        // rows built before this existed carried a hold flag
 }
 function mkUnitLabel(u){
   for(var k=0;k<MK_MEASURES.length;k++)if(MK_MEASURES[k][0]===u)return MK_MEASURES[k][1];
-  return MK_MEASURES[0][1];
+  return MK_CARDIO[u]||MK_MEASURES[0][1];
 }
 function mkMeasureUI(r,i){
-  var u=mkUnitOf(r);
+  var u=mkUnitOf(r),opts=MK_MEASURES.slice();
+  // A row already counted in minutes or calories keeps that on the list, for itself only, so it
+  // shows the truth and can round-trip. Change it away and the option goes with it - which is the
+  // right asymmetry: nothing new arrives measured as cardio, nothing existing is silently rewritten.
+  if(MK_CARDIO[u])opts=opts.concat([[u,MK_CARDIO[u],'']]);
   return '<div class="mk-meas"><span>Counted in</span>'+
     '<select class="mk-sel" onchange="mkSetUnit('+i+',this.value)">'+
-      MK_MEASURES.map(function(m){
+      opts.map(function(m){
         return '<option value="'+m[0]+'"'+(u===m[0]?' selected':'')+'>'+m[1]+'</option>';
       }).join('')+
-    '</select></div>';
+    '</select></div>'+
+    (MK_CARDIO[u]?'<div class="mk-cardio-note">Cardio sits on its own, before the lifting or after it. Give it its own day rather than a slot between lifts.</div>':'');
 }
 function mkSetUnit(i,v){
   var r=MK.rows[i];if(!r)return;
