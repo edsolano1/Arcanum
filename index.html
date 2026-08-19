@@ -942,7 +942,12 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-ps-n{font-family:var(--mono);font-size:10px;color:var(--txt3);width:16px;flex-shrink:0;text-align:right;}
 .mk-ps-x{color:var(--txt3);font-size:12px;flex-shrink:0;}
 .mk-ps-u{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--txt3);flex-shrink:0;}
-.mk-ps-row .mk-num{flex:1;min-width:0;}
+/* Fixed width, not stretched. A dead hang is counted in one number and a full-width box for it
+   read as a mistake - a huge field with two characters in it, next to another huge field. The
+   row is now as wide as what it holds, so a one-number exercise is visibly a one-number
+   exercise. */
+.mk-ps-row .mk-num{width:76px;flex:0 0 76px;min-width:0;}
+.mk-ps-list{align-items:flex-start;}
 .mk-grp{border:1px solid color-mix(in srgb,var(--go) 34%,var(--line));border-radius:12px;
   background:color-mix(in srgb,var(--go) 5%,transparent);padding:9px 9px 1px;margin-bottom:11px;}
 .mk-grp-h{display:flex;align-items:center;gap:8px;padding:0 3px 8px;}
@@ -951,7 +956,6 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-unlink{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--txt3);
   cursor:pointer;padding:3px 7px;border-radius:6px;border:1px solid var(--line);}
 .mk-unlink:hover{color:var(--go);border-color:var(--go);}
-.mk-row.ing{background:transparent;}
 /* The offer to run this one with another. Quiet until wanted - it sits beside the name and only
    shows on an exercise that is not already in a run. */
 .mk-link{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9.5px;
@@ -978,13 +982,47 @@ body.light .dayact.del{--bad:#b1332c;}
 /* Every exercise was a panel the same colour as the panel behind it, so three in a row read as
    one brown field with text in it. What separates them now is a lit left edge in the day's own
    colour and real air between them - the card carries a side, not just a border. */
+/* The card was closing on its own text: 12px all round with four controls sharing the top line.
+   Room to breathe, and the internals laid out on a column gap so the sections space themselves
+   instead of each one carrying its own margin. */
 .mk-row{position:relative;background:var(--surface);border:1px solid var(--line);
   border-left:3px solid color-mix(in srgb,var(--mkc,var(--go)) 60%,var(--line));
-  border-radius:11px;padding:12px 13px;margin-bottom:12px;}
-.mk-row.ing{margin-bottom:9px;border-left-color:color-mix(in srgb,var(--go) 75%,transparent);}
-.mk-rt{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
-.mk-rn{flex:1;min-width:0;font-size:15px;font-weight:600;color:var(--txt);
+  border-radius:12px;padding:16px 16px 14px;margin-bottom:14px;
+  display:flex;flex-direction:column;gap:13px;}
+.mk-row.ing{margin-bottom:10px;border-left-color:color-mix(in srgb,var(--go) 75%,transparent);}
+.mk-rt{display:flex;align-items:center;gap:9px;margin:0;}
+.mk-rn{flex:1;min-width:0;font-size:15.5px;font-weight:600;color:var(--txt);line-height:1.3;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* the two things you can do TO an item, kept together and away from the name */
+.mk-acts{display:inline-flex;gap:4px;flex-shrink:0;margin-left:2px;}
+.mk-ic{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+  padding:0;border-radius:8px;border:1px solid transparent;background:transparent;
+  color:var(--txt3);cursor:pointer;transition:.14s;}
+.mk-ic svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;}
+.mk-ic:hover{color:var(--go);border-color:color-mix(in srgb,var(--go) 40%,transparent);
+  background:color-mix(in srgb,var(--go) 10%,transparent);}
+/* rest, as a glass and a time */
+.mk-rest{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;
+  padding:7px 12px 7px 10px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface2);color:var(--txt2);cursor:pointer;transition:.14s;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;}
+.mk-rest svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+.mk-rest:hover{color:var(--go);border-color:color-mix(in srgb,var(--go) 45%,var(--line));}
+.mk-rest.open{cursor:default;gap:6px;padding:7px 10px;}
+.mk-rest.open .mk-num{width:52px;flex:0 0 52px;}
+.mk-rest em{font-family:var(--mono);font-size:10px;font-style:normal;color:var(--txt3);}
+/* the end of the set list, faint enough to read as a boundary rather than a fifth control */
+.mk-setadj{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:9px;
+  padding:7px;border-radius:9px;border:1px dashed color-mix(in srgb,var(--line) 70%,transparent);
+  background:color-mix(in srgb,var(--txt3) 6%,transparent);}
+.mk-setadj > span{font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--txt3);
+  min-width:52px;text-align:center;}
+.mk-adj{width:28px;height:28px;padding:0;border-radius:8px;border:1px solid var(--line);
+  background:transparent;color:var(--txt2);font-size:16px;line-height:1;cursor:pointer;transition:.14s;}
+.mk-adj:hover:not(.off){color:var(--go);border-color:var(--go);}
+.mk-adj.off{opacity:.3;cursor:default;}
 /* the handle, and the only part of the row that starts a drag */
 .mk-grip{display:inline-flex;align-items:center;justify-content:center;width:24px;height:26px;
   flex-shrink:0;color:var(--txt3);cursor:grab;touch-action:none;}
@@ -1028,9 +1066,11 @@ body.light .dayact.del{--bad:#b1332c;}
 /* A choice that is not available yet still shows, so the block reads the same before and after
    the second exercise arrives - it just says so when tapped rather than going quiet */
 .mk-off{opacity:.4;}
-.mk-row{border-top:1px solid var(--line);padding:11px 0 12px;}
-.mk-rt{display:flex;align-items:center;gap:8px;}
-.mk-rn{flex:1;min-width:0;font-size:14.5px;color:var(--txt);}
+/* .mk-row/.mk-rt/.mk-rn used to be declared here as a bare hairline-separated list row. The
+   item card above supersedes all three - and being declared LATER, this version was quietly
+   winning, which is why the card kept its 11px-and-no-sides padding however much air the new
+   rule asked for. Removed rather than reordered: two declarations of the same thing is how it
+   happened once already. */
 .mk-rf{display:flex;gap:7px;align-items:flex-end;margin-top:9px;flex-wrap:wrap;}
 .mk-f{display:flex;flex-direction:column;gap:4px;}
 .mk-f span{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--txt3);}
@@ -3450,7 +3490,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.111';
+var APPV='v4.112';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5628,36 +5668,30 @@ function mkRender(){
          '<span class="mk-unlink" onclick="mkUnlink(\''+g+'\')">UNLINK</span></div>';
     }
     var nm=EX[r.id]?EX[r.id].name:r.id;
+    // A workout item, laid out to be read: the handle and the name on the top line with the two
+    // things you can DO to it at the far end, then what it is counted in, then the sets. The
+    // card had grown by accretion - every control added since the rebuild landed on the same
+    // line as the last one, so a five-word exercise name shared a row with four other things and
+    // the box closed on the text with no air anywhere.
     h+='<div class="mk-row'+(g?' ing':'')+'"'+((!g||head)?' data-k="'+mkKey(r)+'"':'')+'>'+
-       '<div class="mk-rt"><span class="mk-rn">'+mkEsc(nm)+'</span>'+
-         // Assisted work counts backwards and the app has always known it - grading, readiness and
-         // the level-up all invert on this flag. It just never SAID so, so a row of an assisted
-         // machine looked identical to a row of a barbell and the number looked like a mistake.
-         ((EX[r.id]&&EX[r.id].inv)?'<span class="mk-inv" title="Assisted: less weight means you did more of it">LESS IS MORE</span>':'')+
-         (g?'':'<span class="mk-link" onclick="mkJoin('+i+')" title="Run this with another exercise">'+PLUS+'SUPERSET</span>')+
-         // a grip on a loose exercise; runs carry theirs on the group header
+       '<div class="mk-rt">'+
+         // Left, matching the session exercise list. The week cards put theirs on the right and
+         // the two have disagreed for as long as both have existed; the item list is a list of
+         // exercises, so it follows the other list of exercises.
          (g?'':mkGripSvg())+
-         '<button class="mk-x" onclick="mkDelRow('+i+')" title="Remove this exercise"><svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg></button></div>'+
+         '<span class="mk-rn">'+mkEsc(nm)+'</span>'+
+         ((EX[r.id]&&EX[r.id].inv)?'<span class="mk-inv" title="Assisted: less weight means you did more of it">LESS IS MORE</span>':'')+
+         '<span class="mk-acts">'+
+           // A chain, because that is what linking two things looks like. The word SUPERSET was
+           // doing double duty as a label and a button, and it read as a heading.
+           (g?'':'<button class="mk-ic" onclick="mkJoin('+i+')" title="Run this with another exercise">'+
+             '<svg viewBox="0 0 20 20"><path d="M8.2 11.8a3 3 0 0 1 0-4.2l2.1-2.1a3 3 0 1 1 4.2 4.2l-1 1M11.8 8.2a3 3 0 0 1 0 4.2l-2.1 2.1a3 3 0 1 1-4.2-4.2l1-1"/></svg></button>')+
+           '<button class="mk-ic mk-x" onclick="mkDelRow('+i+')" title="Remove this exercise">'+
+             '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg></button>'+
+         '</span></div>'+
        mkMeasureUI(r,i)+
-       '<div class="mk-rf">'+
-         '<label class="mk-f"><span>Sets</span><input class="mk-num" type="number" inputmode="numeric" min="1" max="12" value="'+(r.n||1)+'" oninput="mkSet('+i+',&#39;n&#39;,this.value)"></label>'+
-         (r.restEdit
-           ? '<label class="mk-f"><span>Rest</span><span class="mk-rest-c">'+
-               '<input class="mk-num" type="number" inputmode="numeric" min="0" max="30" value="'+Math.floor(parseRest(r.rest)/60)+'" oninput="mkRestPart('+i+',&#39;m&#39;,this.value)">'+
-               '<em>m</em>'+
-               '<input class="mk-num" type="number" inputmode="numeric" min="0" max="59" value="'+(parseRest(r.rest)%60)+'" oninput="mkRestPart('+i+',&#39;s&#39;,this.value)">'+
-               '<em>s</em>'+
-               '<button class="mk-rest-ok" onclick="mkRestDone('+i+')">OK</button>'+
-             '</span></label>'
-           : '<label class="mk-f"><span>Rest</span><select class="mk-sel" onchange="mkRestPick('+i+',this.value)">'+
-               // A value outside the presets keeps its own option, but only if it is genuinely a
-               // different length. Matching by string alone put a second "2 MIN" at the top of
-               // every list carrying a legacy "2-3 min", which reads as a bug rather than as the
-               // old value being honoured.
-               (mkRestExtra(r.rest)?[r.rest].concat(MK_REST):MK_REST).map(function(v){
-                 return '<option value="'+mkEsc(v)+'"'+(r.rest===v?' selected':'')+'>'+mkRestLabel(v)+'</option>';}).join('')+
-               '<option value="__c">CUSTOM&hellip;</option>'+
-             '</select></label>')+
+       mkRestUI(r,i)+
+       mkSetsUI(r,i)+'</div>';
        '</div>'+mkSetsUI(r,i)+'</div>';
     if(tail)h+='</div>';
   });
@@ -5784,6 +5818,40 @@ function mkLinesUniform(r){
 // screen claiming to say what a set was - and when they disagreed, nothing said which won.
 // Shut, this is one row labelled "All sets". Open, it is one row per set. Same shape either way,
 // so opening it does not rearrange the screen, it just gives you more of the same thing.
+// Rest, as an hourglass and a time. The word "Rest" plus a dropdown of seven guesses was two
+// controls' worth of space for one number, and the dropdown could not say the one thing people
+// actually want - their own rest. Tapping the glass opens the entry directly; there is nothing
+// to pick from because typing 1:30 is faster than finding it in a list.
+function mkRestUI(r,i){
+  var GLASS='<svg viewBox="0 0 20 20"><path d="M6 3h8M6 17h8M6.5 3c0 3.5 3.5 4.5 3.5 7s-3.5 3.5-3.5 7M13.5 3c0 3.5-3.5 4.5-3.5 7s3.5 3.5 3.5 7"/></svg>';
+  if(r.restEdit){
+    return '<div class="mk-rest open">'+GLASS+
+      '<input class="mk-num" type="number" inputmode="numeric" min="0" max="30" value="'+Math.floor(parseRest(r.rest)/60)+'" oninput="mkRestPart('+i+',&#39;m&#39;,this.value)">'+
+      '<em>m</em>'+
+      '<input class="mk-num" type="number" inputmode="numeric" min="0" max="59" value="'+(parseRest(r.rest)%60)+'" oninput="mkRestPart('+i+',&#39;s&#39;,this.value)">'+
+      '<em>s</em>'+
+      '<button class="mk-rest-ok" onclick="mkRestDone('+i+')">OK</button></div>';
+  }
+  return '<button class="mk-rest" onclick="mkRestOpen('+i+')" title="Rest between sets">'+GLASS+
+    '<span>'+(parseRest(r.rest)?mkRestLabel(r.rest):'No rest')+'</span></button>';
+}
+function mkRestOpen(i){
+  var r=MK.rows[i];if(!r)return;
+  if(!parseRest(r.rest))r.rest='90 sec';
+  r.restEdit=1;mkRender();
+}
+// Sets are added and taken away at the end of the list, where the last set is - not typed into a
+// box at the top that then reshapes everything underneath it. Minus takes the last one; plus
+// copies it, because the set you are adding is nearly always another of the one before.
+function mkSets(i,d){
+  var r=MK.rows[i];if(!r)return;
+  var L=mkLinesFor(r),n=Math.max(1,Math.min(12,(r.n||1)+d));
+  if(n===r.n)return;
+  if(d>0)L.push(L[L.length-1]||mkLine(r));else L.pop();
+  r.n=n;r.lines=L;
+  if(mkVaries(r))r.custom=1;
+  mkTouch();mkRender();
+}
 function mkSetsUI(r,i){
   var u=mkUnitOf(r),varies=mkVaries(r),open=r.exp||varies;
   var unitTxt=u==='sec'?'sec':u==='min'?'min':u==='cal'?'cal':'reps';
@@ -5809,6 +5877,13 @@ function mkSetsUI(r,i){
        '<input class="mk-num" type="number" inputmode="numeric" value="'+c.r+'" oninput="'+rIn+'">'+
        '<span class="mk-ps-u">'+unitTxt+'</span></div>';
   });
+  // Under the last set, faint, so it reads as the end of the list rather than as another control
+  // competing with the ones above it.
+  h+='<div class="mk-setadj">'+
+     '<button class="mk-adj'+((r.n||1)<2?' off':'')+'" '+((r.n||1)<2?'disabled':'onclick="mkSets('+i+',-1)"')+' title="One fewer set">&minus;</button>'+
+     '<span>'+(r.n||1)+' set'+((r.n||1)===1?'':'s')+'</span>'+
+     '<button class="mk-adj'+((r.n||1)>11?' off':'')+'" '+((r.n||1)>11?'disabled':'onclick="mkSets('+i+',1)"')+' title="One more set">+</button>'+
+     '</div>';
   return h+'</div></div>';
 }
 function mkLinesFor(r){
