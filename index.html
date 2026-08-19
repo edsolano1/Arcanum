@@ -946,6 +946,16 @@ body.light .dayact.del{--bad:#b1332c;}
 .swapitem.sel{border-color:var(--go);background:color-mix(in srgb,var(--go) 11%,transparent);}
 .swapitem.off{opacity:.4;cursor:default;}
 .mk-tick{color:var(--go);font-size:14px;flex-shrink:0;}
+/* Order controls, quiet until wanted. Both ends stay on screen and go dim rather than vanishing -
+   a control that disappears as the thing it moves reaches the end reads as a bug. */
+.mk-mv{display:inline-flex;gap:3px;flex-shrink:0;}
+.mk-mvb{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+  padding:0;border-radius:7px;border:1px solid var(--line);background:transparent;
+  color:var(--txt3);cursor:pointer;transition:.14s;}
+.mk-mvb svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;}
+.mk-mvb:hover:not(.off){color:var(--go);border-color:var(--go);}
+.mk-mvb.off{opacity:.28;cursor:default;}
 .mk-bn{flex:1;min-width:0;font-family:var(--mono);font-size:11px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* A choice that is not available yet still shows, so the block reads the same before and after
@@ -3362,7 +3372,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.107';
+var APPV='v4.108';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5193,6 +5203,30 @@ var MOVE_BUSY='That day has a session open, so it cannot move. Seal it or finish
 // delete and optional belong with the rest of the day's settings rather than behind a long press
 // on the home screen. What was left was a menu whose only real entry was "edit" - so holding a
 // day opens the editor, and the menu with it.
+// Copy Monday to Thursday and change two lifts is one of the most ordinary things anybody does
+// with a builder, and it was a full rebuild. The copy is deep - JSON round trip - because the
+// sections and their rows are nested arrays, and a shallow copy would hand the new day the SAME
+// row objects as the old one, so editing either would edit both.
+// It opens on the copy rather than saving it quietly. A duplicate you cannot see is a duplicate
+// you make twice, and the first thing anybody does with one is rename it.
+function mkDuplicate(id){
+  var src=DB.custom[id]||W[id];
+  if(!src){mkNote('There is nothing here to copy yet.');return;}
+  var copy;
+  try{copy=JSON.parse(JSON.stringify(src));}catch(e){mkNote('That day could not be copied.');return;}
+  copy.name=(copy.name||'Day').replace(/^Optional: /,'')+' copy';
+  copy.custom=1;copy.made=Date.now();
+  var nid='cus'+Date.now().toString(36)+Math.floor(Math.random()*99).toString(36);
+  DB.custom[nid]=copy;
+  mergeCustom();saveDB();
+  // Onto the shelf, not onto a weekday. A copy is made to be changed, and dropping it straight
+  // into the week would put an unedited twin of today's session in front of you.
+  DB.extra=DB.extra||[];
+  if(DB.extra.indexOf(nid)<0)DB.extra.push(nid);
+  saveDB();renderHome();
+  openMake(null,nid);
+  mkNote('Copied. It is on the shelf until you give it a day.','Copy made');
+}
 function mkActions(id){
   var mine=!!(DB.custom&&DB.custom[id]);
   openMake(id,mine?id:'');
@@ -5364,6 +5398,8 @@ function mkRender(){
          :'<rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="M6.5 10.2l2.6 2.6 4.4-5"/>')+
        '</svg>Required</button>';
     if(mine){
+      h+='<button class="dayact" title="Make a copy of this day" onclick="mkDuplicate(\''+MK.open+'\')">'+
+         '<svg viewBox="0 0 20 20"><path d="M7 7V4.5h8.5V13H13M4.5 7H13v8.5H4.5z"/></svg>Duplicate</button>';
       h+='<button class="dayact del" title="Delete this day" onclick="mkDelete(\''+MK.open+'\')">'+
          '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg>'+
          '</button>';
@@ -5417,6 +5453,14 @@ function mkRender(){
     h+='<div class="mk-row'+(g?' ing':'')+'">'+
        '<div class="mk-rt"><span class="mk-rn">'+mkEsc(nm)+'</span>'+
          (g?'':'<span class="mk-link" onclick="mkJoin('+i+')" title="Run this with another exercise">'+PLUS+'SUPERSET</span>')+
+         '<span class="mk-mv">'+
+           '<button class="mk-mvb'+(mkCanMove(i,-1)?'':' off')+'" title="Move up"'+
+             (mkCanMove(i,-1)?' onclick="mkMove('+i+',-1)"':' disabled')+'>'+
+             '<svg viewBox="0 0 20 20"><path d="M10 15V5M5 10l5-5 5 5"/></svg></button>'+
+           '<button class="mk-mvb'+(mkCanMove(i,1)?'':' off')+'" title="Move down"'+
+             (mkCanMove(i,1)?' onclick="mkMove('+i+',1)"':' disabled')+'>'+
+             '<svg viewBox="0 0 20 20"><path d="M10 5v10M5 10l5 5 5-5"/></svg></button>'+
+         '</span>'+
          '<div class="mk-x" onclick="mkDelRow('+i+')" title="Remove"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15"/></svg></div></div>'+
        mkMeasureUI(r,i)+
        '<div class="mk-rf">'+
@@ -5609,6 +5653,52 @@ function mkSetLine(i,k,f,v){
 function mkGroupRows(g){return MK.rows.filter(function(r){return r.g===g;});}
 // A group is only a group while more than one thing is in it. Drop to one and the id goes, or the
 // list would carry a Superset of one - the exact state the old block model kept producing.
+// ---------- order ----------
+// The list is the order the work is done in, and until now it was whatever order things happened
+// to be added in - the only way to change your mind was to delete a row and add it back at the
+// end. The app was already reordering rows on its own: a run has to be CONSECUTIVE, so joining
+// two exercises lifts them out and puts them back together. It moved your list and you could not.
+// A block is the unit that moves: one loose exercise, or a whole run. That falls out of the same
+// constraint - a superset whose halves drift apart is not writable - so moving by block means
+// the rule is never broken rather than being checked for and repaired.
+function mkBlocks(){
+  var out=[],i=0;
+  while(i<MK.rows.length){
+    var g=MK.rows[i].g,j=i+1;
+    if(g){while(j<MK.rows.length&&MK.rows[j].g===g)j++;}
+    out.push({s:i,e:j-1,g:g});
+    i=j;
+  }
+  return out;
+}
+function mkMove(i,dir){
+  var r=MK.rows[i];if(!r)return;
+  var B=mkBlocks(),bi=-1,k;
+  for(k=0;k<B.length;k++)if(i>=B[k].s&&i<=B[k].e){bi=k;break;}
+  if(bi<0)return;
+  var b=B[bi];
+  // Inside a run, the neighbour in that direction is a member: swap the two, which is reordering
+  // the run rather than moving it. Only when there is no member that way does the run itself go.
+  if(b.g&&i+dir>=b.s&&i+dir<=b.e){
+    var t=MK.rows[i];MK.rows[i]=MK.rows[i+dir];MK.rows[i+dir]=t;
+    mkRender();return;
+  }
+  var nb=B[bi+dir];
+  if(!nb)return;
+  var mine=MK.rows.slice(b.s,b.e+1),theirs=MK.rows.slice(nb.s,nb.e+1);
+  var lo=Math.min(b.s,nb.s),hi=Math.max(b.e,nb.e);
+  MK.rows.splice.apply(MK.rows,[lo,hi-lo+1].concat(dir<0?mine.concat(theirs):theirs.concat(mine)));
+  mkRender();
+}
+// Ends are shown but dead, so the control does not appear and disappear as things move past it.
+function mkCanMove(i,dir){
+  var B=mkBlocks(),bi=-1,k;
+  for(k=0;k<B.length;k++)if(i>=B[k].s&&i<=B[k].e){bi=k;break;}
+  if(bi<0)return false;
+  var b=B[bi];
+  if(b.g&&i+dir>=b.s&&i+dir<=b.e)return true;
+  return !!B[bi+dir];
+}
 function mkTidyGroups(){
   var seen={};
   MK.rows.forEach(function(r){if(r.g)seen[r.g]=(seen[r.g]||0)+1;});
