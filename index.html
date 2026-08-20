@@ -865,6 +865,17 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 /* The day's own three controls. Small and side by side rather than three full-width buttons:
    they are the shape of a toolbar, not of a decision you make one at a time. Delete is the trash
    alone, because a bin needs no label and a destructive control reads better without shouting. */
+/* the run list in the hold sheet: the superset drawn as its members, not described in prose */
+.exed-run-h{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px;}
+.exed-run-h span:first-child{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--go);}
+.exed-run-row{display:flex;align-items:center;gap:7px;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);}
+.exed-run-row:first-of-type{border-top:none;}
+.exed-run-row.me .exed-run-name{color:var(--go);}
+.exed-run-n{font-family:var(--mono);font-size:10px;color:var(--txt3);width:14px;text-align:right;flex-shrink:0;}
+.exed-run-name{flex:1;font-size:13px;color:var(--txt);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.exed-run-row .mk-ic{width:34px;height:34px;flex-shrink:0;}
+.exed-run-row .exed-out{flex-shrink:0;}
+.mk-ic:disabled{opacity:.28;cursor:default;}
 .exed-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:5px;}
 .exed-h .dayact.del{margin-left:0;flex:0 0 auto;}
 .dayact.exed-off{opacity:.4;cursor:default;}
@@ -2000,8 +2011,12 @@ body.light #wcover{background:linear-gradient(180deg,#04322f 0%,#021c1b 42%,#010
 .hex{padding:9px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);}
 .hex-n{font-size:13px;color:var(--txt2);margin-bottom:6px;}
 .hex-s{display:flex;flex-wrap:wrap;gap:5px;}
-.hset{font-family:var(--mono);font-size:11px;color:var(--txt);background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:4px 8px;}
+.hset{font-family:var(--mono);font-size:11px;color:var(--txt);background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:4px 8px;cursor:pointer;}
 .hset.pr{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,transparent);}
+/* a chip mid-correction: the inputs take the chip's seat, sized like the builder's m/s pair */
+.hset.hed{display:inline-flex;align-items:center;gap:5px;padding:3px 6px;cursor:default;}
+.hset.hed i{font-style:normal;color:var(--txt3);font-size:11px;}
+.hset.hed .mk-num.sm{font-size:13px;}
 .hnote{margin-top:14px;font-size:12.5px;color:var(--txt3);line-height:1.6;font-style:italic;}
 .hdel{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px;padding:13px;border-radius:11px;cursor:pointer;transition:.16s;
   border:1px solid color-mix(in srgb,#ff5d6c 26%,var(--line));background:var(--surface);
@@ -2565,7 +2580,9 @@ body.wcon{overflow:hidden;}
     <textarea id="exportTxt" readonly></textarea>
     <div class="sheet-btns">
       <div class="btn btn-go" onclick="copyExport()" id="copyBtn">COPY</div>
-      <div class="btn" onclick="saveAndExit()">SAVE &amp; EXIT</div>
+      <!-- SAVE & EXIT is gone. The day was sealed and written the moment Finish was
+           confirmed; this button saved nothing, and standing next to CLOSE it implied
+           CLOSE might not - the exact anxiety a finished workout should never produce. -->
       <div class="btn" onclick="closeOvl('exportOvl')">CLOSE</div>
     </div>
   </div>
@@ -3549,7 +3566,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.127';
+var APPV='v4.128';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6889,14 +6906,8 @@ function igniteDiamond(cb){
   raf=requestAnimationFrame(frame);
   setTimeout(fin,DUR+600);
 }
-// the session is already saved by the time this sheet is up; this just closes it out
-function saveAndExit(){
-  saveDB();
-  closeOvl('exportOvl');
-  document.getElementById('session').classList.remove('on');
-  stopTimer();stopHold();resetHoldState();
-  renderHome();
-}
+// saveAndExit lived here and its own comment confessed the whole case for deleting it:
+// "the session is already saved by the time this sheet is up". The button went with it.
 // write every logged session out as a text file
 // ---------- backup and restore ----------
 // exportAll below writes prose - a history you can read, not a file you can restore from. This
@@ -7156,8 +7167,33 @@ function showHistory(){
   document.getElementById('histOvl').classList.add('on');
 }
 var HIST={mode:'list',mon:null,sel:null};
-function histMode(m){HIST.mode=m;HIST.sel=null;renderHist();}
-function histOpen(i){HIST.sel=i;renderHist();}
+function histMode(m){HIST.mode=m;HIST.sel=null;HIST.ed=null;renderHist();}
+function histOpen(i){HIST.sel=i;HIST.ed=null;renderHist();}
+// ---------- correcting a sealed set ----------
+function histEditSet(key,si){
+  var L=DB.logs[HIST.sel];if(!L||!L.entries[key]||!L.entries[key][si])return;
+  var s=L.entries[key][si];
+  HIST.ed={key:key,si:si};HIST.edv={w:s.w,r:s.r};
+  renderHist();
+}
+// staged, not written - same rule as every other inline editor here: oninput never redraws
+function histEditVal(f,v){
+  if(!HIST.edv)return;
+  HIST.edv[f]=f==='w'?(parseFloat(v)||0):(parseInt(v,10)||0);
+}
+function histEditOK(){
+  var L=DB.logs[HIST.sel];
+  if(L&&HIST.ed&&L.entries[HIST.ed.key]&&L.entries[HIST.ed.key][HIST.ed.si]){
+    var s=L.entries[HIST.ed.key][HIST.ed.si];
+    if(s.w!==HIST.edv.w||s.r!==HIST.edv.r){
+      s.w=HIST.edv.w;s.r=HIST.edv.r;
+      delete s.pr;delete s.g;   // the grade belonged to the old numbers
+      persistNow();
+    }
+  }
+  HIST.ed=null;HIST.edv=null;
+  renderHist();
+}
 // remove one logged session for good - the only destructive action in the app
 function deleteLog(i){
   var L=DB.logs[i];
@@ -7175,7 +7211,7 @@ function deleteLog(i){
     renderHist();renderHome();
   },'Delete '+(w?w.name.replace('Optional: ',''):L.day)+'?','DELETE');
 }
-function histBack(){HIST.sel=null;renderHist();}
+function histBack(){HIST.sel=null;HIST.ed=null;renderHist();}
 function histMon(d){
   var m=HIST.mon||histLatestMon();
   var n=new Date(m.y,m.m+d,1);
@@ -7200,9 +7236,22 @@ function renderHist(){
     for(var id in L.entries){
       var exid=exOfKey(L,id),ex=R(exid),wasSwap=exid!==id;
       rows+='<div class="hex"><div class="hex-n">'+(ex?ex.name:id)+(wasSwap?' <span style="color:var(--gold);font-size:10px">SWAP</span>':'')+'</div><div class="hex-s">'+
-        L.entries[id].map(function(s){
+        L.entries[id].map(function(s,si){
+          // Sealed is not carved. A 40 typed where a 20 was meant would otherwise stand as
+          // this exercise's Best forever, and grade every honest set after it grey against a
+          // record that never happened. Tap a set to correct it; the edit costs the set its
+          // PR badge, because the claim was stamped against numbers that no longer exist,
+          // and Best/grading recompute from the raw logs so everything downstream follows.
+          if(HIST.ed&&HIST.ed.key===id&&HIST.ed.si===si){
+            var single=!!s.unit;
+            return '<span class="hset hed">'+
+              (single?'':'<input class="mk-num sm" type="number" inputmode="decimal" step="0.5" value="'+s.w+'" oninput="histEditVal(&#39;w&#39;,this.value)"><i>&times;</i>')+
+              '<input class="mk-num sm" type="number" inputmode="numeric" value="'+s.r+'" oninput="histEditVal(&#39;r&#39;,this.value)">'+
+              (single?'<i>'+s.unit+'</i>':'')+
+              '<button class="mk-rest-ok" onclick="histEditOK()">OK</button></span>';
+          }
           var v=s.unit==='sec'?(s.r+'s held'):(s.w?s.w+'\u00d7'+s.r:s.r+' reps');
-          return '<span class="hset'+(s.pr?' pr':'')+'">'+v+'</span>';
+          return '<span class="hset'+(s.pr?' pr':'')+'" onclick="histEditSet(\''+id+'\','+si+')" title="Tap to correct this set">'+v+'</span>';
         }).join('')+'</div></div>';
     }
     body.innerHTML='<div class="hback" onclick="histBack()">&larr; All sessions</div>'+
@@ -7817,7 +7866,10 @@ function sfxPR(){
   if(!sfxAllowed('pr'))return;
   // Beating a record is the one moment worth a different instrument entirely - not the
   // hammer again, but blades meeting.
-  if(FG()&&swdBuf&&SFX_ON){initAudio();if(actx){playClip(swdBuf,actx.currentTime+0.02,{vol:0.95});return;}}
+  // 0.95 dwarfed the hammer it was supposed to crown - reported from the gym with music up:
+  // the strike vanished under the record's ring. A record should read as the LOUDEST hit of
+  // the day, not a different weight class entirely.
+  if(FG()&&swdBuf&&SFX_ON){initAudio();if(actx){playClip(swdBuf,actx.currentTime+0.02,{vol:0.58});return;}}
   // Records live an octave and a half above everything else in Moonwell - same glass,
   // far higher, and a second voice a fifth over it once the first has bloomed.
   if(MW())return sfx(function(t){
@@ -9311,32 +9363,60 @@ function drawExEdit(){
   var e=EXED;if(!e)return;
   var rf=rowFor(DB.active[e.wk].swaps,exRef(e.wk,e.id),e.wk);
   document.getElementById('exEdName').textContent=rf.data.name;
-  document.getElementById('exEdRest').innerHTML=REST_OPTS.map(function(o){
+  // The presets plus one seat for everything they are not. The builder has had a custom
+  // rest since the chips learned to open; mid-session the options were locked to the list,
+  // which is exactly the place a rest gets negotiated on the fly. Same m/s entry, same OK.
+  var isPreset=REST_OPTS.some(function(o){return o[0]===e.rest;});
+  var rh=REST_OPTS.map(function(o){
     var on=o[0]===e.rest;
     return '<button class="preset sm"'+(on?' style="border-color:var(--go);color:var(--go)"':'')+
       ' onclick="exEdRest(\''+o[0]+'\')">'+o[1]+'</button>';
   }).join('');
+  if(e.restEdit){
+    var rt=parseRest(e.rest||'90 sec');
+    rh+='<span class="mk-sr open" style="grid-column:1/-1;justify-content:center">'+
+        '<input class="mk-num sm" type="number" inputmode="numeric" min="0" max="30" value="'+Math.floor(rt/60)+'" oninput="exEdRestMS(&#39;m&#39;,this.value)"><em>m</em>'+
+        '<input class="mk-num sm" type="number" inputmode="numeric" min="0" max="59" value="'+(rt%60)+'" oninput="exEdRestMS(&#39;s&#39;,this.value)"><em>s</em>'+
+        '<button class="mk-rest-ok" onclick="exEdRestDone()">OK</button></span>';
+  }else{
+    rh+='<button class="preset sm"'+(!isPreset&&parseRest(e.rest)?' style="border-color:var(--go);color:var(--go)"':'')+
+        ' onclick="exEdRestOpen()">'+(!isPreset&&parseRest(e.rest)?mkRestLabel(e.rest):'Custom')+'</button>';
+  }
+  document.getElementById('exEdRest').innerHTML=rh;
   document.getElementById('exEdSets').textContent=e.lines.length;
   document.getElementById('exEdSub').textContent=
     (e.ids.length>1?'Rest and rounds apply to all '+e.ids.length+' exercises in this superset. ':'')+
     'Target for each set: '+e.lines.join(', ')+'. A new set copies the last one.';
   var b=exBlockOf(e.wk,e.id),grp=document.getElementById('exEdGrp'),gh='';
-  if(b.blk&&b.blk.ids.length>2)
-    gh+='<button class="preset sm" onclick="exEdLeave()">Take this one out of the superset</button>';
-  if(b.blk&&b.blk.ids.length>1)
-    gh+='<button class="preset sm" onclick="exEdBreak()">Break the whole superset apart</button>';
-  // The same chain the builder wears at the foot of a card, not a full-width sentence: the
-  // two editors ask this one question with one control now. Only offered to an exercise not
-  // already in a run, exactly like the builder's - joining FROM inside a run is what the
-  // buttons above are for.
-  if(b.blocks.length>1&&!(b.blk&&b.blk.ids.length>1))
+  // Four sentences used to stand here - take out, break apart, move earlier, move later -
+  // every one blind to which exercise it would act on, every one acting only on the held
+  // one, and half of them closing the sheet behind themselves. Reordering a three-part
+  // circuit meant reading the whole wall, guessing, and reopening the menu per step.
+  // What stands here now is the RUN ITSELF: every member on its own line with its order,
+  // arrows to move THAT member, OUT to eject THAT member, and the builder's own UNLINK on
+  // the header to break the whole thing. The sheet stays open through all of it.
+  if(b.blk&&b.blk.ids.length>1){
+    var N=b.blk.ids.length;
+    gh+='<div class="exed-run-h"><span>'+(N>2?'Circuit':'Superset')+' &middot; '+N+'</span>'+
+        '<span class="mk-unlink" onclick="exEdBreak()">UNLINK</span></div>';
+    b.blk.ids.forEach(function(id,ix){
+      var nm=rowFor(DB.active[e.wk].swaps,exRef(e.wk,id)||id,e.wk).data.name;
+      gh+='<div class="exed-run-row'+(id===e.id?' me':'')+'">'+
+          '<span class="exed-run-n">'+(ix+1)+'</span>'+
+          '<span class="exed-run-name">'+nm+'</span>'+
+          '<button class="mk-ic"'+(ix===0?' disabled':' onclick="exEdMemberMove(\''+id+'\',-1)"')+' title="Earlier in the run">'+
+            '<svg viewBox="0 0 20 20"><path d="M10 15.5v-11M5.5 9L10 4.5 14.5 9"/></svg></button>'+
+          '<button class="mk-ic"'+(ix===N-1?' disabled':' onclick="exEdMemberMove(\''+id+'\',1)"')+' title="Later in the run">'+
+            '<svg viewBox="0 0 20 20"><path d="M10 4.5v11M5.5 11l4.5 4.5 4.5-4.5"/></svg></button>'+
+          (N>2?'<button class="mk-unlink exed-out" onclick="exEdMemberOut(\''+id+'\')" title="Out of the run, the rest stay linked">OUT</button>':'')+
+          '</div>';
+    });
+  }else if(b.blocks.length>1){
+    // The same chain the builder wears at the foot of a card - only for an exercise not
+    // already in a run, exactly like the builder's.
     gh+='<button class="mk-link" style="align-self:flex-end" onclick="exEdJoinPick()" title="Run this with another exercise">'+
       '<svg viewBox="0 0 20 20"><path d="M8.2 11.8a3 3 0 0 1 0-4.2l2.1-2.1a3 3 0 1 1 4.2 4.2l-1 1M11.8 8.2a3 3 0 0 1 0 4.2l-2.1 2.1a3 3 0 1 1-4.2-4.2l1-1"/></svg>'+
       '<span>SUPERSET</span></button>';
-  if(b.blk&&b.blk.ids.length>1){
-    var pos=b.blk.ids.indexOf(e.id);
-    if(pos>0)gh+='<button class="preset sm" onclick="exEdMove(-1)">Move earlier in the superset</button>';
-    if(pos<b.blk.ids.length-1)gh+='<button class="preset sm" onclick="exEdMove(1)">Move later in the superset</button>';
   }
   grp.innerHTML=gh;
   var logged=exLogged(e.wk,e.id),rm=document.getElementById('exEdRm');
@@ -9349,7 +9429,17 @@ function drawExEdit(){
   rm.className='dayact del'+(logged?' exed-off':'');
   rm.onclick=logged?null:exEdRemove;
 }
-function exEdRest(v){EXED.rest=v;drawExEdit();}
+function exEdRest(v){EXED.rest=v;EXED.restEdit=0;drawExEdit();}
+function exEdRestOpen(){EXED.restEdit=1;if(!parseRest(EXED.rest))EXED.rest='90 sec';drawExEdit();}
+// oninput writes the value and nothing else - a redraw here would rebuild the input mid-keystroke
+// and throw the keyboard off it, the same rule the builder's m/s entry already follows.
+function exEdRestMS(part,v){
+  var t=parseRest(EXED.rest||'0 sec'),m=Math.floor(t/60),s=t%60;
+  if(part==='m')m=Math.max(0,Math.min(30,parseInt(v,10)||0));
+  else s=Math.max(0,Math.min(59,parseInt(v,10)||0));
+  EXED.rest=(m*60+s)+' sec';
+}
+function exEdRestDone(){EXED.restEdit=0;drawExEdit();}
 function exEdSet(d){
   var L=EXED.lines;
   if(d>0)L.push(L[L.length-1]);
@@ -9399,6 +9489,15 @@ function exSoloTitle(wk,id){
   var m=edRowMap(wk)[id];
   return (m&&!m.ss&&m.title)?m.title:'Straight sets';
 }
+// Every change below leaves the sheet OPEN and redraws it - the run list is a workbench,
+// not a menu of exits. EXED's scope is re-derived after each write because rest and rounds
+// apply to whatever run the held exercise is in NOW.
+function exEdRescope(){
+  var e=EXED,b=exBlockOf(e.wk,e.id);
+  e.ids=b.blk?b.blk.ids.slice():[e.id];
+  e.ss=!!(b.blk&&b.blk.ss);e.at=b.at;
+  renderSession();renderHome();drawExEdit();
+}
 function exEdBreak(){
   var e=EXED,b=exBlockOf(e.wk,e.id);
   if(!b.blk||b.blk.ids.length<2)return;
@@ -9407,21 +9506,32 @@ function exEdBreak(){
   });
   bl.splice.apply(bl,[b.at,1].concat(parts));
   edWritePlan(e.wk,bl);
-  closeOvl('exEditOvl');renderSession();renderHome();
+  exEdRescope();
   try{sfxLog();}catch(err){}
 }
 // Taking one out leaves the others linked - the common case once a group is three deep.
-function exEdLeave(){
-  var e=EXED,b=exBlockOf(e.wk,e.id);
+// ANY member, not just the held one: the row's own OUT button carries its id.
+function exEdMemberOut(id){
+  var e=EXED,b=exBlockOf(e.wk,id);
   if(!b.blk||b.blk.ids.length<3)return;
-  var rest=b.blk.ids.filter(function(id){return id!==e.id;});
-  var bl=b.blocks;
-  bl.splice(b.at,1,
-    {k:e.id,title:exSoloTitle(e.wk,e.id),ss:false,ids:[e.id]},
-    {k:rest[0],title:'Superset',ss:true,ids:rest});
-  edWritePlan(e.wk,bl);
-  closeOvl('exEditOvl');renderSession();renderHome();
+  var rest=b.blk.ids.filter(function(x){return x!==id;});
+  b.blocks.splice(b.at,1,
+    {k:id,title:exSoloTitle(e.wk,id),ss:false,ids:[id]},
+    {k:rest[0],title:rest.length>2?'Circuit':'Superset',ss:true,ids:rest});
+  edWritePlan(e.wk,b.blocks);
+  exEdRescope();
   try{sfxLog();}catch(err){}
+}
+function exEdMemberMove(id,d){
+  var e=EXED,b=exBlockOf(e.wk,id);
+  if(!b.blk)return;
+  var ids=b.blk.ids.slice(),i=ids.indexOf(id),j=i+d;
+  if(i<0||j<0||j>=ids.length)return;
+  ids.splice(j,0,ids.splice(i,1)[0]);
+  b.blocks[b.at]={k:ids[0],title:b.blk.title,ss:true,ids:ids};
+  edWritePlan(e.wk,b.blocks);
+  exEdRescope();
+  try{sfxTick(d>0);}catch(err){}
 }
 // Joining is a choice of partner, not "whatever is underneath". The picked block's
 // exercises land straight after the one you held, and the move buttons take it from there.
@@ -9448,17 +9558,6 @@ function exEdJoinWith(n){
   edWritePlan(e.wk,keep);
   closeOvl('exJoinOvl');closeOvl('exEditOvl');renderSession();renderHome();
   try{sfxLog();}catch(err){}
-}
-function exEdMove(d){
-  var e=EXED,b=exBlockOf(e.wk,e.id);
-  if(!b.blk)return;
-  var ids=b.blk.ids.slice(),i=ids.indexOf(e.id),j=i+d;
-  if(i<0||j<0||j>=ids.length)return;
-  ids.splice(j,0,ids.splice(i,1)[0]);
-  var bl=b.blocks;bl[b.at]={k:ids[0],title:b.blk.title,ss:true,ids:ids};
-  edWritePlan(e.wk,bl);
-  renderSession();drawExEdit();
-  try{sfxTick(d>0);}catch(err){}
 }
 function exEdAdd(){
   document.getElementById('exAddSearch').value='';
