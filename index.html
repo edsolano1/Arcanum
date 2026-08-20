@@ -197,7 +197,10 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .lvl-n{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:6px;}
 .lvl-d{display:flex;flex-wrap:wrap;gap:5px 15px;white-space:nowrap;font-size:12.5px;color:var(--txt3);font-variant-numeric:tabular-nums;}
 .lvl-d b{font-weight:600;color:var(--txt2);}
-.lvl-d b.up{color:var(--go);}
+.lvl-d b.up{color:var(--go);cursor:pointer;padding:2px 4px;margin:-2px -4px;border-radius:5px;}
+.lvl-d b.up:hover{background:color-mix(in srgb,var(--go) 14%,transparent);}
+.lvl-d .mk-sr.open{margin:-2px 0;}
+.lvl-d .mk-num.sm{font-size:13px;}
 /* Raising targets: the old number gives up its charge, a spark crosses the arrow, the new
    number takes it. Staggered down the list so it reads as one wave rather than a flash. */
 .lvl-d span{position:relative;}
@@ -3566,7 +3569,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.130';
+var APPV='v4.131';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3901,6 +3904,29 @@ function stepFor(id,w){
   if(s&&Math.round(s*10)%Math.round(plate*10)!==0)return s;
   return plate;
 }
+// The next weight that actually EXISTS on this exercise's stack, above (or below, for
+// assisted work) the given one. Null when no trusted lattice is known - plate math stands
+// in then. This is what keeps one off-lattice target from poisoning every raise after it:
+// a 19.5 accepted before the stack was learned snaps back to 20 on the next offer instead
+// of walking 22.5, 25.5, 28.5 forever. Anchored on a logged weight, because logged weights
+// sit on the lattice by definition; integer tenths throughout, floats stay out of it.
+function latticeNext(id,w,down){
+  var s=stackStep(id),plate=w>=40?5:2.5;
+  if(!s||Math.round(s*10)%Math.round(plate*10)===0)return null;   // same trust rule as stepFor
+  var a=0;
+  (DB.logs||[]).forEach(function(L){
+    for(var k in L.entries){
+      if(exOfKey(L,k)!==id)continue;
+      L.entries[k].forEach(function(x){if(x&&x.w>a)a=x.w;});
+    }
+  });
+  if(!a)return null;
+  var s10=Math.round(s*10),w10=Math.round(w*10),a10=Math.round(a*10),k;
+  if(down){k=Math.ceil((w10-a10)/s10)-1;}
+  else{k=Math.floor((w10-a10)/s10)+1;}
+  var n=(a10+k*s10)/10;
+  return n<0?0:n;
+}
 // Every lift that met all its targets last time, with the numbers it would move to. Nothing
 // is written until the sheet is confirmed - this only describes the change.
 function levelPlan(wk){
@@ -3915,12 +3941,25 @@ function levelPlan(wk){
     var tg=rf.data.sets.split('\n').map(parseTarget);
     if(!isReady(id,tg))return;
     var lines=rf.data.sets.split('\n');
+    var est=false;
     var next=lines.map(function(s){
       var t=parseTarget(s);
       if(t.type!=='wr')return s;         // timed and rep-only work has no weight to add
       // Assisted work levels DOWN, and never past zero - no assistance at all is the end of the
       // progression, and the lift becomes an unassisted one at that point.
-      var nw=invEx(id)?Math.max(0,t.w-stepFor(id,t.w)):t.w+stepFor(id,t.w);
+      // A learned lattice wins outright - the raise lands on a weight the machine actually
+      // has. Without one, plate math guesses and the offer is marked as an estimate, which
+      // the sheet renders as editable-with-a-caveat rather than as a fact.
+      var down=!!invEx(id),ln=latticeNext(id,t.w,down);
+      var nw;
+      if(ln!=null)nw=ln;
+      else{
+        nw=down?Math.max(0,t.w-stepFor(id,t.w)):t.w+stepFor(id,t.w);
+        // Only a lift with NO usable history is an estimate. A barbell whose logged
+        // weights already sit on plate steps has confirmed plate math - marking it ~
+        // would hedge about the one thing the history corroborates.
+        if(!stackStep(id))est=true;
+      }
       return (nw%1?nw.toFixed(1):nw)+'x'+t.r;
     });
     if(next.join('\n')===lines.join('\n'))return;
@@ -3928,7 +3967,7 @@ function levelPlan(wk){
     // refusal to one session and one set of targets, so a newer log - or a target that moved
     // for any other reason - brings the arrow back on its own.
     if((DB.upSkip||{})[id]===skipSig(id,lines))return;
-    out.push({id:id,name:rf.data.name,from:lines,to:next});
+    out.push({id:id,name:rf.data.name,from:lines,to:next,est:est});
   });
   return out;
 }
@@ -3938,35 +3977,79 @@ function skipSig(exId,lines){
 }
 var LVLWK=null;
 function lvlFmt(s){return String(s).replace('x','&thinsp;&times;&thinsp;');}
+// The plan the sheet shows is CACHED, because the sheet lets you correct it. applyLevel
+// used to recompute levelPlan on confirm; with editable offers that would silently discard
+// every adjustment made in the sheet. The cache is rebuilt every time the sheet opens.
+var LVLPLAN=null,LVLED=null,LVLEDV=0;
 function openLevel(wk){
-  LVLWK=wk;
-  var plan=levelPlan(wk),W1=W[wk];
+  LVLWK=wk;LVLED=null;
+  LVLPLAN=levelPlan(wk);
+  var plan=LVLPLAN,W1=W[wk];
   document.getElementById('lvlTitle').textContent='Level up \u2014 '+(W1?W1.name:'');
   var go=document.getElementById('lvlGo');
   document.getElementById('lvlSub').textContent=plan.length?
-    'These lifts met every target last session. Confirm to set the new targets.':
+    'These lifts met every target last session. Tap a new number to adjust it, confirm to set the targets.':
     'Nothing to raise here yet.';
   go.style.display=plan.length?'':'none';
   document.getElementById('lvlSkipRow').style.display=plan.length?'':'none';
-  document.getElementById('lvlList').innerHTML=plan.map(function(p){
-    // three identical sets read as one line with a count, not the same numbers three times
-    var g=[];
-    p.from.forEach(function(f,i){
-      var last=g[g.length-1];
-      if(last&&last.f===f&&last.t===p.to[i])last.n++;
-      else g.push({f:f,t:p.to[i],n:1});
-    });
-    return '<div class="lvl-row"><div class="lvl-n">'+p.name+'</div><div class="lvl-d">'+
-      g.map(function(x){
-        return '<span>'+(x.n>1?x.n+'&times; ':'')+'<b>'+lvlFmt(x.f)+'</b> &rarr; <b class="up">'+lvlFmt(x.t)+'</b><i class="lvl-spark"></i></span>';
-      }).join('')+'</div></div>';
-  }).join('');
+  lvlRender();
   document.getElementById('lvlOvl').classList.add('on');
+}
+// three identical sets read as one line with a count, not the same numbers three times.
+// `at` is where the group's run of lines starts, so an edit can write back to the plan.
+function lvlGroups(p){
+  var g=[];
+  p.from.forEach(function(f,i){
+    var last=g[g.length-1];
+    if(last&&last.f===f&&last.t===p.to[i])last.n++;
+    else g.push({f:f,t:p.to[i],n:1,at:i});
+  });
+  return g;
+}
+function lvlRender(){
+  var plan=LVLPLAN||[];
+  document.getElementById('lvlList').innerHTML=plan.map(function(p,pi){
+    return '<div class="lvl-row"><div class="lvl-n">'+p.name+'</div><div class="lvl-d">'+
+      lvlGroups(p).map(function(x,gi){
+        if(LVLED&&LVLED.pi===pi&&LVLED.gi===gi){
+          var w=parseTarget(x.t).w;
+          return '<span class="mk-sr open"><input class="mk-num sm" type="number" inputmode="decimal" step="0.5" value="'+w+'" oninput="lvlEditVal(this.value)"><em>lb</em>'+
+                 '<button class="mk-rest-ok" onclick="lvlEditOK()">OK</button></span>';
+        }
+        return '<span>'+(x.n>1?x.n+'&times; ':'')+'<b>'+lvlFmt(x.f)+'</b> &rarr; '+
+          '<b class="up'+(p.est?' est':'')+'" onclick="lvlEdit('+pi+','+gi+')" title="Tap to adjust">'+(p.est?'~':'')+lvlFmt(x.t)+'</b><i class="lvl-spark"></i></span>';
+      }).join('')+'</div></div>';
+  }).join('')+
+  // Only when something on the sheet is a guess. An app-wide hedge would read as the app
+  // doubting everything; scoped to the lifts that have not shown their machine yet, it is
+  // simply honest about which numbers are calibration and which are knowledge.
+  (plan.some(function(p){return p.est;})?
+    '<div class="footnote" style="margin-top:10px">~ is an estimated jump &mdash; this lift has not shown the app its machine\u2019s steps yet. If your equipment\u2019s next weight is different, tap the number and set it. Stacks are learned from what you log.</div>':'');
+}
+function lvlEdit(pi,gi){
+  if(LVLBUSY)return;
+  var p=LVLPLAN&&LVLPLAN[pi];if(!p)return;
+  LVLED={pi:pi,gi:gi};
+  LVLEDV=parseTarget(lvlGroups(p)[gi].t).w;
+  lvlRender();
+}
+function lvlEditVal(v){LVLEDV=parseFloat(v)||0;}
+function lvlEditOK(){
+  var p=LVLPLAN&&LVLED?LVLPLAN[LVLED.pi]:null;
+  if(p){
+    var g=lvlGroups(p)[LVLED.gi];
+    var w=Math.max(0,LVLEDV),ws=String(w%1?w.toFixed(1):w);
+    for(var i=g.at;i<g.at+g.n;i++)p.to[i]=ws+'x'+String(p.to[i]).split('x')[1];
+    // a hand-set number is the truth about the machine; the estimate mark comes off
+    p.est=false;
+  }
+  LVLED=null;lvlRender();
 }
 var LVLBUSY=false,LVLT=null;
 function applyLevel(){
   if(LVLBUSY)return;                       // a second tap mid-animation must not double-write
-  var plan=levelPlan(LVLWK);
+  if(LVLED)lvlEditOK();                    // a number still sitting in its input counts as said
+  var plan=LVLPLAN||levelPlan(LVLWK);      // the cached plan - it may carry hand-corrected offers
   if(!plan.length){closeOvl('lvlOvl');return;}
   LVLBUSY=true;
   var rows=document.querySelectorAll('#lvlList .lvl-row');
