@@ -2901,7 +2901,7 @@ body.wcon{overflow:hidden;}
 
 <script>
 var EX = {
-  bench:    {name:"Barbell Bench Press",wraps:1,note:"Flat bench, grip just outside shoulder-width, controlled descent",sets:"145x8\n145x8\n145x8\n145x8",rest:"2-3 min"},
+  bench:    {name:"Barbell Bench Press",wraps:1,note:"Flat bench, grip just outside shoulder-width, controlled descent",sets:"145x8\n145x8\n145x8\n145x8",rest:"3 min"},
   incdb:    {name:"Incline DB Press",wraps:1,note:"30-45 degree incline, slow 3 second lower",sets:"55x12\n55x12\n55x12",rest:"2 min"},
   mbench:   {name:"Machine Bench Press",wraps:1,note:"Seat set so the handles sit level with mid chest, full lockout without flaring",sets:"150x10\n130x15\n130x15",rest:"90 sec"},
   xover:    {name:"Cable Crossover",note:"Handles at shoulder height, slight stagger, squeeze at the middle rather than swinging",sets:"23x13\n23x13\n23x13",rest:""},
@@ -3527,7 +3527,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.116';
+var APPV='v4.117';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3540,6 +3540,14 @@ async function loadDB(){
     }
   }
   if(d&&d.logs){DB=d;if(!DB.active)DB.active={};if(!DB.up)DB.up={};if(!DB.upSkip)DB.upSkip={};if(!DB.extra)DB.extra=[];if(!DB.plan)DB.plan=[];if(!DB.walks)DB.walks=[];if(DB.walkRun===undefined)DB.walkRun=null;}
+  // Workouts built before the presets dropped "2-3 min" still carry the range in their rows.
+  // Rewritten once here to the top end, matching what parseRest now reads a range as, so the
+  // session footer stops printing a hyphenated guess.
+  try{
+    var fixRest=function(r){return typeof r==='string'?r.replace(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/g,'$2'):r;};
+    for(var ck in (DB.custom||{})){((DB.custom[ck]||{}).sections||[]).forEach(function(s){(s.rows||[]).forEach(function(r){if(r&&r[1]&&r[1].rest)r[1].rest=fixRest(r[1].rest);});});}
+    for(var dk in (DB.dayEdit||{})){var de=DB.dayEdit[dk];for(var ek in de){if(de[ek]&&de[ek].rest)de[ek].rest=fixRest(de[ek].rest);}}
+  }catch(e){}
   mergeCustom();
 }
 var saveT=null;
@@ -6837,20 +6845,32 @@ function backupBlob(){
   return JSON.stringify({arcanum:1,app:APPV,at:new Date().toISOString(),db:DB,settings:s});
 }
 function backupName(){return 'arcanum-backup-'+today()+'.json';}
+// A generated download only works where the browser honours it. The Android app does not:
+// the WebView swallows the click without throwing, so a catch around it never fires and the
+// button just looks dead - which is exactly how EXPORT FILE presented on the phone. Whether
+// this is the app is known before trying (the Capacitor bridge is injected), so route on
+// that instead of probing. Returns true when a real file was offered; false means the text
+// went to the clipboard and the caller should say so.
+function saveTextFile(txt,name,type){
+  var native=false;
+  try{native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){}
+  if(!native){
+    try{
+      var b=new Blob([txt],{type:type||'text/plain'}),u=URL.createObjectURL(b);
+      var a=document.createElement('a');
+      a.href=u;a.download=name;
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
+      return true;
+    }catch(e){}
+  }
+  try{if(navigator.clipboard)navigator.clipboard.writeText(txt);}catch(e2){}
+  return false;
+}
 function doBackup(){
   var txt=backupBlob();
-  try{
-    var b=new Blob([txt],{type:'application/json'}),u=URL.createObjectURL(b);
-    var a=document.createElement('a');
-    a.href=u;a.download=backupName();
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
-    mkNote('Backup saved: '+backupName());
-  }catch(e){
-    // Some webviews refuse a generated download. The text is still recoverable by hand.
-    try{if(navigator.clipboard)navigator.clipboard.writeText(txt);}catch(e2){}
-    ask('This app blocked the download, so the backup was copied to your clipboard instead. Paste it into a note or a file and keep it safe.',null,'Copied instead');
-  }
+  if(saveTextFile(txt,backupName(),'application/json')){mkNote('Backup saved: '+backupName());return;}
+  ask('This app cannot save a file directly, so the backup was copied to your clipboard instead. Paste it into a note or a file and keep it safe.',null,'Copied instead');
 }
 function pickRestore(){var i=document.getElementById('restoreFile');if(i){i.value='';i.click();}}
 // Restoring REPLACES everything. It asks first, and says what it is about to overwrite, because
@@ -6892,13 +6912,8 @@ function exportAll(){
     DB.logs.slice().reverse().map(function(L){
       return buildExport(L.day,{date:L.date,entries:L.entries,note:L.note,swaps:L.swaps||{}});
     }).join('\n\n------------------------\n\n');
-  try{
-    var b=new Blob([txt],{type:'text/plain'}),u=URL.createObjectURL(b);
-    var a=document.createElement('a');
-    a.href=u;a.download=APPNAME().toLowerCase()+'-history-'+today()+'.txt';
-    document.body.appendChild(a);a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
-  }catch(e){ask('This browser blocked the download. Use COPY ALL instead.',null,'Export failed');}
+  if(saveTextFile(txt,APPNAME().toLowerCase()+'-history-'+today()+'.txt'))return;
+  ask('This app cannot save a file directly, so the whole history was copied to your clipboard instead. Paste it into a note or a document to keep it.',null,'Copied instead');
 }
 function copyExport(){copyEl('exportTxt','copyBtn');}
 function copyHist(){copyEl('histTxt','copyHistBtn');}
@@ -8634,9 +8649,12 @@ function restAt(rest,i){
 }
 function parseRest(t){
   if(!t)return 0;
-  var m=String(t).match(/(\d+(?:\.\d+)?)/);
+  // A range like "2-3 min" is not a rest time, it is two of them with a hyphen. The presets
+  // dropped it for a real 3 min; anything still carrying one - old stored copies, a value
+  // typed by hand - reads as its top end, the number the preset became.
+  var m=String(t).match(/(\d+(?:\.\d+)?)(?:\s*-\s*(\d+(?:\.\d+)?))?/);
   if(!m)return 0;
-  var n=parseFloat(m[1]);
+  var n=parseFloat(m[2]!==undefined?m[2]:m[1]);
   return /min/i.test(t)?Math.round(n*60):Math.round(n);
 }
 var timerEnd=0,restStartedAt=0,skipQuiet=false;
