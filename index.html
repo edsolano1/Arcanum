@@ -197,8 +197,16 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .lvl-n{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:6px;}
 .lvl-d{display:flex;flex-wrap:wrap;gap:5px 15px;white-space:nowrap;font-size:12.5px;color:var(--txt3);font-variant-numeric:tabular-nums;}
 .lvl-d b{font-weight:600;color:var(--txt2);}
-.lvl-d b.up{color:var(--go);cursor:pointer;padding:2px 4px;margin:-2px -4px;border-radius:5px;}
-.lvl-d b.up:hover{background:color-mix(in srgb,var(--go) 14%,transparent);}
+/* The offer is a BUTTON and wears it: chip border, tint, and a pencil. A bare colored
+   number said "result"; nobody presses a result. Reported from the device the day it
+   shipped bare. */
+.lvl-d b.up{color:var(--go);cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+  padding:3px 8px;margin:-3px 0;border-radius:7px;
+  border:1px solid color-mix(in srgb,var(--go) 45%,var(--line));
+  background:color-mix(in srgb,var(--go) 10%,transparent);}
+.lvl-d b.up:hover{background:color-mix(in srgb,var(--go) 18%,transparent);}
+.lvl-d b.up svg{width:11px;height:11px;stroke:currentColor;stroke-width:1.8;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;opacity:.8;}
 .lvl-d .mk-sr.open{margin:-2px 0;}
 .lvl-d .mk-num.sm{font-size:13px;}
 /* Raising targets: the old number gives up its charge, a spark crosses the arrow, the new
@@ -3569,7 +3577,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.131';
+var APPV='v4.132';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3988,7 +3996,7 @@ function openLevel(wk){
   document.getElementById('lvlTitle').textContent='Level up \u2014 '+(W1?W1.name:'');
   var go=document.getElementById('lvlGo');
   document.getElementById('lvlSub').textContent=plan.length?
-    'These lifts met every target last session. Tap a new number to adjust it, confirm to set the targets.':
+    'These lifts met every target last session. Press a new weight to change it, confirm to set the targets.':
     'Nothing to raise here yet.';
   go.style.display=plan.length?'':'none';
   document.getElementById('lvlSkipRow').style.display=plan.length?'':'none';
@@ -4017,7 +4025,8 @@ function lvlRender(){
                  '<button class="mk-rest-ok" onclick="lvlEditOK()">OK</button></span>';
         }
         return '<span>'+(x.n>1?x.n+'&times; ':'')+'<b>'+lvlFmt(x.f)+'</b> &rarr; '+
-          '<b class="up'+(p.est?' est':'')+'" onclick="lvlEdit('+pi+','+gi+')" title="Tap to adjust">'+(p.est?'~':'')+lvlFmt(x.t)+'</b><i class="lvl-spark"></i></span>';
+          '<b class="up'+(p.est?' est':'')+'" onclick="lvlEdit('+pi+','+gi+')" title="Level up to a different weight">'+(p.est?'~':'')+lvlFmt(x.t)+
+          '<svg viewBox="0 0 20 20"><path d="M4 16l.9-3.6L13.5 3.8l2.7 2.7-8.6 8.6L4 16z"/></svg></b><i class="lvl-spark"></i></span>';
       }).join('')+'</div></div>';
   }).join('')+
   // Only when something on the sheet is a guess. An app-wide hedge would read as the app
