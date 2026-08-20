@@ -1154,6 +1154,9 @@ body.tut .daymore{display:none;}
 .preset.mk-del{border-color:color-mix(in srgb,#c2554a 55%,var(--line));color:#c2554a;}
 .preset.mk-del:hover{border-color:#c2554a;color:#c2554a;}
 .sfx-lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--txt3);margin:20px 0 9px;}
+/* The sound rows carry a sublabel in a <small> that had no rule at all, so it rendered inline
+   and read as one run-on line: "REST ALERTWHEN A REST RUNS OUT". Its own line, a step quieter. */
+.sfx-lbl small{display:block;margin-top:2px;font-size:8.5px;letter-spacing:.07em;color:var(--txt3);opacity:.75;}
 .sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
 .sfx-tog:hover{border-color:var(--go);color:var(--go);}
 /* A lit toggle - the on state for the switches in Settings. */
@@ -3533,7 +3536,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.120';
+var APPV='v4.121';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5638,6 +5641,9 @@ function closeMake(){document.getElementById('make').classList.remove('on');sync
 function mkRender(){
   var h='',T=MKTXT();
   var shell=!!MK.shellOpen,making=shell&&!MK.id;
+  // The header title was set once when the screen opened - before the workout had a name -
+  // so it said "New workout" for the whole session. It follows the name now.
+  document.getElementById('mkTitle').textContent=MK.name||MKTXT().t;
   document.getElementById('mkSub').textContent=
     making?'New workout':(MK.rows.reduce(function(a,r){return a+(r.n||0);},0)+' sets');
   if(!shell){
@@ -6362,6 +6368,14 @@ function mkSaveCex(){
   mergeCustom();saveDB();
   closeOvl('mkCexOvl');
   mkAddEx(id);
+  // A lift invented here is nearly always a weighted one, but its 0-weight starter line
+  // derives as reps-only - which hides the weight field at the exact moment the person is
+  // about to type the weight. The fresh row starts on weight-and-reps instead; the first
+  // weight typed makes it stick, and switching to reps-only stays one tap away.
+  if(!isCardio){
+    var nr=MK.rows[MK.rows.length-1];
+    if(nr&&nr.id===id&&nr.unit==='reps'){nr.unit='wr';nr.hold=false;mkRender();}
+  }
 }
 
 // ---------- save ----------
@@ -6488,8 +6502,11 @@ function finishSession(){
   }
   // Finishing seals the day until the week turns over, so a mis-tap here used to cost the
   // rest of the workout with no way back. Zero logged already had a guard; partway now asks.
+  // Not during the tour: its sample day always has sets left, the step explicitly says to
+  // finish, and tutStray sweeps askOvl shut on the next tick anyway - the question would
+  // flash away unanswered and strand the step. Caught exactly that way on the device.
   var left=totalSets(wk)-loggedCount(wk);
-  if(left>0){
+  if(left>0&&!TUTON){
     ask(left+' set'+(left===1?' is':'s are')+' still unlogged. Finishing seals this day as it stands, and it stays done until the week turns over.',
       finishNow,'Finish with '+left+' left?','FINISH');
     return;
@@ -9938,7 +9955,7 @@ function tutW(){var e=document.getElementById('w-bench-0');return e?parseFloat(e
 var GEN_TUT={btn:'Tutorial',ttl:'First time here?',
   msg:'A quick walk through the real screens, using sample data. Your own logs stay untouched.',
   yes:'SHOW ME',steps:[
-  {t:'Your week',b:'Seven days, Sunday to Saturday. An empty day is a rest day.'},
+  {t:'Your week',b:'Seven days, Sunday to Saturday. A day holds a workout, or stays empty — nothing is owed on an empty day.'},
   {t:'Open a day',b:'Tap Tuesday.'},
   {t:'The set grid',b:'Tap the weight on the first bench set. Every row here is one set: weight, reps, and a sigil to mark it.'},
   {t:'Set the number',b:'Raise it to 150 or more, then tap DONE.'},
@@ -10144,6 +10161,7 @@ function tutEnd(){
 }
 function tutGo(i){
   TUTI=i;if(i>TUTMAX)TUTMAX=i;
+  TUTFREEZE=0;                     // a new step decides its own parking; never inherit one
   TUTHIT=false;                    // each step gets its one action back
   // The demo rest is a prop for ONE step - the pill's own - and belongs on no other.
   // Two previous attempts at this both tied it to identity rather than to the rule. "i>8" tied
@@ -10228,8 +10246,23 @@ function tutGo(i){
     // tutSweep is left defined and unused rather than deleted; if a step is ever built that
     // genuinely arrives from nothing, it is there to call.
     tutGlide();
+    // Measured BEFORE the pan starts, the same numbers tutScroll is about to use, so the
+    // card can be parked at its destination for the whole ride. See TUTFREEZE.
+    var pel=tutEls(st.sel)[0];
+    if(pel&&!st.top){
+      var pr=pel.getBoundingClientRect(),pw=pr.top-window.innerHeight*0.30;
+      if(Math.abs(pw)>=50)tutCardHold(pel,pw,PAN+80);
+    }
     tutScroll(false,PAN);
-  }else{tutGlide();tutScroll();}
+  }else{
+    tutGlide();
+    var qel=tutEls(st.sel)[0];
+    if(qel&&!st.top){
+      var qr=qel.getBoundingClientRect(),qw=qr.top-window.innerHeight*0.30;
+      if(Math.abs(qw)>=50)tutCardHold(qel,qw,600);
+    }
+    tutScroll();
+  }
   // And again once the layout has settled. The board is rebuilt underneath several of these
   // steps - sealing the day re-renders the whole week, which moves the rack hundreds of pixels
   // down - and a scroll worked out before that happened lands nowhere near the target. The
@@ -10397,6 +10430,22 @@ function tutBox(el,box,p){
 // very next frame writes the step's real target with transitions armed and CSS carries it in.
 // Nothing here chooses the target - tutPlace does that, exactly as it always has.
 var TUTSW=null,TUTSC=null,TUTSW2=null,TUTGL=null;
+// While a step change is panning the page, the card is placed ONCE - from where the target
+// will be when the pan lands - and held. Re-placing it every frame of the travel flipped it
+// between its above/below positions as the target's rect streamed past the thresholds:
+// one-frame jumps, caught on a 120fps recording of the tour (v4.120). Until this stamp
+// passes, tutPlace leaves the card's top alone.
+var TUTFREEZE=0;
+function tutCardHold(el,delta,ms){
+  var card=document.getElementById('tutCard');
+  if(!el||!card)return;
+  var si=safeIns(),ch=card.offsetHeight,vh=window.innerHeight-si.b;
+  var r=el.getBoundingClientRect(),p=TUT_STEPS[TUTI].pad==null?8:TUT_STEPS[TUTI].pad;
+  var top=r.top-delta,bottom=r.bottom-delta;
+  var below=bottom+p+14,above=top-p-14-ch;
+  tutTop(card,(below+ch<vh-12?below:(above>12+si.t?above:Math.max(12+si.t,vh-ch-14)))+'px');
+  TUTFREEZE=performance.now()+ms;
+}
 // Back to the zero size the stylesheet starts them at. _k is the placement cache and has to go
 // with them, or the next tour compares against geometry that is no longer on the element and
 // skips the first write.
@@ -10489,12 +10538,13 @@ function tutPlace(){
   if(pel&&pel.offsetHeight)tutBox(pel,ping,5);else ping.classList.remove('on');
   if(!el||!el.offsetHeight){
     hole.classList.remove('on');
-    tutTop(card,Math.max(14+si.t,(vh-ch)/2)+'px');
+    if(performance.now()>=TUTFREEZE)tutTop(card,Math.max(14+si.t,(vh-ch)/2)+'px');
     return;
   }
   tutBox(el,hole,st.pad==null?8:st.pad);
   var r=el.getBoundingClientRect(),p=st.pad==null?8:st.pad;
   if(st.top){tutTop(card,(14+si.t)+'px');return;}   // instructions first, then the thing itself
+  if(performance.now()<TUTFREEZE)return;            // parked for a pan - see tutCardHold
   var below=r.bottom+p+14,above=r.top-p-14-ch;
   tutTop(card,(below+ch<vh-12?below:(above>12+si.t?above:Math.max(12+si.t,vh-ch-14)))+'px');
 }
