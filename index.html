@@ -3566,7 +3566,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.128';
+var APPV='v4.129';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3866,7 +3866,35 @@ function readyCount(wk){
 }
 var ARROW='<svg viewBox="0 0 20 20"><path d="M10 15.5V5M10 5l-4.6 4.6M10 5l4.6 4.6"/></svg>';
 // Small jumps, held clean: 5 lb once a lift is heavy enough to carry it, 2.5 below that.
-function stepFor(w){return w>=40?5:2.5;}
+// How far a raise moves. This was pure plate math - 2.5 under 40, 5 over - which is right
+// for a barbell and wrong for every weight stack that steps by its own amount: a 3lb-lattice
+// cable machine was offered 17 -> 19.5, a weight that does not exist on it, when the stack
+// goes to 20. The machine's step does not need to be asked for: every weight ever logged on
+// that exercise sits on the stack's lattice, so the gcd of their differences IS the step.
+// Two distinct logged weights are enough to learn it; a lift without them falls back to
+// plate math until it has been trained at a second weight. Computed in tenths so float dust
+// cannot poison the gcd.
+function stackStep(id){
+  var ws={};
+  (DB.logs||[]).forEach(function(L){
+    for(var k in L.entries){
+      if(exOfKey(L,k)!==id)continue;
+      L.entries[k].forEach(function(s){if(s&&s.w>0)ws[Math.round(s.w*10)]=1;});
+    }
+  });
+  var a=Object.keys(ws).map(Number).sort(function(x,y){return x-y;});
+  if(a.length<2)return 0;
+  var g=0;
+  for(var i=1;i<a.length;i++){
+    var d=a[i]-a[i-1];
+    while(d){var t=g%d;g=d;d=t;}
+  }
+  return g>=10?g/10:0;   // a step under 1lb means the history is noise, not a lattice
+}
+function stepFor(id,w){
+  var s=stackStep(id);
+  return s||(w>=40?5:2.5);
+}
 // Every lift that met all its targets last time, with the numbers it would move to. Nothing
 // is written until the sheet is confirmed - this only describes the change.
 function levelPlan(wk){
@@ -3886,7 +3914,7 @@ function levelPlan(wk){
       if(t.type!=='wr')return s;         // timed and rep-only work has no weight to add
       // Assisted work levels DOWN, and never past zero - no assistance at all is the end of the
       // progression, and the lift becomes an unassisted one at that point.
-      var nw=invEx(id)?Math.max(0,t.w-stepFor(t.w)):t.w+stepFor(t.w);
+      var nw=invEx(id)?Math.max(0,t.w-stepFor(id,t.w)):t.w+stepFor(id,t.w);
       return (nw%1?nw.toFixed(1):nw)+'x'+t.r;
     });
     if(next.join('\n')===lines.join('\n'))return;
