@@ -132,7 +132,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .iconbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--txt2);flex-shrink:0;transition:.15s;}
 .iconbtn:hover{color:var(--txt);border-color:#33373d;}
 
-.card{position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;cursor:pointer;transition:transform .12s,border-color .15s,background .15s;margin-bottom:9px;user-select:none;overflow:hidden;}
+.card{position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:9px 12px;cursor:pointer;transition:transform .12s,border-color .15s,background .15s;margin-bottom:6px;user-select:none;overflow:hidden;}
 .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c);}
 .card:hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line));background:var(--surface2);transform:translateY(-1px);}
 .card:active{transform:scale(.994);}
@@ -143,7 +143,7 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 .card-r{display:flex;gap:0;align-items:center;flex:0 0 auto;}
 .card-day{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--c);}
 .card-name{font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:600;letter-spacing:-.022em;color:var(--txt);line-height:1.2;}
-.card-meta{font-size:12.5px;color:var(--txt3);margin-top:6px;}
+.card-meta{font-size:12px;color:var(--txt3);margin-top:2px;}
 .card.opt::before{background:repeating-linear-gradient(180deg,var(--c) 0 6px,transparent 6px 11px);}
 .card.opt .card-name{color:var(--txt2);}
 /* Today is now the whole card rather than a pill in the corner - you find the row you want
@@ -264,12 +264,12 @@ input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text;-webk
 /* A day is a container: header, then whatever is in it, growing and shrinking to fit. An empty
    one keeps its header and offers somewhere to drop, because empty is a real answer - it is a
    rest day - not an absence. */
-.daybox{border:1px solid var(--line);border-radius:14px;padding:10px 10px 2px;margin-bottom:10px;
+.daybox{border:1px solid var(--line);border-radius:14px;padding:7px 8px 1px;margin-bottom:7px;
   background:color-mix(in srgb,var(--surface) 45%,transparent);transition:border-color .15s,background .15s;}
-.daybox.empty{padding-bottom:10px;background:transparent;border-style:dashed;}
+.daybox.empty{padding-bottom:7px;background:transparent;border-style:dashed;}
 .dayhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
   font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--txt3);padding:2px 4px 9px;}
+  color:var(--txt3);padding:1px 3px 6px;}
 .daybox.today .dayhead{color:var(--go);}
 /* Today is the DAY, not the workout. A day can hold two, and lighting one of them said the wrong
    thing about the other; the box they sit in is what you are looking for anyway.
@@ -1118,13 +1118,14 @@ body.light .dayact.del{--bad:#b1332c;}
 /* Adding a second workout to a day that already has one. Deliberately quieter than the empty-day
    offer: that one is an invitation to start, this one is a way to add, and a full-width dashed
    panel under a card you can already see would compete with the card. */
-.daymore{display:flex;align-items:center;justify-content:center;height:30px;margin:2px 0 4px;
-  border-radius:9px;cursor:pointer;color:var(--txt3);
-  border:1px dashed color-mix(in srgb,var(--go) 26%,var(--line));transition:.15s;}
-.daymore:hover{color:var(--go);border-color:color-mix(in srgb,var(--go) 55%,var(--line));
-  background:color-mix(in srgb,var(--go) 7%,transparent);}
-.daymore svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;}
-body.tut .daymore{display:none;}
+/* the add for an occupied day, in the header's right corner - see dayBox for why the
+   dashed row it replaced is gone. Negative margins keep the header line thin while the
+   hit area stays finger-sized. */
+.dayhead-add{display:flex;align-items:center;justify-content:center;width:38px;height:30px;
+  margin:-8px -6px;border-radius:8px;cursor:pointer;color:var(--txt3);transition:.15s;}
+.dayhead-add:hover{color:var(--go);background:color-mix(in srgb,var(--go) 10%,transparent);}
+.dayhead-add svg{width:13px;height:13px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round;}
+body.tut .dayhead-add{display:none;}
 .mk-mv{display:inline-flex;gap:3px;flex-shrink:0;}
 .mk-mvb{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
   padding:0;border-radius:7px;border:1px solid var(--line);background:transparent;
@@ -1470,7 +1471,7 @@ body.moon .sp-word{font-size:25px;letter-spacing:.42em;}
 @media(max-width:400px){.wordmark{font-size:21px;letter-spacing:.12em;}}
 .sec-label{letter-spacing:.2em;text-transform:uppercase;font-size:12px;color:var(--txt2);}
 .sect-t{letter-spacing:.2em;text-transform:uppercase;font-size:11.5px;}
-.card-name{font-size:18px;letter-spacing:.01em;}
+.card-name{font-size:16px;letter-spacing:.01em;}
 .s-title{font-size:16.5px;letter-spacing:.03em;}
 .ex-n{font-size:17px;letter-spacing:.01em;}
 .sheet h3,.ed-ex{letter-spacing:.05em;}
@@ -3577,7 +3578,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.132';
+var APPV='v4.133';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4235,22 +4236,19 @@ function dayBox(d,nx,n0){
   var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">'+(isToday?'<i class="dayglow"></i>':'');
   // No count. How many a day can hold is not something to be reminded of on every day you own -
   // it only matters at the moment you try to exceed it, and it says so then.
-  h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span></div>';
+  // The add for a day that already holds something rides IN the header now, not on a dashed
+  // row of its own. Seven of those rows cost the week screen half its days: the cover screen
+  // showed Sunday to Wednesday and called itself YOUR WEEK. The header had the room, the
+  // action is rare after setup, and a week screen's first job is showing the week.
+  h+='<div class="dayhead"><span>'+d.n.toUpperCase()+(isToday?' &middot; TODAY':'')+'</span>'+
+     (ids.length&&ids.length<DAY_MAX?'<span class="dayhead-add" onclick="openNewDay(\''+d.k+'\')" title="Add another workout to '+d.n+'">'+PLUS+'</span>':'')+
+     '</div>';
   // "Drag a workout here" is only an instruction if you HAVE a workout to drag. On a week that
   // started empty there is nothing on the rack and nothing on the other days, so every day read
   // as a dead end and the only way in was the New day button at the very bottom of the page -
   // which is not where somebody looking at an empty Tuesday is looking. It builds into this day.
   if(!ids.length)h+='<div class="dayempty dayadd" onclick="openNewDay(\''+d.k+'\')">'+PLUS+'Add a workout</div>';
-  else{
-    ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
-    // A day with something on it had no way to take a second one. The offer only existed while
-    // the day was EMPTY, so a Tuesday that already held a lift was a closed door - and a weekday
-    // holds up to DAY_MAX, which is the whole reason splitting lifts from cardio works at all.
-    // Quieter than the empty-day version: the day already reads as having something in it, so
-    // this is a way to add rather than an invitation to start.
-    if(ids.length<DAY_MAX)
-      h+='<div class="daymore" onclick="openNewDay(\''+d.k+'\')" title="Add another workout to '+d.n+'">'+PLUS+'</div>';
-  }
+  else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
   return h+'</div>';
 }
 // A kept day has no weekday and no slot, so it carries the day's own name where the weekday
