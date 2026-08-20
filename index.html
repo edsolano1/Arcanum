@@ -1168,6 +1168,9 @@ body.tut .daymore{display:none;}
 /* The sound rows carry a sublabel in a <small> that had no rule at all, so it rendered inline
    and read as one run-on line: "REST ALERTWHEN A REST RUNS OUT". Its own line, a step quieter. */
 .sfx-lbl small{display:block;margin-top:2px;font-size:9.5px;letter-spacing:.07em;color:var(--txt3);opacity:.75;}
+/* the three sound rows sit as one group, not three headings - the 20px heading gap between
+   them read as three separate settings sections and made the sheet twice the height it needed */
+#sfxKeys .sfx-lbl{margin:8px 0 0;}
 .sfx-tog{font-family:var(--mono);font-size:10px;letter-spacing:.06em;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;color:var(--txt2);background:var(--surface2);}
 .sfx-tog:hover{border-color:var(--go);color:var(--go);}
 /* A lit toggle - the on state for the switches in Settings. */
@@ -2781,19 +2784,14 @@ body.wcon{overflow:hidden;}
     <!-- Sound check and the SOUND ON toggle are gone: Alert volume already says how loud the
          alert is, and 0 on it is silence, so the toggle was a second switch onto the same thing. -->
     <div class="sfx-lbl" style="margin-top:4px"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
-    <!-- Rewritten. It still said "this tab", from when this was a web page rather than an app, and
-         it claimed the alert dips your music - which was the plan at the time and is not what
-         happens. It never asks for audio focus, so it plays over whatever you are listening to and
-         nothing pauses or ducks. -->
-    <div class="footnote" style="margin:0 2px 8px">How you are told a rest is over while you are in another app. Android delivers it, so it lands whether or not Arcanum is on screen, and it plays over your music without pausing or lowering it. The countdown sits in the notification shade while the rest runs.</div>
-    <!-- Three settings rather than one switch: the thing most people want off is the ground
-         drifting, not the rune that tells them which day is today. -->
+    <!-- One line. The four-line version explained the notification shade to people who have
+         owned a phone for years; the only non-obvious facts are that it survives the app being
+         closed and that it will not touch the music. -->
+    <div class="footnote" style="margin:0 2px 8px">Lands from Android even with the app closed, and never pauses your music.</div>
     <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
     <div class="presets" id="motionRow"></div>
-    <div class="footnote" style="margin-top:8px" id="motionNote"></div>
     <div class="sfx-lbl" style="margin-top:14px"><span>Sounds</span></div>
     <div id="sfxKeys"></div>
-    <div class="footnote" style="margin:0 2px 10px">Everything else the app does &mdash; pages, cards, the launch &mdash; stays as it is. Alert volume below sets how loud the rest alert lands, and zero is silence.</div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
       <input type="range" id="alertRange" min="0" max="10" step="1"
@@ -2803,19 +2801,15 @@ body.wcon{overflow:hidden;}
     <!-- Backup is off the sheet for this release. doBackup/pickRestore/doRestore are untouched and
          the file input stays, so the pair is two lines of markup away from coming back. -->
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
-    <div class="sfx-lbl"><span>Guided tour</span></div>
-    <!-- Both lengths, chosen rather than assigned. The short one is what a first run offers; the
-         full one is the same tour with the exercise sheet and notes left in. -->
+    <div class="sfx-lbl"><span>Tutorial</span></div>
     <div class="presets" style="grid-template-columns:1fr 1fr">
-      <button class="preset sm" id="tutBtnShort" onclick="tutStart(1)">Short tour</button>
-      <button class="preset sm" id="tutBtn" onclick="tutStart()">Full tour</button>
+      <button class="preset sm" id="tutBtnShort" onclick="tutStart(1)">Short</button>
+      <button class="preset sm" id="tutBtn" onclick="tutStart()">Full</button>
     </div>
-    <div class="footnote" style="margin-top:8px">The short one covers a day start to finish. The full one adds changing an exercise and keeping your own notes. Both run on sample data and never touch your own logs.</div>
     <div class="sfx-lbl" style="margin-top:14px"><span>Sandbox</span></div>
     <div class="presets" style="grid-template-columns:1fr">
       <button class="preset sm" onclick="sbStart()">Open the sandbox</button>
     </div>
-    <div class="footnote" style="margin-top:8px">The app as somebody opening it for the first time gets it: an empty week, the first-run prompt, and nothing logged. Build days, add your own exercises, log sets &mdash; none of it is written down, and none of it touches your own week. It starts empty again every time you open it.</div>
     <div class="sheet-btns"><div class="btn" onclick="closeOvl('settingsOvl')">CLOSE</div></div>
   </div>
 </div>
@@ -3555,7 +3549,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.126';
+var APPV='v4.127';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7530,9 +7524,10 @@ function setAlertLvl(n,quiet){
 // The class is already on <html> by the time this runs - the head sets it before the first
 // paint - so MOTION reads back from the element rather than from storage a second time, and
 // the two can never disagree about what is on screen.
-var MOTIONS=[['full','Full','Embers drifting over the ground behind the board. Costs frames on some phones.'],
-             ['calm','Calm','The ground is still. Today’s ring, the runes and the mark still breathe. The default.'],
-             ['off','Off','Nothing moves at all. Taps still answer — sheets, cards and the page turn as they did.']];
+// Labels only - the per-state explanation under the row is gone, and 'Calm' with it: as the
+// middle of Full/Off it kept needing the sentence to say it MEANT less motion. 'Low' says it
+// alone. The stored value stays 'calm' so nobody's saved setting moves.
+var MOTIONS=[['full','Full'],['calm','Low'],['off','Off']];
 var MOTION=(function(){
   var d=document.documentElement;
   return d.classList.contains('mo-off')?'off':d.classList.contains('mo-calm')?'calm':'full';
@@ -7551,8 +7546,6 @@ function drawMotion(){
   e.innerHTML=MOTIONS.map(function(m){
     return '<button class="preset sm'+(m[0]===MOTION?' on':'')+'" onclick="setMotion(\''+m[0]+'\')">'+m[1]+'</button>';
   }).join('');
-  var n=document.getElementById('motionNote');
-  if(n)n.textContent=(MOTIONS.filter(function(m){return m[0]===MOTION;})[0]||MOTIONS[0])[2];
 }
 // Whether the app can mix with your music instead of stopping it rests entirely on one API
 // that may or may not be on this phone, and none of it can be told apart from a desk. So the
