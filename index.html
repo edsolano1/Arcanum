@@ -3527,7 +3527,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.118';
+var APPV='v4.119';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6851,23 +6851,11 @@ function backupName(){return 'arcanum-backup-'+today()+'.json';}
 // this is the app is known before trying (the Capacitor bridge is injected), so route on
 // that instead of probing. Returns true when a real file was offered; false means the text
 // went to the clipboard and the caller should say so.
-function saveTextFile(txt,name,type){
-  var native=false;
-  try{native=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());}catch(e){}
-  if(!native){
-    try{
-      var b=new Blob([txt],{type:type||'text/plain'}),u=URL.createObjectURL(b);
-      var a=document.createElement('a');
-      a.href=u;a.download=name;
-      document.body.appendChild(a);a.click();
-      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
-      return true;
-    }catch(e){}
-  }
-  // Clipboard has to go the way the COPY buttons already go: execCommand on a selected
-  // textarea. navigator.clipboard is flatly permission-denied in this WebView - measured on
-  // the phone, write AND read - so a fallback resting on it copies nothing while claiming
-  // otherwise, which is the exact lie this function exists to remove.
+// Clipboard has to go the way the COPY buttons already go: execCommand on a selected
+// textarea. navigator.clipboard is flatly permission-denied in this WebView - measured on
+// the phone, write AND read - so anything resting on it copies nothing while claiming
+// otherwise.
+function clipCopy(txt){
   try{
     var ta=document.createElement('textarea');
     ta.value=txt;ta.setAttribute('readonly','');
@@ -6876,13 +6864,48 @@ function saveTextFile(txt,name,type){
     ta.select();ta.setSelectionRange(0,txt.length);
     document.execCommand('copy');
     document.body.removeChild(ta);
-  }catch(e2){}
-  if(navigator.clipboard){try{navigator.clipboard.writeText(txt).catch(function(){});}catch(e3){}}
+  }catch(e){}
+  if(navigator.clipboard){try{navigator.clipboard.writeText(txt).catch(function(){});}catch(e2){}}
+}
+// Returns 'file' when a real download was offered (browser), 'share' when the system share
+// sheet took it (app builds carrying Filesystem+Share), false when the text went to the
+// clipboard and the caller should say so.
+function saveTextFile(txt,name,type){
+  var C=window.Capacitor,native=false;
+  try{native=!!(C&&C.isNativePlatform&&C.isNativePlatform());}catch(e){}
+  if(native&&C.Plugins&&C.Plugins.Filesystem&&C.Plugins.Share){
+    // A real file, written to the app's own cache and handed to the system share sheet -
+    // Files, Drive, a chat, wherever it gets pointed. Plain text both platforms understand.
+    // Cancelling the sheet is a choice, not a failure; only a write or share that never
+    // happened falls back to the clipboard, and that path explains itself.
+    C.Plugins.Filesystem.writeFile({path:name,data:txt,directory:'CACHE',encoding:'utf8'})
+      .then(function(r){return C.Plugins.Share.share({title:name,url:r.uri});})
+      .catch(function(e){
+        if(/cancel/i.test(String((e&&e.message)||e||'')))return;
+        clipCopy(txt);
+        ask('Sharing did not work here, so it was copied to your clipboard instead. Paste it into a note or a document to keep it.',null,'Copied instead');
+      });
+    return 'share';
+  }
+  if(!native){
+    try{
+      var b=new Blob([txt],{type:type||'text/plain'}),u=URL.createObjectURL(b);
+      var a=document.createElement('a');
+      a.href=u;a.download=name;
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},400);
+      return 'file';
+    }catch(e){}
+  }
+  // An app build from before the plugins, or a browser that refused the download.
+  clipCopy(txt);
   return false;
 }
 function doBackup(){
   var txt=backupBlob();
-  if(saveTextFile(txt,backupName(),'application/json')){mkNote('Backup saved: '+backupName());return;}
+  var r=saveTextFile(txt,backupName(),'application/json');
+  if(r==='file')mkNote('Backup saved: '+backupName());   // the share sheet announces itself
+  if(r)return;
   ask('This app cannot save a file directly, so the backup was copied to your clipboard instead. Paste it into a note or a file and keep it safe.',null,'Copied instead');
 }
 function pickRestore(){var i=document.getElementById('restoreFile');if(i){i.value='';i.click();}}
