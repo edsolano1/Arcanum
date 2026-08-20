@@ -74,9 +74,16 @@
   --bg:#07080e; --surface:#0e111b; --surface2:#151a28; --line:#242c40;
   --txt:#e9edf6; --txt2:#98a4bd; --txt3:#5f6b84;
   --go:#6fd9ff; --gold:#f0c96b;
+  /* the matched-set grade. Every theme reads it as its accent; Forge splits them - iron
+     for what you press, temper violet for the grade - and overrides this alone. */
+  --match:var(--go);
   --r:14px;
   --sans:'Inter Tight',system-ui,sans-serif;
-  --mono:var(--mono);
+  /* --mono was defined as var(--mono) here - a cycle, which CSS treats as invalid - so
+     every font-family:var(--mono) has always fallen through to the theme's own face
+     (Barlow on Forge). That fallback IS the shipped look, so the line is gone rather
+     than "fixed": defining a real monospace now would restyle 61 call sites at once.
+     If numerals ever want a true mono, decide it on purpose. body.light still sets one. */
 }
 /* line-height is here for the same reason it is on the launch wordmark, and it matters more
    here because it is inherited by everything. line-height:normal asks the FONT how tall a line
@@ -581,7 +588,7 @@ body.light .tut-skip{--bad:#b1332c;}
 /* set rows */
 .sets{padding:0 10px 10px;}
 .srow{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:11px;transition:background .18s;}
-.srow.done{background:color-mix(in srgb,var(--go) 8%,transparent);}
+.srow.done{background:color-mix(in srgb,var(--match) 8%,transparent);}
 .srow.ispr{background:color-mix(in srgb,var(--gold) 10%,transparent);}
 .srow.isunder{background:color-mix(in srgb,var(--txt3) 14%,transparent);}
 .srow.done.isunder .sno{background:color-mix(in srgb,var(--txt3) 26%,transparent);color:var(--txt2);}
@@ -589,13 +596,13 @@ body.light .tut-skip{--bad:#b1332c;}
 .srow.done.isunder .chk{background:var(--txt3);border-color:var(--txt3);box-shadow:none;}
 .srow.done.isunder .chk svg{stroke:var(--bg);}
 .sno{width:22px;height:22px;border-radius:7px;background:var(--surface2);color:var(--txt3);font-family:var(--mono);font-size:10.5px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.srow.done .sno{background:color-mix(in srgb,var(--go) 18%,transparent);color:var(--go);}
+.srow.done .sno{background:color-mix(in srgb,var(--match) 18%,transparent);color:var(--match);}
 .srow.ispr .sno{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold);}
 .inp{background:transparent;border:none;border-bottom:1.5px solid var(--line);color:var(--txt);font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:500;padding:5px 2px;border-radius:0;text-align:center;width:64px;letter-spacing:-.02em;}
 .inp.wide{width:76px;}
 .inp[readonly]{cursor:pointer;}
 .inp[readonly]:hover{border-bottom-color:var(--c);}
-.srow.done .inp{color:var(--go);border-bottom-color:transparent;}
+.srow.done .inp{color:var(--match);border-bottom-color:transparent;}
 .srow.ispr .inp{color:var(--gold);border-bottom-color:transparent;}
 .mul{font-size:13px;color:var(--txt3);font-family:var(--mono);}
 .unit{font-size:12px;color:var(--txt3);}
@@ -609,7 +616,7 @@ body.light .tut-skip{--bad:#b1332c;}
 .srow.done.isunder .chk svg.glyph{color:var(--bg);}
 .chk:hover{border-color:#3d434a;}
 .chk:hover svg{stroke:var(--txt2);}
-.srow.done .chk{background:var(--go);border-color:var(--go);}
+.srow.done .chk{background:var(--match);border-color:var(--match);}
 .srow.done .chk svg{stroke:#0b0c0e;stroke-width:3;}
 .srow.ispr .chk{background:var(--gold);border-color:var(--gold);}
 .srow.ispr .chk svg{stroke:#0b0c0e;stroke-width:3;}
@@ -1199,16 +1206,19 @@ body.light .timer-pill.ring2 .tbtn{color:#fff;background:rgba(255,255,255,.16);b
 body.light .ovl{background:rgba(20,24,30,.5);}
 @media(max-width:400px){.inp{width:58px;font-size:18px;}.ex-stats{gap:10px;}}
 
-/* ---------- FORGE ---------- soot ground, hot iron, temper blue.
-   A record is the hottest thing on the page, so --gold becomes glowing iron; a matched
-   set takes temper violet - the colour steel passes through at around 270C, just before
-   it goes blue. The blue was the obvious choice and the wrong one: cold cyan on a dark
-   ground reads as ice, not as heat, and this app is not set in a frozen north. Violet is
-   metallurgically true, sits opposite the amber so a record never reads as a match, and
-   belongs to nobody else. Day colours are deliberately left alone - tempering runs straw
-   through bronze to violet to blue, so a spread of hues belongs. */
+/* ---------- FORGE ---------- soot ground, hot iron, temper violet held back.
+   A record is the hottest thing on the page, so --gold is glowing iron. Temper violet -
+   the colour steel passes through at around 270C - was the theme's whole accent for a
+   while, and at that coverage (every button, toggle and slider; --go is used 130+ times)
+   it stopped reading as temper and started reading as another app's arcana. It now lives
+   only where its story is actually told: a MATCHED set, standing against the gold of a
+   record (--match). Everything you can press is iron heat instead (--go), deliberately a
+   step deeper than the record's glow so a record still outshines the controls. The splash
+   reached this conclusion first - see the sp-mark note: violet on the anvil "read as the
+   one cold thing on the screen". Day colours are deliberately left alone - tempering runs
+   straw through bronze to violet to blue, so a spread of hues belongs. */
 html.forge,body.forge{--bg:#0a0605;--surface:#170e09;--surface2:#241510;--line:#4a2718;
-  --txt:#f8e6d4;--txt2:#bd9678;--txt3:#8a6a52;--go:#8f6fbe;--gold:#ff8a1f;}
+  --txt:#f8e6d4;--txt2:#bd9678;--txt3:#8a6a52;--go:#d97b2e;--gold:#ff8a1f;--match:#8f6fbe;}
 body.forge .card,body.forge .exc,body.forge .sheet,body.forge .timer-pill{
   background:linear-gradient(180deg,rgba(255,150,70,.06),rgba(255,150,70,.012)),var(--surface);
   border-top-color:rgba(255,178,110,.14);}
@@ -3207,7 +3217,7 @@ var W = {
     ]
   },
   d4: {
-    name:"Shoulders + Arms + Core + Cardio",tag:"Day 4",color:"#4fd0e8",time:"~9:00 PM",
+    name:"Shoulders + Arms + Core + Cardio",tag:"Day 4",color:"#ff9152",time:"~9:00 PM",
     sections:[
       {title:"Shoulders - straight sets",tip:"No shoulder press - front delts already get hammered on chest days. Lead with the elbows.",ss:false,rows:["dblat","clat","revfly"]},
       {title:"Superset A - 60 sec rest after both",tip:"Same preacher weight as Wednesday - shared lifts always use the higher number.",ss:true,rows:["preacher","vbar"]},
@@ -3333,7 +3343,7 @@ function dayLbl(s){return '<span class="card-day" data-t="'+s+'">'+s+'</span>';}
 function dayC(wk){
   if(FG()&&FORGE_DAY[wk])return FORGE_DAY[wk];
   if(MW()&&MOON_DAY[wk])return MOON_DAY[wk];
-  return W[wk]?W[wk].color:'#6fd9ff';
+  return W[wk]?W[wk].color:'#ff9152';
 }
 var KEY='baseline:db',TKEY='baseline:theme';
 var THEMES=[
@@ -3540,7 +3550,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.122';
+var APPV='v4.123';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4857,7 +4867,7 @@ function renderSession(){
   // What the colours on a logged set mean, once at the top rather than once in a tutorial.
   html+='<div class="gradekey">'+
         '<span><i style="background:var(--gold)"></i>Best ever</span>'+
-        '<span><i style="background:var(--go)"></i>Matched</span>'+
+        '<span><i style="background:var(--match)"></i>Matched</span>'+
         '<span><i style="background:var(--txt3)"></i>Under</span></div>';
 
   var lastT=null;
@@ -5144,7 +5154,13 @@ function doSwap(k){
 // DB.slots maps a fixed week slot to the custom day standing in for it. Nothing is ever
 // removed from DB.custom - history rows look their day up by id long after it left the week.
 // ============================================================
-var MK_COLS=['#6fd9ff','#ff5f6d','#8ee04a','#a880ff','#4fd0e8','#d96ce0','#4fb8a0','#e0b667','#ff9152','#66718c'];
+// This list used to LEAD with #6fd9ff - the base theme's own signature cyan - so the first
+// workout anyone built wore the old world's colour on a Forge card, with a second cyan
+// (#4fd0e8) further down. Both are retired. The walk now starts on the tempering run itself
+// (ember, straw, cherry, violet, rust, steel) and the cooler spreads only arrive once six
+// workouts already exist. Workouts already made keep whatever colour they were given -
+// this list only decides the next one.
+var MK_COLS=['#ff9152','#e0b667','#ff5f6d','#a880ff','#b0653a','#66718c','#4fb8a0','#d96ce0','#8ee04a','#c04545'];
 var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',rows:[]};
 // The next colour nobody is using, or the least-used one if they all are. Colour still does a
 // job on the week board - it is how you tell one card from another at a glance - it just is not
@@ -10013,7 +10029,7 @@ function TUTC(){
       {t:'Rework it at the anvil',b:'Press and hold any exercise. The bench is highlighted.'},
       {t:'What you can change',b:'<ul><li>Rest between sets</li><li>How many sets it runs</li><li>Whether it is on the day at all</li></ul><p>Save it for today only and it clears when the piece is quenched. Keep it and every Tuesday carries the change.</p>'},
       {t:'Your own notes',b:'Tap Add note on any lift for what only you need to know - a seat height, a pin, a cue that keeps the movement honest. It stays with the lift every time it comes back to the fire.'},
-      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--go)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
+      {t:'How a set is graded',b:'<div class="tut-g"><div><i style="background:var(--gold)"></i><span><b>Gold</b> &mdash; beats your best ever</span></div><div><i style="background:var(--match)"></i><span><b>Violet</b> &mdash; matches it</span></div><div><i style="background:var(--txt3)"></i><span><b>Grey</b> &mdash; a first attempt, or under your best</span></div></div><p>The ring in the header counts the whole piece. Tap Finish when the work is done.</p>'},
       {t:'The record',b:'The tiles across the top are what you just did: sets, weight moved, reps, time, and any records. Below them is the same piece written out as plain text. Save it as a note, send it to whoever sets your work, or paste it into a chat for a review. Closing it changes nothing.'},
       {t:'Forged',b:'Tuesday is forged, which only means done for this week. Everything you logged stays on record and the day comes back around next week. When you want to restart the week early, this button reopens every day at once.'},
       {t:'Move the work about',b:'Every piece has a grip on its right-hand edge. Drag by the grip to set it down elsewhere — up and down inside a day, or onto another day of the week.<ul><li>A day takes three at most</li><li>A full day turns you away rather than dropping something out</li><li>Tapping the card opens it, so the grip is the part you drag</li></ul>'},
