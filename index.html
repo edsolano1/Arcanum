@@ -3566,7 +3566,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.129';
+var APPV='v4.130';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3892,8 +3892,14 @@ function stackStep(id){
   return g>=10?g/10:0;   // a step under 1lb means the history is noise, not a lattice
 }
 function stepFor(id,w){
+  var plate=w>=40?5:2.5;
   var s=stackStep(id);
-  return s||(w>=40?5:2.5);
+  // The inferred step is only trusted when plate math CANNOT express it - a gcd of 3 or
+  // 1.5 is the signature of a stack with its own lattice. A gcd of 10 on a barbell lift
+  // (weights logged 145/155/165) is just plate math walked twice, and offering +10 off it
+  // would turn a user's past pace into a demand. Checked in tenths, like the gcd itself.
+  if(s&&Math.round(s*10)%Math.round(plate*10)!==0)return s;
+  return plate;
 }
 // Every lift that met all its targets last time, with the numbers it would move to. Nothing
 // is written until the sheet is confirmed - this only describes the change.
