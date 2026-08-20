@@ -3527,7 +3527,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.117';
+var APPV='v4.118';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6864,7 +6864,20 @@ function saveTextFile(txt,name,type){
       return true;
     }catch(e){}
   }
-  try{if(navigator.clipboard)navigator.clipboard.writeText(txt);}catch(e2){}
+  // Clipboard has to go the way the COPY buttons already go: execCommand on a selected
+  // textarea. navigator.clipboard is flatly permission-denied in this WebView - measured on
+  // the phone, write AND read - so a fallback resting on it copies nothing while claiming
+  // otherwise, which is the exact lie this function exists to remove.
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=txt;ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();ta.setSelectionRange(0,txt.length);
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e2){}
+  if(navigator.clipboard){try{navigator.clipboard.writeText(txt).catch(function(){});}catch(e3){}}
   return false;
 }
 function doBackup(){
