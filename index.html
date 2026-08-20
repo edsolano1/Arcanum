@@ -970,6 +970,12 @@ body.light .dayact.del{--bad:#b1332c;}
    row is now as wide as what it holds, so a one-number exercise is visibly a one-number
    exercise. */
 .mk-ps-row .mk-num{width:76px;flex:0 0 76px;min-width:0;}
+/* Inside a superset frame the row loses ~20px to the group's border and padding, and at
+   360px CSS - the cover screen, which is also the ordinary phone width - the trailing unit
+   label missed the line by 4px and wrapped under the set number. The inputs give back what
+   the frame takes; measured on the device, 68px seats the row with room to spare and still
+   holds four digits. Nothing changes outside a group. */
+.mk-grp .mk-ps-row .mk-num{width:68px;flex:0 0 68px;}
 .mk-ps-list{align-items:flex-start;}
 .mk-grp{border:1px solid color-mix(in srgb,var(--go) 34%,var(--line));border-radius:12px;
   background:color-mix(in srgb,var(--go) 5%,transparent);padding:9px 9px 1px;margin-bottom:11px;}
@@ -3527,7 +3533,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.119';
+var APPV='v4.120';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -6475,11 +6481,23 @@ function renderSummary(s){
   el.innerHTML=cells.join('');
 }
 function finishSession(){
-  var wk=CUR,A=DB.active[wk];
+  var wk=CUR;
   if(loggedCount(wk)===0){
     ask('No sets are checked off on this day, so there is nothing to export yet. Tap a set row to log it.',null,'Nothing logged yet');
     return;
   }
+  // Finishing seals the day until the week turns over, so a mis-tap here used to cost the
+  // rest of the workout with no way back. Zero logged already had a guard; partway now asks.
+  var left=totalSets(wk)-loggedCount(wk);
+  if(left>0){
+    ask(left+' set'+(left===1?' is':'s are')+' still unlogged. Finishing seals this day as it stands, and it stays done until the week turns over.',
+      finishNow,'Finish with '+left+' left?','FINISH');
+    return;
+  }
+  finishNow();
+}
+function finishNow(){
+  var wk=CUR,A=DB.active[wk];
   var sum=summarize(wk,A);
   var txt=buildExport(wk,A);
   var entries={};
