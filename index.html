@@ -1042,7 +1042,11 @@ body.light .dayact.del{--bad:#b1332c;}
 .mk-rest.open{cursor:default;gap:6px;padding:7px 10px;}
 .mk-rest.open .mk-num{width:52px;flex:0 0 52px;}
 .mk-rest em{font-family:var(--mono);font-size:10px;font-style:normal;color:var(--txt3);}
-/* the end of the set list, faint enough to read as a boundary rather than a fifth control */
+/* the end of the set list, faint enough to read as a boundary rather than a fifth control.
+   mk-foot seats it beside the superset chain on one line; the stepper keeps the left half. */
+.mk-foot{display:flex;align-items:center;gap:8px;margin-top:9px;}
+.mk-foot .mk-setadj{margin-top:0;flex:1;}
+.mk-foot .mk-link{padding:8px 10px;}
 .mk-setadj{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:9px;
   padding:7px;border-radius:9px;border:1px dashed color-mix(in srgb,var(--line) 70%,transparent);
   background:color-mix(in srgb,var(--txt3) 6%,transparent);}
@@ -3536,7 +3540,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.121';
+var APPV='v4.122';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5767,16 +5771,14 @@ function mkRender(){
          (g?'':mkGripSvg())+
          '<span class="mk-rn">'+mkEsc(nm)+'</span>'+
          '<span class="mk-acts">'+
-           // A chain, because that is what linking two things looks like. The word SUPERSET was
-           // doing double duty as a label and a button, and it read as a heading.
-           (g?'':'<button class="mk-ic" onclick="mkJoin('+i+')" title="Run this with another exercise">'+
-             '<svg viewBox="0 0 20 20"><path d="M8.2 11.8a3 3 0 0 1 0-4.2l2.1-2.1a3 3 0 1 1 4.2 4.2l-1 1M11.8 8.2a3 3 0 0 1 0 4.2l-2.1 2.1a3 3 0 1 1-4.2-4.2l1-1"/></svg></button>')+
+           // The chain lived up here and stacked above the trash, doubling the header's height
+           // for a control used once per exercise at most. It sits at the foot of the card now,
+           // beside the set stepper, in the space that row never used - see mkSetsUI.
            '<button class="mk-ic mk-x" onclick="mkDelRow('+i+')" title="Remove this exercise">'+
              '<svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6.5 6l.7 10h5.6l.7-10M9 9v4M11 9v4"/></svg></button>'+
          '</span></div>'+
        mkMeasureUI(r,i)+
        mkSetsUI(r,i)+'</div>';
-       '</div>'+mkSetsUI(r,i)+'</div>';
     if(tail)h+='</div>';
   });
   h+='<div class="mk-add" onclick="mkPick()">+ Exercise</div></div>';
@@ -6018,11 +6020,19 @@ function mkSetsUI(r,i){
        '</div>';
   });
   // Under the last set, faint, so it reads as the end of the list rather than as another control
-  // competing with the ones above it.
-  h+='<div class="mk-setadj">'+
+  // competing with the ones above it. The superset chain shares this line: the stepper never
+  // used the right half, and down here the chain fills space instead of adding a row up top.
+  // A word rides with the icon - at the card's foot a bare chain has nothing to borrow meaning
+  // from, where at the head it sat next to the name it acted on. Only on a row not already in
+  // a run, exactly as before.
+  h+='<div class="mk-foot"><div class="mk-setadj">'+
      '<button class="mk-adj'+((r.n||1)<2?' off':'')+'" '+((r.n||1)<2?'disabled':'onclick="mkSets('+i+',-1)"')+' title="One fewer set">&minus;</button>'+
      '<span>'+(r.n||1)+' set'+((r.n||1)===1?'':'s')+'</span>'+
      '<button class="mk-adj'+((r.n||1)>11?' off':'')+'" '+((r.n||1)>11?'disabled':'onclick="mkSets('+i+',1)"')+' title="One more set">+</button>'+
+     '</div>'+
+     (r.g?'':'<button class="mk-link" onclick="mkJoin('+i+')" title="Run this with another exercise">'+
+       '<svg viewBox="0 0 20 20"><path d="M8.2 11.8a3 3 0 0 1 0-4.2l2.1-2.1a3 3 0 1 1 4.2 4.2l-1 1M11.8 8.2a3 3 0 0 1 0 4.2l-2.1 2.1a3 3 0 1 1-4.2-4.2l1-1"/></svg>'+
+       '<span>SUPERSET</span></button>')+
      '</div>';
   return h+'</div></div>';
 }
