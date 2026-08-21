@@ -544,6 +544,11 @@ body.light .tut-skip{--bad:#b1332c;}
    navigation bar. env() is 0 on the web, so the browser layout is untouched. */
 #session,#make{display:none;position:fixed;inset:0;background:var(--bg);overflow-y:auto;z-index:100;padding-bottom:calc(100px + env(safe-area-inset-bottom,0px));}
 #session.on,#make.on{display:block;}
+/* the arrival and the leave: a short lateral travel with a fade, cheap to paint */
+#session.slide-in,#make.slide-in{animation:screenIn .3s cubic-bezier(.25,.9,.3,1);}
+#session.slide-out,#make.slide-out{animation:screenOut .22s ease-in forwards;}
+@keyframes screenIn{from{transform:translateX(46px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+@keyframes screenOut{to{transform:translateX(52px);opacity:0;}}
 #make{z-index:120;}
 /* Sticky to the top of a container that starts under the status bar, so the day's name was
    sitting behind the notification icons. The bar grows by the inset instead of moving. */
@@ -2852,16 +2857,14 @@ body.wcon{overflow:hidden;}
       <div class="sfx-lbl" style="margin-top:4px"><span>Theme</span></div>
       <div class="mk-acts" id="themeRow"></div>
     </div>
-    <!-- Sound check and the SOUND ON toggle are gone: Alert volume already says how loud the
-         alert is, and 0 on it is silence, so the toggle was a second switch onto the same thing. -->
-    <div class="sfx-lbl" style="margin-top:4px"><span>Rest notification</span><span class="sfx-tog" id="notifTog" onclick="toggleNotif()"></span></div>
-    <!-- One line. The four-line version explained the notification shade to people who have
-         owned a phone for years; the only non-obvious facts are that it survives the app being
-         closed and that it will not touch the music. -->
-    <div class="footnote" style="margin:0 2px 8px">Lands from Android even with the app closed, and never pauses your music.</div>
-    <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
-    <div class="presets" id="motionRow"></div>
-    <div class="sfx-lbl" style="margin-top:14px"><span>Sounds</span></div>
+    <!-- The Rest notification toggle is gone from the sheet: notifications simply arrive,
+         and someone who truly wants them off has Android's own per-app notification
+         settings, which is where that decision lives on every other app they own. The
+         SET LOGGED and RECORD toggles went the same way - they are the theme's character,
+         on by default, and two switches nobody asked to flip were paying rent in words.
+         The sheet keeps exactly one sound decision (does the rest alert sound at all) and
+         one dial (how loud), because those are the two a gym actually forces. -->
+    <div class="sfx-lbl" style="margin-top:4px"><span>Sounds</span></div>
     <div id="sfxKeys"></div>
     <div class="sfx-lbl"><span>Alert volume</span></div>
     <div class="slider-row" id="alertLvl">
@@ -2869,6 +2872,8 @@ body.wcon{overflow:hidden;}
         oninput="setAlertLvl(this.value,true)" onchange="setAlertLvl(this.value)">
       <span class="slider-num num" id="alertNum"></span>
     </div>
+    <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
+    <div class="presets" id="motionRow"></div>
     <!-- Backup is off the sheet for this release. doBackup/pickRestore/doRestore are untouched and
          the file input stays, so the pair is two lines of markup away from coming back. -->
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
@@ -3631,7 +3636,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.136';
+var APPV='v4.137';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4006,7 +4011,20 @@ function levelPlan(wk){
     var est=false;
     var next=lines.map(function(s){
       var t=parseTarget(s);
-      if(t.type!=='wr')return s;         // timed and rep-only work has no weight to add
+      // A timed hold levels by TIME: five seconds a step, and it stops at two minutes -
+      // past that, longer is endurance theatre, not progress worth chasing.
+      if(t.type!=='wr'){
+        if(t.unit==='sec'&&t.r>0&&t.r<120)return Math.min(120,t.r+5)+' sec';
+        return s;
+      }
+      // A zero-weight lift levels by REPS, whatever flag it carries: there is no bar to
+      // load, and before this rule the raise offered a bicycle crunch two and a half
+      // pounds. Two reps a step, ceiling at thirty - past thirty clean reps the honest
+      // advice is a harder variant, not a longer count, so the offer simply stops coming.
+      if(t.w===0){
+        if(t.r>=30)return s;
+        return '0x'+Math.min(30,t.r+2);
+      }
       // Assisted work levels DOWN, and never past zero - no assistance at all is the end of the
       // progression, and the lift becomes an unassisted one at that point.
       // A learned lattice wins outright - the raise lands on a weight the machine actually
@@ -4038,7 +4056,15 @@ function skipSig(exId,lines){
   return (L&&L.date||'')+'|'+lines.join(',');
 }
 var LVLWK=null;
-function lvlFmt(s){return String(s).replace('x','&thinsp;&times;&thinsp;');}
+function lvlFmt(s){
+  s=String(s);
+  var m=s.match(/^0x(\d+)$/);
+  if(m)return m[1]+' reps';   // a zero-weight line is a rep count, not "0 × 22"
+  return s.replace('x','&thinsp;&times;&thinsp;');
+}
+// What the chip's inline editor is actually editing, read off the target's shape:
+// a zero-weight line edits reps, a timed line edits seconds, anything else the weight.
+function lvlKind(t){return /^0x\d+$/.test(t)?'r':/sec$/.test(t)?'s':'w';}
 // The plan the sheet shows is CACHED, because the sheet lets you correct it. applyLevel
 // used to recompute levelPlan on confirm; with editable offers that would silently discard
 // every adjustment made in the sheet. The cache is rebuilt every time the sheet opens.
@@ -4074,8 +4100,10 @@ function lvlRender(){
     return '<div class="lvl-row"><div class="lvl-n">'+p.name+'</div><div class="lvl-d">'+
       lvlGroups(p).map(function(x,gi){
         if(LVLED&&LVLED.pi===pi&&LVLED.gi===gi){
-          var w=parseTarget(x.t).w;
-          return '<span class="mk-sr open"><input class="mk-num sm" type="number" inputmode="decimal" step="0.5" value="'+w+'" oninput="lvlEditVal(this.value)"><em>lb</em>'+
+          var kind=lvlKind(x.t),t0=parseTarget(x.t);
+          var v0=kind==='w'?t0.w:t0.r;
+          var em=kind==='w'?'lb':kind==='r'?'reps':'sec';
+          return '<span class="mk-sr open"><input class="mk-num sm" type="number" inputmode="decimal" step="'+(kind==='w'?'0.5':'1')+'" value="'+v0+'" oninput="lvlEditVal(this.value)"><em>'+em+'</em>'+
                  '<button class="mk-rest-ok" onclick="lvlEditOK()">OK</button></span>';
         }
         return '<span>'+(x.n>1?x.n+'&times; ':'')+'<b>'+lvlFmt(x.f)+'</b> &rarr; '+
@@ -4100,9 +4128,13 @@ function lvlEditVal(v){LVLEDV=parseFloat(v)||0;}
 function lvlEditOK(){
   var p=LVLPLAN&&LVLED?LVLPLAN[LVLED.pi]:null;
   if(p){
-    var g=lvlGroups(p)[LVLED.gi];
-    var w=Math.max(0,LVLEDV),ws=String(w%1?w.toFixed(1):w);
-    for(var i=g.at;i<g.at+g.n;i++)p.to[i]=ws+'x'+String(p.to[i]).split('x')[1];
+    var g=lvlGroups(p)[LVLED.gi],kind=lvlKind(g.t);
+    var v=Math.max(0,LVLEDV);
+    for(var i=g.at;i<g.at+g.n;i++){
+      if(kind==='r')p.to[i]='0x'+Math.max(1,Math.round(v));
+      else if(kind==='s')p.to[i]=Math.max(1,Math.round(v))+' sec';
+      else p.to[i]=String(v%1?v.toFixed(1):v)+'x'+String(p.to[i]).split('x')[1];
+    }
     // a hand-set number is the truth about the machine; the estimate mark comes off
     p.est=false;
   }
@@ -5153,7 +5185,7 @@ function renderSession(){
     html+='</div>';
   });
   html+='<div class="mk-new" onclick="exEdAdd()" style="margin-top:22px">'+PLUS+'ADD AN EXERCISE</div>';
-  html+='<div class="notebox"><div class="sect-t">Session notes</div><textarea id="noteBox" placeholder="Form issues, how it felt, equipment problems, anything worth remembering...">'+(A.note||'')+'</textarea></div>';
+  html+='<div class="notebox"><div class="sect-t">Session notes</div><textarea id="noteBox" >'+(A.note||'')+'</textarea></div>';
   html+='<div class="finish-inline"><button class="finishbtn" onclick="finishSession()">Finish &amp; export</button>'+
         '<div style="text-align:center;margin-top:16px;font-size:11px;color:var(--txt3);line-height:1.55;text-wrap:pretty">Every set saves the moment you tap it. Hold an exercise to change its rest or its sets. Leave whenever you like \u2014 this day stays open until you finish it.</div>'+
         '<div style="text-align:center;margin-top:14px"><span class="btn" onclick="clearSession()">Reset this session</span></div></div>';
@@ -7784,9 +7816,11 @@ function sfxToggle(k){
 }
 function drawSfxKeys(){
   var e=document.getElementById('sfxKeys');if(!e)return;
-  e.innerHTML=SFX_KEYS.map(function(s){
+  // One row on the sheet: the rest alert. The tick and the record flourish still exist and
+  // still honour any preference already stored - their SWITCHES left, not their sounds.
+  e.innerHTML=SFX_KEYS.filter(function(s){return s[0]==='rest';}).map(function(s){
     var on=sfxAllowed(s[0]);
-    return '<div class="sfx-lbl"><span>'+s[1]+'<small>'+s[2]+'</small></span>'+
+    return '<div class="sfx-lbl"><span>'+s[1]+'</span>'+
       '<span class="sfx-tog'+(on?' on':'')+'" onclick="sfxToggle(\''+s[0]+'\')">'+(on?'ON':'OFF')+'</span></div>';
   }).join('');
 }
@@ -8735,7 +8769,10 @@ function sfxTick(up){
 // What it does NOT solve is scheduling: the page still has to be alive at zero to post it.
 // Nothing local can schedule a notification - Notification Triggers never shipped - so if the
 // tab is being frozen outright, the answer is a push server and no amount of this helps.
-var NOTIF_ON=(function(){try{return localStorage.getItem('arc_notif')==='0'?0:1;}catch(e){return 1;}})();
+// Always on since the toggle left the sheet. A stored '0' from the toggle era is ignored
+// rather than honoured - honouring it would leave that user with silence and no switch to
+// find. Anyone who wants these gone has Android's own per-app notification settings.
+var NOTIF_ON=1;
 // Default on, but pushNotif also demands granted permission, so it stays inert until asked for.
 // notifOk() answers "can this build notify at all", which is now true in the Android app too -
 // so it can no longer be read as "the web Notification object exists". Reading .permission off a
@@ -9347,18 +9384,30 @@ function stopFlame(){
   var cv=document.getElementById('flame');
   if(cv)cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
 }
-// ---------- page turn ----------
+// ---------- screen transition ----------
+// The page-flip is retired. On the panel it read as a wipe: the old screen blanked, held
+// for a beat, and the new one appeared - motion that pointed nowhere. A screen you tapped
+// INTO should come FROM somewhere, so the session slides in from the right and slides back
+// out the same way, the gesture phones have used for navigation since forever. The slide is
+// a short travel with a fade rather than a full-width shove: same read, a fraction of the
+// paint. The old #turn overlay stays in the markup, unused.
 function pageTurn(back,cb){
-  var t=document.getElementById('turn');
-  var skip=!t||(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  if(skip){if(cb)cb();return;}
-  var p=t.querySelector('.tpage'),s=t.querySelector('.tspine');
-  t.className=back?'on back':'on';
-  p.style.animation='none';s.style.animation='none';void p.offsetWidth;
-  p.style.animation='';s.style.animation='';
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce){if(cb)cb();return;}
   sfxPage();
-  setTimeout(function(){if(cb)cb();},back?120:300);
-  setTimeout(function(){t.className='';},back?620:1120);
+  if(!back){
+    if(cb)cb();   // the callback builds and shows the screen; the class animates its arrival
+    var sc=document.querySelector('#session.on, #make.on');
+    if(sc){
+      sc.classList.remove('slide-out');sc.classList.add('slide-in');
+      setTimeout(function(){sc.classList.remove('slide-in');},340);
+    }
+    return;
+  }
+  var sc=document.querySelector('#session.on, #make.on');
+  if(!sc){if(cb)cb();return;}
+  sc.classList.add('slide-out');
+  setTimeout(function(){sc.classList.remove('slide-out');if(cb)cb();},230);
 }
 // exName is the lift the rest belongs to, carried so the notification can name it. Optional:
 // the quick timer off the home board has no exercise behind it.
