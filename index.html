@@ -887,6 +887,7 @@ body.tut .bg-rules,body.tut .bg-rules > i,body.tut .bg-wm svg{animation-play-sta
 .exed-run-row .mk-ic{width:34px;height:34px;flex-shrink:0;}
 .exed-run-row .exed-out{flex-shrink:0;}
 .mk-ic:disabled{opacity:.28;cursor:default;}
+.exed-q{font-size:12px;color:var(--txt3);text-align:right;margin:12px 2px -4px;}
 .exed-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:5px;}
 .exed-h .dayact.del{margin-left:0;flex:0 0 auto;}
 .dayact.exed-off{opacity:.4;cursor:default;}
@@ -2682,12 +2683,17 @@ body.wcon{overflow:hidden;}
     </div>
     <div class="exed-sub" id="exEdSub"></div>
     <div class="mk-acts" id="exEdGrp" style="margin-top:14px"></div>
+    <!-- The question the two buttons answer, finally stated - two answers with no question
+         read as a guess. "EVERY WEEK" also read as scheduling ("add this to every week?")
+         rather than persistence; FROM NOW ON says persistence in time-language nobody
+         misreads. And the accent moved to the SAFE answer: the highlighted button was
+         nudging people toward mutating their routine, when the routine's protection is
+         the entire reason the today-only path exists. -->
+    <div class="exed-q">Keep this change?</div>
     <div class="sheet-btns">
       <div class="btn" onclick="closeOvl('exEditOvl')">CANCEL</div>
-      <!-- "KEEP IT" never said what it kept it FOR. The pair reads as a question about scope now,
-           and matches the words the add and remove dialogs already use. -->
-      <div class="btn" onclick="exEdSave(false)">JUST TODAY</div>
-      <div class="btn btn-go" onclick="exEdSave(true)">EVERY WEEK</div>
+      <div class="btn btn-go" onclick="exEdSave(false)">ONLY TODAY</div>
+      <div class="btn" onclick="exEdSave(true)">FROM NOW ON</div>
     </div>
   </div>
 </div>
@@ -3052,6 +3058,7 @@ var GRP={
   slegcurl:'hamstring',plegcurl:'hamstring',
   dcalfr:'calf',scalfr:'calf',
   dblat:'delt-side',clat:'delt-side',revfly:'delt-rear',
+  ohp:'delt-press',bsquat:'quad',deadlift:'hamstring',
   bike:'core',hollow:'core',legraise:'core',hipraise:'core',plank:'core',
   wcurl:'forearm',rwcurl:'forearm',hang:'forearm',
   walk:'cardio',stairs:'cardio',treadrun:'cardio',treadwalk:'cardio',cbike:'cardio',ellip:'cardio',rower:'cardio',jumprope:'cardio',outrun:'cardio',swim:'cardio',assault:'cardio',
@@ -3061,9 +3068,15 @@ var GRP={
 // Swap-only alternates - not in any day, only reachable from the swap sheet
 var ALT={
   lvchest:  {name:"Leverage Chest Press",note:"Plate-loaded press - your gym's stand-in when the pin machine is down",sets:"120x10\n120x12\n120x12",rest:"90 sec"},
+  // The three lifts every stranger searches for on day one, absent because the library grew
+  // out of one person's machine-based program. Empty-bar starters, not anyone's numbers:
+  // the first session sets the baseline, and level-ups climb from there.
+  ohp:      {name:"Overhead Press",wraps:1,note:"Standing, barbell from the rack - brace hard, no leg drive",sets:"45x8\n45x8\n45x8",rest:"2 min"},
+  bsquat:   {name:"Barbell Back Squat",note:"Bar on the traps, brace before every rep, own the depth",sets:"45x8\n45x8\n45x8",rest:"3 min"},
+  deadlift: {name:"Deadlift",note:"Conventional - set the back before the pull, full reset each rep",sets:"45x5\n45x5\n45x5",rest:"3 min"},
   dbbench:  {name:"Dumbbell Bench Press",note:"Flat bench, two dumbbells - more stabilizer work than the barbell",sets:"55x10\n55x10\n55x10",rest:"2 min"},
   smbench:  {name:"Smith Machine Bench Press",note:"Fixed bar path - safe to push close to failure without a spotter",sets:"135x8\n135x8\n135x8",rest:"2 min"},
-  pushup:   {bw:1,name:"Push-Up (weighted if needed)",note:"Zero equipment fallback - add a plate on the back if too easy",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
+  pushup:   {name:"Push-Up (weighted if needed)",note:"Zero equipment fallback - add a plate on the back if too easy",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
   dbfly:    {name:"Dumbbell Fly",note:"Flat or slight incline - soft elbows, wide arc, stretch at the bottom",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
   machrow:  {name:"Machine Seated Row",note:"Chest on pad - takes the lower back out of it entirely",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
   dbrow:    {name:"One-Arm Dumbbell Row",note:"Knee and hand on bench - pull to the hip, not the shoulder",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
@@ -3071,7 +3084,7 @@ var ALT={
   bbcurl:   {name:"Barbell Curl",note:"Straight or EZ bar - elbows pinned, no swinging",sets:"55x12\n55x12\n55x10",rest:"60 sec"},
   inccurl:  {name:"Incline Dumbbell Curl",note:"Bench at 45-60 degrees, arms hanging back - big biceps stretch",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
   dip:      {inv:1,name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"48x10\n48x10\n48x10",rest:"90 sec"},
-  bdip:     {bw:1,name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
+  bdip:     {name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
   machlat:  {name:"Machine Lateral Raise",note:"Fixed path - good when the shoulder feels off on free weight versions",sets:"50x15\n50x15\n50x15",rest:"60 sec"},
   facepull: {name:"Cable Rope Face Pull",note:"Rope at face height - pull to the forehead, elbows high. Rear delt work",sets:"40x15\n40x15\n40x15",rest:"60 sec"},
   goblet:   {name:"Goblet Squat",note:"One dumbbell at the chest - upright torso, easy on the knees",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
@@ -3214,7 +3227,11 @@ function R(ref,wk){
   var id = typeof ref === 'string' ? ref : ref[0];
   var ov = typeof ref === 'string' ? null : ref[1];
   var e = EX[id];
-  var out = {name:e.name,note:e.note,sets:e.sets,rest:e.rest};
+  // bw rides along or the session cannot honour it. It used to be dropped here, which made
+  // the renderer's whole bodyweight branch dead code: every crunch and leg raise drew a
+  // weight box sitting at zero, in exactly the way the comment beside that branch says it
+  // must not. Reported from a live session; the flag was in the library the entire time.
+  var out = {name:e.name,note:e.note,sets:e.sets,rest:e.rest,bw:e.bw};
   if(ov){ for(var k in ov){ out[k]=ov[k]; } }
   // a levelled target outranks the day's own override - it is the newer decision
   var up=(typeof DB!=='undefined'&&DB.up)?DB.up[id]:null;
@@ -3601,7 +3618,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.134';
+var APPV='v4.135';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
