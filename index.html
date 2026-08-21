@@ -2577,7 +2577,7 @@ body.wcon{overflow:hidden;}
 
 <div id="make">
   <div class="s-head">
-    <div class="iconbtn" onclick="closeMake()"><svg viewBox="0 0 20 20"><path d="M16 10H4M9 5l-5 5 5 5"/></svg></div>
+    <div class="iconbtn" onclick="mkBack()"><svg viewBox="0 0 20 20"><path d="M16 10H4M9 5l-5 5 5 5"/></svg></div>
     <div class="s-tb">
       <div class="s-title" id="mkTitle">Inscribe a day</div>
       <div class="s-sub" id="mkSub"></div>
@@ -3636,7 +3636,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.137';
+var APPV='v4.138';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5393,7 +5393,7 @@ function doSwap(k){
 // workouts already exist. Workouts already made keep whatever colour they were given -
 // this list only decides the next one.
 var MK_COLS=['#ff9152','#e0b667','#ff5f6d','#a880ff','#b0653a','#66718c','#4fb8a0','#d96ce0','#8ee04a','#c04545'];
-var MK={id:null,name:'',color:MK_COLS[0],slot:'d1',tag:'Yours',time:'~9:00 PM',rows:[]};
+var MK={id:null,name:'',color:MK_COLS[0],slots:[],tag:'Yours',time:'~9:00 PM',rows:[]};
 // The next colour nobody is using, or the least-used one if they all are. Colour still does a
 // job on the week board - it is how you tell one card from another at a glance - it just is not
 // a question worth asking someone who came here to write down a workout.
@@ -5751,12 +5751,30 @@ function mkDuplicate(id){
   openMake(null,nid);
   mkNote('Copied. It is on the shelf until you put it on a day.','Copy made');
 }
+// A hold used to jump straight into the editor, which buried Delete two screens deep
+// behind WORKOUT SETTINGS - deleting a workout was "tricky" in exactly those words. The
+// hold now opens a small sheet: edit, take it off the week, delete. One extra tap on the
+// edit path buys a visible way out for everything else.
 function mkActions(id){
   var mine=!!(DB.custom&&DB.custom[id]);
-  openMake(id,mine?id:'');
+  var nm=(W[id]&&W[id].name.replace('Optional: ',''))||'This workout';
+  var onWeek=DAYS.some(function(d){return (DB.days[d.k]||[]).indexOf(id)>=0;});
+  document.getElementById('mkActTtl').textContent=nm;
+  document.getElementById('mkActSub').textContent='';
+  document.getElementById('mkActBody').innerHTML=
+    '<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(\''+id+'\',\''+(mine?id:'')+'\')">EDIT THIS WORKOUT</div>'+
+    (onWeek?'<div class="btn" onclick="mkRestore(\''+id+'\')">TAKE IT OFF THE WEEK</div>':'')+
+    (mine?'<div class="btn" style="color:#e25b4a;border-color:color-mix(in srgb,#e25b4a 40%,var(--line))" onclick="mkDelete(\''+id+'\')">DELETE THIS WORKOUT</div>':'');
+  openHeld('mkActOvl');
 }
 function mkActionsX(id){
-  openMake(null,id);
+  var nm=(W[id]&&W[id].name.replace('Optional: ',''))||'This workout';
+  document.getElementById('mkActTtl').textContent=nm;
+  document.getElementById('mkActSub').textContent='';
+  document.getElementById('mkActBody').innerHTML=
+    '<div class="btn" onclick="closeOvl(\'mkActOvl\');openMake(null,\''+id+'\')">EDIT THIS WORKOUT</div>'+
+    '<div class="btn" style="color:#e25b4a;border-color:color-mix(in srgb,#e25b4a 40%,var(--line))" onclick="mkDeleteX(\''+id+'\')">DELETE THIS WORKOUT</div>';
+  openHeld('mkActOvl');
 }
 // opened from a long press: its buttons stay dead until the finger that opened it is up
 function openHeld(id){
@@ -5823,6 +5841,16 @@ function mkDelete(id){
 // want is the weekday this is being built INTO - passed by the Add a workout on an empty day, so
 // the picker opens already pointing at the day you tapped. Falls back to where the day already
 // lives when editing, then to the first weekday with room.
+function mkWantSlots(editId,want){
+  if(editId){
+    dayMap();
+    var out=[];
+    DAYS.forEach(function(d){if((DB.days[d.k]||[]).indexOf(editId)>=0)out.push(d.k);});
+    if(out.length)return out;
+  }
+  var one=mkWantSlot(editId,want);
+  return one?[one]:[];
+}
 function mkWantSlot(editId,want){
   if(want)return want;
   if(editId)return dayKeyOf(editId)||null;
@@ -5835,7 +5863,7 @@ function openMake(base,editId,blank,want){
   if(src){
     var w=src;
     MK={id:isEdit?editId:null,name:isEdit?w.name:w.name.replace('Optional: ',''),
-        color:w.color||MK_COLS[0],slot:mkWantSlot(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
+        color:w.color||MK_COLS[0],slots:mkWantSlots(editId,want),open:(editId||base||null),tag:w.tag||'Yours',time:w.time||'~9:00 PM',made:w.made,
         kind:w.kind||null,shellOpen:false,
       // Sections flatten into one list. An ss section hands its rows a shared group id, which is
       // the whole of what "these run together" means now - the box is gone, the relationship
@@ -5866,7 +5894,7 @@ function openMake(base,editId,blank,want){
   }else{
     // Walked rather than random: random repeats, and two workouts running the same colour on
     // adjacent days is exactly the collision a picker existed to let people fix by hand.
-    MK={id:null,name:'',color:mkNextColor(),slot:mkWantSlot(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',shellOpen:false,
+    MK={id:null,name:'',color:mkNextColor(),slots:mkWantSlots(editId,want),open:(editId||base||null),tag:'Yours',time:'~9:00 PM',kind:'lift',shellOpen:false,
       rows:[]};
   }
   // A day saved before kinds existed has none recorded, so it is read off the work itself. Done
@@ -5880,6 +5908,27 @@ function openMake(base,editId,blank,want){
   syncPumpBtn();
 }
 function closeMake(){document.getElementById('make').classList.remove('on');syncPumpBtn();}
+function mkSlotTog(k){
+  var i=MK.slots.indexOf(k);
+  if(i>=0)MK.slots.splice(i,1);else MK.slots.push(k);
+  mkRender();
+}
+// One screen back, always. The arrow used to be a trapdoor straight out of the builder -
+// pressed from the settings shell of a day mid-edit it dumped you on the week. Now: the
+// shell steps back to the work list; the work list leaves the builder. Leaving is SAFE
+// after creation - every change has been writing through since the day was made - so no
+// warning stands there; a warning would claim a danger the autosave already removed. The
+// one true loss window is the pre-creation shell, where a typed name exists nowhere else,
+// and that is the one place it asks.
+function mkBack(){
+  if(MK&&MK.id&&MK.shellOpen){mkShell(false);return;}
+  if(MK&&!MK.id&&(MK.name||'').trim()){
+    ask('This workout has not been created yet. Leave, and the name goes with it.',
+      function(){closeMake();},'Leave without creating?','LEAVE');
+    return;
+  }
+  closeMake();
+}
 
 // ---------- render ----------
 // The builder was one screen doing two jobs: settling what the DAY is - name, kind, weekday,
@@ -5960,12 +6009,13 @@ function mkRender(){
   // four in the grid this already uses.
   h+='<div class="mk-lbl">Where it lives</div><div class="mk-slots" style="--mkc:'+MK.color+'">';
   DAYS.forEach(function(d){
-    var n=(DB.days&&DB.days[d.k]?DB.days[d.k].length:0),full=dayFull(d.k)&&MK.slot!==d.k;
-    h+='<div class="mk-slot'+(MK.slot===d.k?' sel':'')+(full?' full':'')+'" '+
-       'onclick="'+(full?'mkNote(\'That day is full. Move something off it first.\')':'MK.slot=\''+d.k+'\';mkRender()')+'">'+
+    var on=MK.slots.indexOf(d.k)>=0;
+    var n=(DB.days&&DB.days[d.k]?DB.days[d.k].length:0),full=dayFull(d.k)&&!on;
+    h+='<div class="mk-slot'+(on?' sel':'')+(full?' full':'')+'" '+
+       'onclick="'+(full?'mkNote(\'That day is full. Move something off it first.\')':'mkSlotTog(\''+d.k+'\')')+'">'+
        '<b>'+d.n.slice(0,3).toUpperCase()+'</b><small>'+(full?'Full':(n?n+' on it':'Free'))+'</small></div>';
   });
-  h+='<div class="mk-slot'+(MK.slot?'':' sel')+'" onclick="MK.slot=null;mkRender()"><b>SAVED</b><small>'+T.xl+'</small></div>';
+  h+='<div class="mk-slot'+(MK.slots.length?'':' sel')+'" onclick="MK.slots=[];mkRender()"><b>SAVED</b><small>'+T.xl+'</small></div>';
   h+='</div>';
   }
   // The colour picker is gone. Choosing one is a decision with no wrong answer, which is the
@@ -6694,8 +6744,17 @@ function mkCommit(stay){
   DB.custom[id]=mkBuild();
   mergeCustom();
   // Already on a day: leave it where it is rather than moving it for having been edited.
-  if(MK.slot){ planDropSilent(id); planAdd(id,MK.slot); }
-  else{ planDropSilent(id);DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id); }
+  // Off everywhere first, then onto every chosen day - the same workout can now stand on
+  // Monday AND Friday. Days that filled while the sheet was open are skipped rather than
+  // overstuffed; if nothing lands anywhere, the shelf catches it.
+  planDropSilent(id);dayMap();
+  if(MK.slots&&MK.slots.length){
+    MK.slots.forEach(function(k){
+      if(!dayFull(k)&&(DB.days[k]||[]).indexOf(id)<0)DB.days[k].push(id);
+    });
+  }
+  var placed=DAYS.some(function(d){return (DB.days[d.k]||[]).indexOf(id)>=0;});
+  if(!placed){DB.extra=DB.extra||[];if(DB.extra.indexOf(id)<0)DB.extra.push(id);}
   saveDB();
   try{sfxLog();}catch(e){}
   renderHome();
@@ -7659,7 +7718,7 @@ function onBackButton(){
   // The day editor is a full screen like a session, but it is not .ovl and not #session, so back
   // fell straight past it to "close the app?" - held a day to edit it, pressed back, and were
   // asked whether to quit. It goes back to the week, which is where it was opened from.
-  if(document.getElementById('make').classList.contains('on')){closeMake();backGuard();return;}
+  if(document.getElementById('make').classList.contains('on')){mkBack();backGuard();return;}
   backGuard();                             // hold our place while the question is up
   // history.go(-2) is how a browser tab leaves. The APK has no history to walk out through, so
   // closing there is the plugin's job.
