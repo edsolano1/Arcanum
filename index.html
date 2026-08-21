@@ -3040,47 +3040,52 @@ body.wcon{overflow:hidden;}
 </div>
 
 <script>
+// Library defaults are neutral starting targets, not anyone's working weights. They shipped
+// for a long time as one person's actual training log - 145-lb bench, 260-lb leg press - and
+// every fresh install inherited them through the picker, the swap sheet and Pump Day. These
+// are deliberately modest and uniform: the first session sets the baseline and level-ups
+// climb from there. Aligned with EZ_W (the wizard's starters) where both name a lift.
 var EX = {
-  bench:    {name:"Barbell Bench Press",wraps:1,note:"Flat bench, grip just outside shoulder-width, controlled descent",sets:"145x8\n145x8\n145x8\n145x8",rest:"3 min"},
-  incdb:    {name:"Incline DB Press",wraps:1,note:"30-45 degree incline, slow 3 second lower",sets:"55x12\n55x12\n55x12",rest:"2 min"},
-  mbench:   {name:"Machine Bench Press",wraps:1,note:"Seat set so the handles sit level with mid chest, full lockout without flaring",sets:"150x10\n130x15\n130x15",rest:"90 sec"},
-  xover:    {name:"Cable Crossover",note:"Handles at shoulder height, slight stagger, squeeze at the middle rather than swinging",sets:"23x13\n23x13\n23x13",rest:""},
-  vbar:     {name:"V-Bar Cable Pushdown",note:"V-bar attachment - elbows pinned to sides, no swinging",sets:"72.5x12\n72.5x12\n72.5x12",rest:"60 sec"},
-  rope:     {name:"Rope Pushdown",note:"Pulley high - elbows pinned, split the rope at the bottom",sets:"42.5x15\n42.5x14\n42.5x12",rest:""},
-  ohext:    {name:"Cable Rope Overhead Extension",wraps:1,note:"Same rope, pulley stays high, face away from stack, press up and split at top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
+  bench:    {name:"Barbell Bench Press",wraps:1,note:"Flat bench, grip just outside shoulder-width, controlled descent",sets:"65x8\n65x8\n65x8\n65x8",rest:"3 min"},
+  incdb:    {name:"Incline DB Press",wraps:1,note:"30-45 degree incline, slow 3 second lower",sets:"25x10\n25x10\n25x10",rest:"2 min"},
+  mbench:   {name:"Machine Bench Press",wraps:1,note:"Seat set so the handles sit level with mid chest, full lockout without flaring",sets:"60x10\n60x10\n60x10",rest:"90 sec"},
+  xover:    {name:"Cable Crossover",note:"Handles at shoulder height, slight stagger, squeeze at the middle rather than swinging",sets:"10x12\n10x12\n10x12",rest:""},
+  vbar:     {name:"V-Bar Cable Pushdown",note:"V-bar attachment - elbows pinned to sides, no swinging",sets:"30x12\n30x12\n30x12",rest:"60 sec"},
+  rope:     {name:"Rope Pushdown",note:"Pulley high - elbows pinned, split the rope at the bottom",sets:"25x12\n25x12\n25x12",rest:""},
+  ohext:    {name:"Cable Rope Overhead Extension",wraps:1,note:"Same rope, pulley stays high, face away from stack, press up and split at top",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
   bike:     {bw:1,name:"Bicycle Crunch",note:"FULL reps - both twists = 1 rep. Slow and controlled, full rotation",sets:"0x20\n0x20\n0x20",rest:""},
   hollow:   {name:"Hollow Body Hold",note:"Arms overhead, lower back pressed to floor, legs raised",sets:"20 sec\n20 sec\n20 sec",rest:"45 sec after round"},
-  pullup:   {inv:1,name:"Assisted Pull-Up",note:"Wide overhand grip - lower the assistance number as you get stronger",sets:"45x9\n45x10\n45x8",rest:"90 sec"},
-  latpd:    {name:"Lat Pulldown",note:"Wide straight bar, overhand grip - pull to upper chest",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
-  row:      {name:"Cable Seated Row",note:"Close-grip V-bar - pull to lower chest, squeeze shoulder blades",sets:"95x12\n95x12\n100x9",rest:"90 sec"},
-  sapd:     {name:"Straight Arm Pulldown",note:"Slight bend in elbows only - hinge at shoulder, arms do not curl",sets:"45x15\n45x15\n45x15",rest:"90 sec"},
-  preacher: {name:"Preacher Curl Machine",note:"Machine only - full extension at bottom, squeeze at top",sets:"115x12\n115x12\n115x10",rest:""},
-  sdbcurl:  {name:"Seated DB Curl",note:"Two dumbbells, seated - squeeze at the top",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
-  hammer:   {name:"Hammer Curl",note:"Palms facing each other throughout - no rotation",sets:"22.5x12\n22.5x12\n22.5x12",rest:""},
-  cbcurl:   {name:"Cable Bicep Curl",note:"Straight bar attachment on lowest pulley",sets:"42.5x13\n42.5x13\n42.5x13",rest:"60 sec"},
+  pullup:   {inv:1,name:"Assisted Pull-Up",note:"Wide overhand grip - lower the assistance number as you get stronger",sets:"70x8\n70x8\n70x8",rest:"90 sec"},
+  latpd:    {name:"Lat Pulldown",note:"Wide straight bar, overhand grip - pull to upper chest",sets:"55x10\n55x10\n55x10",rest:"90 sec"},
+  row:      {name:"Cable Seated Row",note:"Close-grip V-bar - pull to lower chest, squeeze shoulder blades",sets:"60x10\n60x10\n60x10",rest:"90 sec"},
+  sapd:     {name:"Straight Arm Pulldown",note:"Slight bend in elbows only - hinge at shoulder, arms do not curl",sets:"25x12\n25x12\n25x12",rest:"90 sec"},
+  preacher: {name:"Preacher Curl Machine",note:"Machine only - full extension at bottom, squeeze at top",sets:"25x12\n25x12\n25x12",rest:""},
+  sdbcurl:  {name:"Seated DB Curl",note:"Two dumbbells, seated - squeeze at the top",sets:"20x10\n20x10\n20x10",rest:"60 sec"},
+  hammer:   {name:"Hammer Curl",note:"Palms facing each other throughout - no rotation",sets:"15x12\n15x12\n15x12",rest:""},
+  cbcurl:   {name:"Cable Bicep Curl",note:"Straight bar attachment on lowest pulley",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
   legraise: {bw:1,name:"Leg Raise",note:"Flat bench - hands under lower back, legs straight, slow descent",sets:"0x15\n0x15\n0x15",rest:"45 sec"},
-  wcurl:    {name:"Wrist Curl",note:"Seated, forearms on thighs, palms up",sets:"20x20\n20x20\n20x20",rest:"30 sec"},
-  rwcurl:   {name:"Reverse Wrist Curl",note:"Palms down - curl the wrist up against gravity",sets:"15x15\n15x15\n15x15",rest:"30 sec"},
+  wcurl:    {name:"Wrist Curl",note:"Seated, forearms on thighs, palms up",sets:"10x15\n10x15\n10x15",rest:"30 sec"},
+  rwcurl:   {name:"Reverse Wrist Curl",note:"Palms down - curl the wrist up against gravity",sets:"10x15\n10x15\n10x15",rest:"30 sec"},
   hang:     {name:"Dead Hang",note:"Full grip on the pull-up bar, body relaxed",sets:"30 sec\n30 sec\n30 sec",rest:"45 sec"},
-  hack:     {name:"Hack Squat",note:"Feet shoulder-width, toes slightly out. Knee feels off = move feet higher on platform",sets:"130x12\n130x12\n130x12\n130x12",rest:"2 min"},
-  lpress:   {name:"Machine Leg Press",note:"Feet low and shoulder-width on the platform for quad focus",sets:"260x12\n260x12\n260x11",rest:"90 sec"},
-  lext:     {name:"Leg Extension",note:"Seated machine - squeeze hard at the top",sets:"120x15\n120x15\n120x15",rest:"60 sec"},
-  hthrust:  {name:"Machine Hip Thrust",note:"Drive through heels, full glute squeeze at the top",sets:"110x12\n110x12\n110x12\n110x12",rest:"90 sec"},
-  slegcurl: {name:"Machine Seated Leg Curl",note:"Cinch the thigh pad tight and pull yourself down into the seat - stops the lower back lifting",sets:"140x15\n140x15\n140x15",rest:"60 sec"},
-  plegcurl: {name:"Prone Leg Curl",note:"Lying face down on the leg curl machine",sets:"70x15\n70x15\n70x15\n70x15",rest:"60 sec"},
-  sumo:     {name:"Dumbbell Sumo Squat",note:"One DB held vertically, both hands - feet wide, toes out",sets:"35x12\n35x12\n35x12",rest:""},
-  lunge:    {name:"Walking Lunge",note:"One DB in each hand - 12 steps each leg",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
-  dcalfr:   {name:"Diagonal/Slanted Calf Raise",note:"Heels off edge, full range of motion, slow descent",sets:"80x15\n80x15\n80x15\n80x15",rest:"45 sec"},
-  scalfr:   {name:"Machine Seated Calf Raise",note:"Pads on thighs, heels hanging off platform edge",sets:"60x20\n60x20\n60x20\n60x20",rest:"45 sec"},
+  hack:     {name:"Hack Squat",note:"Feet shoulder-width, toes slightly out. Knee feels off = move feet higher on platform",sets:"90x10\n90x10\n90x10\n90x10",rest:"2 min"},
+  lpress:   {name:"Machine Leg Press",note:"Feet low and shoulder-width on the platform for quad focus",sets:"120x10\n120x10\n120x10",rest:"90 sec"},
+  lext:     {name:"Leg Extension",note:"Seated machine - squeeze hard at the top",sets:"60x12\n60x12\n60x12",rest:"60 sec"},
+  hthrust:  {name:"Machine Hip Thrust",note:"Drive through heels, full glute squeeze at the top",sets:"90x10\n90x10\n90x10\n90x10",rest:"90 sec"},
+  slegcurl: {name:"Machine Seated Leg Curl",note:"Cinch the thigh pad tight and pull yourself down into the seat - stops the lower back lifting",sets:"60x12\n60x12\n60x12",rest:"60 sec"},
+  plegcurl: {name:"Prone Leg Curl",note:"Lying face down on the leg curl machine",sets:"40x12\n40x12\n40x12\n40x12",rest:"60 sec"},
+  sumo:     {name:"Dumbbell Sumo Squat",note:"One DB held vertically, both hands - feet wide, toes out",sets:"20x12\n20x12\n20x12",rest:""},
+  lunge:    {name:"Walking Lunge",note:"One DB in each hand - 12 steps each leg",sets:"10x12\n10x12\n10x12",rest:"60 sec"},
+  dcalfr:   {name:"Diagonal/Slanted Calf Raise",note:"Heels off edge, full range of motion, slow descent",sets:"30x15\n30x15\n30x15\n30x15",rest:"45 sec"},
+  scalfr:   {name:"Machine Seated Calf Raise",note:"Pads on thighs, heels hanging off platform edge",sets:"70x15\n70x15\n70x15\n70x15",rest:"45 sec"},
   hipraise: {bw:1,name:"Parallel Bar Hip Raise",note:"Captain's chair - lift knees to chest, slow descent",sets:"0x15\n0x15\n0x15",rest:""},
   plank:    {name:"Plank",note:"Forearms on floor - brace abs hard before starting",sets:"60 sec\n60 sec\n60 sec",rest:"45 sec after round"},
-  dblat:    {name:"DB Lateral Raise",note:"Slight elbow bend, raise to shoulder height, lead with elbows",sets:"17.5x15\n17.5x15\n17.5x15\n17.5x15",rest:"60 sec"},
-  clat:     {name:"Cable Lateral Raise",note:"Single arm, low pulley - all reps one side, then switch",sets:"7x12\n7x12\n7x12",rest:"60 sec"},
-  revfly:   {name:"Machine Reverse Fly",note:"Rear delt - face the pad, arms out, pull handles back",sets:"70x15\n70x15\n70x15\n70x15",rest:"60 sec"},
-  skull:    {name:"DB Skull Crusher",note:"Lie flat, one DB both hands - lower behind head, press back up",sets:"45x15\n45x15\n45x15",rest:"60 sec"},
-  mfly:     {name:"Machine Fly",note:"Pec deck - slight bend in elbows, squeeze at the front",sets:"90x18\n90x18\n90x18",rest:"60 sec"},
-  lowchest: {name:"Cable Lower Chest Raise",note:"Low-to-high - arm mostly straight, 10-15 degree bend only",sets:"17x15\n17x15\n17x15",rest:"60 sec"},
-  pullover: {name:"DB Pullover",note:"One DB, both hands under top plate - lie across bench, lower behind head",sets:"45x12\n45x12\n45x12",rest:"60 sec"},
+  dblat:    {name:"DB Lateral Raise",note:"Slight elbow bend, raise to shoulder height, lead with elbows",sets:"10x12\n10x12\n10x12\n10x12",rest:"60 sec"},
+  clat:     {name:"Cable Lateral Raise",note:"Single arm, low pulley - all reps one side, then switch",sets:"5x12\n5x12\n5x12",rest:"60 sec"},
+  revfly:   {name:"Machine Reverse Fly",note:"Rear delt - face the pad, arms out, pull handles back",sets:"45x12\n45x12\n45x12\n45x12",rest:"60 sec"},
+  skull:    {name:"DB Skull Crusher",note:"Lie flat, one DB both hands - lower behind head, press back up",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
+  mfly:     {name:"Machine Fly",note:"Pec deck - slight bend in elbows, squeeze at the front",sets:"60x12\n60x12\n60x12",rest:"60 sec"},
+  lowchest: {name:"Cable Lower Chest Raise",note:"Low-to-high - arm mostly straight, 10-15 degree bend only",sets:"10x12\n10x12\n10x12",rest:"60 sec"},
+  pullover: {name:"DB Pullover",note:"One DB, both hands under top plate - lie across bench, lower behind head",sets:"25x10\n25x10\n25x10",rest:"60 sec"},
   walk:     {cardio:1,name:"Power Walk",note:"30 minutes minimum - outdoor preferred, hilly route. Zone 2: conversational pace",sets:"30+ min",rest:""},
   hipflex:  {name:"Hip Flexor Stretch (kneeling)",note:"One knee on floor, other foot forward - sink hips forward and down",sets:"90 sec each",rest:""},
   chestdr:  {name:"Chest Doorway Stretch",note:"Arms at 90 degrees against doorframe, lean forward gently",sets:"2 min",rest:""},
@@ -3127,33 +3132,33 @@ var GRP={
 
 // Swap-only alternates - not in any day, only reachable from the swap sheet
 var ALT={
-  lvchest:  {name:"Leverage Chest Press",note:"Plate-loaded press - your gym's stand-in when the pin machine is down",sets:"120x10\n120x12\n120x12",rest:"90 sec"},
+  lvchest:  {name:"Leverage Chest Press",note:"Plate-loaded press - your gym's stand-in when the pin machine is down",sets:"70x10\n70x10\n70x10",rest:"90 sec"},
   // The three lifts every stranger searches for on day one, absent because the library grew
   // out of one person's machine-based program. Empty-bar starters, not anyone's numbers:
   // the first session sets the baseline, and level-ups climb from there.
   ohp:      {name:"Overhead Press",wraps:1,note:"Standing, barbell from the rack - brace hard, no leg drive",sets:"45x8\n45x8\n45x8",rest:"2 min"},
   bsquat:   {name:"Barbell Back Squat",note:"Bar on the traps, brace before every rep, own the depth",sets:"45x8\n45x8\n45x8",rest:"3 min"},
   deadlift: {name:"Deadlift",note:"Conventional - set the back before the pull, full reset each rep",sets:"45x5\n45x5\n45x5",rest:"3 min"},
-  dbbench:  {name:"Dumbbell Bench Press",note:"Flat bench, two dumbbells - more stabilizer work than the barbell",sets:"55x10\n55x10\n55x10",rest:"2 min"},
-  smbench:  {name:"Smith Machine Bench Press",note:"Fixed bar path - safe to push close to failure without a spotter",sets:"135x8\n135x8\n135x8",rest:"2 min"},
+  dbbench:  {name:"Dumbbell Bench Press",note:"Flat bench, two dumbbells - more stabilizer work than the barbell",sets:"30x10\n30x10\n30x10",rest:"2 min"},
+  smbench:  {name:"Smith Machine Bench Press",note:"Fixed bar path - safe to push close to failure without a spotter",sets:"65x8\n65x8\n65x8",rest:"2 min"},
   pushup:   {name:"Push-Up (weighted if needed)",note:"Zero equipment fallback - add a plate on the back if too easy",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
-  dbfly:    {name:"Dumbbell Fly",note:"Flat or slight incline - soft elbows, wide arc, stretch at the bottom",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
-  machrow:  {name:"Machine Seated Row",note:"Chest on pad - takes the lower back out of it entirely",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
-  dbrow:    {name:"One-Arm Dumbbell Row",note:"Knee and hand on bench - pull to the hip, not the shoulder",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
-  machpd:   {name:"Machine Lat Pulldown (neutral grip)",note:"Neutral grip is easier on the shoulder than wide overhand",sets:"110x12\n110x12\n110x12",rest:"90 sec"},
-  bbcurl:   {name:"Barbell Curl",note:"Straight or EZ bar - elbows pinned, no swinging",sets:"55x12\n55x12\n55x10",rest:"60 sec"},
-  inccurl:  {name:"Incline Dumbbell Curl",note:"Bench at 45-60 degrees, arms hanging back - big biceps stretch",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
-  dip:      {inv:1,name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"48x10\n48x10\n48x10",rest:"90 sec"},
+  dbfly:    {name:"Dumbbell Fly",note:"Flat or slight incline - soft elbows, wide arc, stretch at the bottom",sets:"20x12\n20x12\n20x12",rest:"60 sec"},
+  machrow:  {name:"Machine Seated Row",note:"Chest on pad - takes the lower back out of it entirely",sets:"70x10\n70x10\n70x10",rest:"90 sec"},
+  dbrow:    {name:"One-Arm Dumbbell Row",note:"Knee and hand on bench - pull to the hip, not the shoulder",sets:"25x10\n25x10\n25x10",rest:"90 sec"},
+  machpd:   {name:"Machine Lat Pulldown (neutral grip)",note:"Neutral grip is easier on the shoulder than wide overhand",sets:"55x10\n55x10\n55x10",rest:"90 sec"},
+  bbcurl:   {name:"Barbell Curl",note:"Straight or EZ bar - elbows pinned, no swinging",sets:"30x10\n30x10\n30x10",rest:"60 sec"},
+  inccurl:  {name:"Incline Dumbbell Curl",note:"Bench at 45-60 degrees, arms hanging back - big biceps stretch",sets:"10x12\n10x12\n10x12",rest:"60 sec"},
+  dip:      {inv:1,name:"Assisted Dip (tricep focus)",note:"Torso upright, elbows tight - leaning forward shifts it to chest",sets:"70x8\n70x8\n70x8",rest:"90 sec"},
   bdip:     {name:"Bench Dip",note:"Hands on bench behind you, feet out - no machine needed",sets:"0x15\n0x15\n0x15",rest:"60 sec"},
-  machlat:  {name:"Machine Lateral Raise",note:"Fixed path - good when the shoulder feels off on free weight versions",sets:"50x15\n50x15\n50x15",rest:"60 sec"},
-  facepull: {name:"Cable Rope Face Pull",note:"Rope at face height - pull to the forehead, elbows high. Rear delt work",sets:"40x15\n40x15\n40x15",rest:"60 sec"},
-  goblet:   {name:"Goblet Squat",note:"One dumbbell at the chest - upright torso, easy on the knees",sets:"50x12\n50x12\n50x12",rest:"90 sec"},
-  smsquat:  {name:"Smith Machine Squat",note:"Fixed bar path - hack squat substitute when the machine is taken",sets:"115x12\n115x12\n115x12",rest:"2 min"},
-  bbthrust: {name:"Barbell Hip Thrust",note:"Upper back on bench, bar across hips with a pad - machine substitute",sets:"135x12\n135x12\n135x12",rest:"90 sec"},
-  stepup:   {name:"Dumbbell Step-Up",note:"Knee-height box, drive through the top foot - unilateral glute work",sets:"25x12\n25x12\n25x12",rest:"60 sec"},
-  stcalf:   {name:"Standing Calf Raise Machine",note:"Knees straight - hits the gastrocnemius like the diagonal machine",sets:"90x15\n90x15\n90x15\n90x15",rest:"45 sec"},
+  machlat:  {name:"Machine Lateral Raise",note:"Fixed path - good when the shoulder feels off on free weight versions",sets:"30x12\n30x12\n30x12",rest:"60 sec"},
+  facepull: {name:"Cable Rope Face Pull",note:"Rope at face height - pull to the forehead, elbows high. Rear delt work",sets:"25x15\n25x15\n25x15",rest:"60 sec"},
+  goblet:   {name:"Goblet Squat",note:"One dumbbell at the chest - upright torso, easy on the knees",sets:"25x10\n25x10\n25x10",rest:"90 sec"},
+  smsquat:  {name:"Smith Machine Squat",note:"Fixed bar path - hack squat substitute when the machine is taken",sets:"70x10\n70x10\n70x10",rest:"2 min"},
+  bbthrust: {name:"Barbell Hip Thrust",note:"Upper back on bench, bar across hips with a pad - machine substitute",sets:"65x10\n65x10\n65x10",rest:"90 sec"},
+  stepup:   {name:"Dumbbell Step-Up",note:"Knee-height box, drive through the top foot - unilateral glute work",sets:"15x10\n15x10\n15x10",rest:"60 sec"},
+  stcalf:   {name:"Standing Calf Raise Machine",note:"Knees straight - hits the gastrocnemius like the diagonal machine",sets:"50x12\n50x12\n50x12\n50x12",rest:"45 sec"},
   kneeraise:{bw:1,name:"Hanging Knee Raise",note:"From the pull-up bar - knees to chest, no swinging",sets:"0x12\n0x12\n0x12",rest:"45 sec"},
-  abmach:   {name:"Ab Crunch Machine",note:"Seated machine crunch - loadable core work",sets:"50x15\n50x15\n50x15",rest:"45 sec"},
+  abmach:   {name:"Ab Crunch Machine",note:"Seated machine crunch - loadable core work",sets:"30x15\n30x15\n30x15",rest:"45 sec"},
   bike:null
 };
 delete ALT.bike;
@@ -3161,13 +3166,13 @@ for(var __k in ALT){EX[__k]=ALT[__k];}
 
 // Pump day - separate IDs so light high-rep work never shows up as "Last" on your heavy days
 var PUMP={
-  p_inc:  {name:"Incline DB Press",wraps:1,note:"Light and controlled - squeeze at the top, never grind",sets:"35x18\n35x18\n35x18",rest:"45 sec"},
-  p_xover:{name:"Cable Crossover",note:"Hold the squeeze a beat at the front of every rep",sets:"15x18\n15x18\n15x18",rest:"45 sec"},
-  p_fly:  {name:"Machine Fly",note:"Full stretch at the back, hard squeeze at the front",sets:"60x20\n60x20\n60x20",rest:"45 sec"},
-  p_lat:  {name:"DB Lateral Raise",note:"Light - this is for width and blood, not load. Lead with the elbows",sets:"10x18\n10x18\n10x18",rest:"30 sec"},
-  p_curl: {name:"Cable Bicep Curl",note:"Constant tension - do not let the stack rest at the bottom",sets:"30x18\n30x18\n30x18",rest:""},
-  p_hammer:{name:"Hammer Curl",note:"Palms facing in - builds the outer arm thickness",sets:"15x18\n15x18",rest:""},
-  p_rope: {name:"Rope Pushdown",note:"Split the rope hard at the bottom, full lockout - do this one right after curls, then rest",sets:"30x18\n30x18\n30x18",rest:"30 sec"},
+  p_inc:  {name:"Incline DB Press",wraps:1,note:"Light and controlled - squeeze at the top, never grind",sets:"15x15\n15x15\n15x15",rest:"45 sec"},
+  p_xover:{name:"Cable Crossover",note:"Hold the squeeze a beat at the front of every rep",sets:"10x15\n10x15\n10x15",rest:"45 sec"},
+  p_fly:  {name:"Machine Fly",note:"Full stretch at the back, hard squeeze at the front",sets:"30x15\n30x15\n30x15",rest:"45 sec"},
+  p_lat:  {name:"DB Lateral Raise",note:"Light - this is for width and blood, not load. Lead with the elbows",sets:"5x15\n5x15\n5x15",rest:"30 sec"},
+  p_curl: {name:"Cable Bicep Curl",note:"Constant tension - do not let the stack rest at the bottom",sets:"15x15\n15x15\n15x15",rest:""},
+  p_hammer:{name:"Hammer Curl",note:"Palms facing in - builds the outer arm thickness",sets:"10x15\n10x15",rest:""},
+  p_rope: {name:"Rope Pushdown",note:"Split the rope hard at the bottom, full lockout - do this one right after curls, then rest",sets:"15x15\n15x15\n15x15",rest:"30 sec"},
   p_dip:  {bw:1,name:"Bench Dip",note:"Bodyweight - burn out the back of the arm - right after hammer curls, then rest",sets:"0x18\n0x18",rest:"30 sec"},
   p_bike: {bw:1,name:"Bicycle Crunch",note:"Slow and controlled, full rotation. Both twists = one rep",sets:"0x20\n0x20\n0x20",rest:""},
   p_hollow:{name:"Hollow Body Hold",note:"Lower back pressed flat - hold until it shakes - right after crunches, then rest",sets:"25 sec\n25 sec\n25 sec",rest:"30 sec"}
@@ -3678,7 +3683,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.141';
+var APPV='v4.142';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4319,6 +4324,19 @@ function nextUp(ids){
   for(i=0;i<ids.length;i++)if(!lw[ids[i]]&&wkVar(ids[i])!=='rest')return ids[i];
   return ids[0]||null;
 }
+// The same question asked properly: which CARD is up next, when a workout can sit on two days.
+// Returns "id@weekday" so the twin that is already sealed never wears the glow its Friday
+// self still deserves.
+function nextUpDay(){
+  var pairs=[];
+  DAYS.forEach(function(d){(DB.days[d.k]||[]).forEach(function(id){pairs.push([id,d.k]);});});
+  var i,p;
+  for(i=0;i<pairs.length;i++){p=pairs[i];if(loggedCount(p[0])>0&&(DB.active[p[0]]||{}).wk===p[1])return p[0]+'@'+p[1];}
+  for(i=0;i<pairs.length;i++){p=pairs[i];if(loggedCount(p[0])>0)return p[0]+'@'+p[1];}
+  var lw=loggedThisWeek();
+  for(i=0;i<pairs.length;i++){p=pairs[i];if(!lwOn(lw,p[0],p[1])&&wkVar(p[0])!=='rest')return p[0]+'@'+p[1];}
+  return pairs.length?pairs[0][0]+'@'+pairs[0][1]:null;
+}
 // Whether a day is optional is the user's call, not the plan's. The override is filed against
 // the day itself now rather than a slot, because there is no slot for it to outlive.
 function wkVar(id){
@@ -4337,14 +4355,14 @@ function setWkVar(id,v){
 // The weekday has moved OFF the card and onto the container above it, so a card no longer claims
 // a day it does not own - which is what made position feel like it was choosing for you. What is
 // left on the card is the workout: its state, its name, its size.
-function planCard(id,i,nx){
+function planCard(id,i,nx,dk){
   var w=W[id];if(!w)return '';
   var v=wkVar(id),mine=!!(DB.custom&&DB.custom[id]),e=wkDefault(id);
   // gate on the plan itself: a lit arrow must always have something behind it. Readiness
   // also counts timed rows, which have no weight to add and never enter the plan.
   var live=loggedCount(id)>0,rdy=v?0:levelPlan(id).length;
-  var sealed=!live&&!!loggedThisWeek()[id];
-  var up=(id===nx);
+  var sealed=!live&&lwOn(loggedThisWeek(),id,dk);
+  var up=(id+'@'+dk===nx);
   var pills='';
   if(live)pills+='<span class="pill pill-live">Resume '+loggedCount(id)+'/'+totalSets(id)+'</span>';
   else if(sealed)pills+='<span class="pill pill-done">'+TXT('done')+'</span>';
@@ -4354,7 +4372,7 @@ function planCard(id,i,nx){
   // because whose day it is has never been something you needed telling twice.
   // DB.restLabel first: what the rest day is FOR is the user's own, not the app's to state.
   var meta=v==='rest'?(DB.restLabel||(e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
-  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\')">'+
+  return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\',\''+dk+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
     '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
       '<span class="card-r">'+pills+CARDGRIP+'</span></div>'+
@@ -4366,7 +4384,7 @@ function dayBox(d,nx,n0){
   var ids=(DB.days[d.k]||[]),isToday=(new Date().getDay()===d.js);
   // Every piece off this day's fire is finished: the whole bench cools, header and all.
   var ltw=loggedThisWeek();
-  var quenched=ids.length&&ids.every(function(id){return loggedCount(id)===0&&!!ltw[id];});
+  var quenched=ids.length&&ids.every(function(id){return loggedCount(id)===0&&lwOn(ltw,id,d.k);});
   var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+(quenched?' quenched':'')+'" data-day="'+d.k+'">'+(isToday?'<i class="dayglow"></i>':'');
   // No count. How many a day can hold is not something to be reminded of on every day you own -
   // it only matters at the moment you try to exceed it, and it says so then.
@@ -4382,7 +4400,7 @@ function dayBox(d,nx,n0){
   // as a dead end and the only way in was the New day button at the very bottom of the page -
   // which is not where somebody looking at an empty Tuesday is looking. It builds into this day.
   if(!ids.length)h+='<div class="dayempty dayadd" onclick="openNewDay(\''+d.k+'\')">'+PLUS+'Add a workout</div>';
-  else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx);});
+  else ids.forEach(function(id,n){h+=planCard(id,n0+n,nx,d.k);});
   return h+'</div>';
 }
 // A kept day has no weekday and no slot, so it carries the day's own name where the weekday
@@ -4410,14 +4428,32 @@ function weekStartTs(){
   return d.getTime();
 }
 function loggedThisWeek(){
+  // Keyed twice: by workout, then by which WEEKDAY that finish belonged to. The same workout
+  // on Monday and Friday used to share one fate - finish Monday and Friday showed COMPLETED,
+  // which the wizard's own 3-day week (Full Body A twice) triggered in week one. A log written
+  // before weekdays were recorded counts for every day ('*'), which is exactly what it used to
+  // mean, so nothing already sealed changes its face.
   var ws=weekStartTs(),done={};
   DB.logs.forEach(function(l){
     if(l.unsealed)return;
     if(!l.sealed)return; // only Finish & export seals a day; auto-closed sessions just keep their sets
     var t=new Date(l.date).getTime();
-    if(!isNaN(t)&&t>=ws)done[l.day]=true;
+    if(!isNaN(t)&&t>=ws)(done[l.day]=done[l.day]||{})[l.wk||'*']=1;
   });
   return done;
+}
+// Is this workout sealed ON this weekday? No weekday (the shelf) means sealed anywhere counts.
+function lwOn(lw,id,dk){var m=lw[id];return !!(m&&(m['*']||(dk?m[dk]:Object.keys(m).length)));}
+// Which weekday a session most likely belongs to when nobody said: the first day on the week
+// holding this workout that is not already sealed, falling back to the first that holds it.
+function dayGuess(wk){
+  var lw=loggedThisWeek(),first=null,free=null;
+  DAYS.forEach(function(d){
+    if((DB.days[d.k]||[]).indexOf(wk)<0)return;
+    if(first===null)first=d.k;
+    if(free===null&&!lwOn(lw,wk,d.k))free=d.k;
+  });
+  return free||first;
 }
 // break every seal for the week - the logs stay exactly where they are
 function unsealAll(){
@@ -4469,15 +4505,13 @@ function unmarkDayDone(id){
 }
 // Every day on the week done, with something actually on the week to have done.
 function weekAllDone(){
-  var lw=loggedThisWeek(),any=false;
-  var ids=[];
-  DAYS.forEach(function(d){(DB.days[d.k]||[]).forEach(function(id){ids.push(id);});});
-  for(var i=0;i<ids.length;i++){
-    if(wkVar(ids[i])==='rest')continue;      // a rest day is not something you finish
+  var lw=loggedThisWeek(),any=false,ok=true;
+  DAYS.forEach(function(d){(DB.days[d.k]||[]).forEach(function(id){
+    if(wkVar(id)==='rest')return;            // a rest day is not something you finish
     any=true;
-    if(!lw[ids[i]])return false;
-  }
-  return any;
+    if(!lwOn(lw,id,d.k))ok=false;            // every PLACEMENT must be done, not every workout
+  });});
+  return any&&ok;
 }
 // Offered once per week, and only after the last day is done. Finishing the week left you with
 // nothing to do and a button you had to know about; this says the round is over and offers the
@@ -4978,7 +5012,7 @@ function renderHome(){
       '<span style="display:flex;gap:0"><span class="pill pill-live">Resume '+loggedCount('pump')+'/'+totalSets('pump')+'</span></span></div>'+
       '<div class="card-name">'+W.pump.name+'</div>'+
       '<div class="card-meta">Still open &mdash; pick up where you left off</div></div>':'';
-  var pids=planIds(),pnx=nextUp(pids),n0=0;
+  var pnx=nextUpDay(),n0=0;
   document.getElementById('weekCards').innerHTML=pumpOpen+DAYS.map(function(d){
     var h=dayBox(d,pnx,n0);n0+=(DB.days[d.k]||[]).length;return h;
   }).join('');
@@ -5085,7 +5119,7 @@ function reconcileActive(){
   }
   if(changed)saveDB();
 }
-function openW(wk){
+function openW(wk,dk){
   initAudio();
   var open=openElsewhere(wk);
   if(open.length){
@@ -5097,17 +5131,23 @@ function openW(wk){
     ask(msg,function(){
       open.forEach(sealAway);
       saveDB();renderHome();
-      pageTurn(false,function(){openWNow(wk);});
+      pageTurn(false,function(){openWNow(wk,dk);});
     },open.length===1?TXT('sealTtl1'):TXT('sealTtlN'),TXT('sealYes'),null,
     {label:TXT('sealAlt'),fn:function(){pageTurn(false,function(){openWNow(open[0]);});}});
     return;
   }
-  pageTurn(false,function(){openWNow(wk);});
+  pageTurn(false,function(){openWNow(wk,dk);});
 }
-function openWNow(wk){
+function openWNow(wk,dk){
   CUR=wk;
   var w=W[wk];
-  if(!DB.active[wk])DB.active[wk]={date:today(),entries:{},note:'',swaps:{}};
+  // The session remembers which weekday it belongs to, because a workout can sit on two of
+  // them and finishing must seal the day that was actually done, not its twin. The card that
+  // was tapped says so; a session opened without one (the guard dialog, the shelf, a resume
+  // from before this existed) takes the first of its days not already sealed this week.
+  if(dk==='undefined'||dk==='null')dk=null;
+  if(!DB.active[wk])DB.active[wk]={date:today(),entries:{},note:'',swaps:{},wk:dk||dayGuess(wk)};
+  else if(!DB.active[wk].wk)DB.active[wk].wk=dk||dayGuess(wk);
   var sv=document.getElementById('session');
   sv.style.setProperty('--c',dayC(wk));
   document.getElementById('timerPill').style.setProperty('--tc',dayC(wk));
@@ -5162,8 +5202,12 @@ function renderSession(){
       html+='<div class="sect-t">'+(sec.ss?CHAIN:'')+t+'</div>';lastT=t;
     }
     if(sec.ss)html+='<div class="ssgrp">';
-    sec.rows.forEach(function(row){
+    sec.rows.forEach(function(row,ri){
       var rf=rowFor(A.swaps,row,wk),r=rf.data,id=rf.id;
+      // The builder promises a superset runs back to back on ONE shared rest, and until now
+      // the timer disagreed: every member fired its own full rest. Inside a group only the
+      // LAST exercise starts the clock; the ones before it hand straight to the next lift.
+      var ssMid=!!(sec.ss&&ri<sec.rows.length-1);
       var tg=rf.swapId?r.sets.split('\n').map(parseTarget):targetsOf(row,wk);
       var ent=A.entries[id]||[];
       var allDone=tg.length>0&&tg.every(function(_,i){return ent[i];});
@@ -5187,7 +5231,7 @@ function renderSession(){
       if(r.note)html+='<div class="ex-note">'+r.note+'</div>';
       if(un)html+='<div class="ex-unote">'+esc(un)+'</div>';
       html+='<div class="ex-stats">'+
-            '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
+            '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').map(fmtLine).join(', ')+'</b></span>'+
             (L?'<span class="ex-stat st-last">Last <b>'+fmtSets(L.sets)+'</b></span>':'')+
             (bst?'<span class="ex-stat st-best">Best <b>'+(bst.w?fmtW(bst.w)+'\u00d7'+bst.r:bst.r+(bst.unit?' '+bst.unit:''))+'</b></span>':'')+
             '</div></div>';   // closes ex-stats, then ex-body
@@ -5220,12 +5264,14 @@ function renderSession(){
         }else{
           html+='<input class="inp wide" id="r-'+id+'-'+i+'" readonly value="'+vr+'" onclick="openEdit(\''+id+'\','+i+',\'r\')">'+
                 '<span class="unit">'+(t.unit||(r.bw?'reps':''))+'</span><input type="hidden" id="w-'+id+'-'+i+'" value="0">';
-          if(t.unit==='sec')html+='<button class="hold" id="hb-'+id+'-'+i+'" title="Time this hold" data-ic onclick="toggleHold(\''+id+'\','+i+','+(t.r||0)+',\''+restAt(r.rest,i).replace(/'/g,'')+'\')"><svg viewBox="0 0 20 20"><path d="M6 3.5l10 6.5-10 6.5z"/></svg></button>';
+          if(t.unit==='sec')html+='<button class="hold" id="hb-'+id+'-'+i+'" title="Time this hold" data-ic onclick="toggleHold(\''+id+'\','+i+','+(t.r||0)+',\''+(ssMid?'':restAt(r.rest,i).replace(/'/g,''))+'\')"><svg viewBox="0 0 20 20"><path d="M6 3.5l10 6.5-10 6.5z"/></svg></button>';
         }
-        html+='<button class="chk" onclick="toggleSet(\''+id+'\','+i+',\''+restAt(r.rest,i).replace(/'/g,'')+'\',\''+(t.unit||'')+'\')">'+chkSvg()+'</button></div>';
+        html+='<button class="chk" onclick="toggleSet(\''+id+'\','+i+',\''+(ssMid?'':restAt(r.rest,i).replace(/'/g,''))+'\',\''+(t.unit||'')+'\')">'+chkSvg()+'</button></div>';
       });
       html+='</div>';
-      if(r.rest)html+='<div class="ex-rest">Rest '+r.rest+'</div>';
+      // Mid-group rows say where the rest went instead of printing one they will not take.
+      if(ssMid)html+='<div class="ex-rest">Straight to the next — rest comes after the round</div>';
+      else if(r.rest)html+='<div class="ex-rest">Rest '+r.rest+(sec.ss?' after the round':'')+'</div>';
       html+='</div>';
     });
     if(sec.ss)html+='</div>';
@@ -5271,7 +5317,7 @@ function openEdit(id,i,which){
   document.getElementById('edSet').textContent='Set '+(i+1)+' \u00b7 '+(which==='w'?'Weight':(isSec?'Seconds':'Reps'));
   document.getElementById('edUnit').textContent=which==='w'?(wUnitName()+'s'):(isSec?'seconds':'reps');
   edPad();
-  var tgt=(r.sets.split('\n')[i]||'').trim();
+  var tgt=fmtLine((r.sets.split('\n')[i]||'').trim());
   document.getElementById('edHint').textContent='Target for this set: '+tgt;
   edShow();
   document.getElementById('editOvl').classList.add('on');
@@ -5403,7 +5449,7 @@ document.getElementById('sBack').onclick=function(){
 var swapTarget=null;
 var GLABEL={'chest-press':'Chest press','chest-fly':'Chest fly / isolation','back-vertical':'Vertical pull','back-horizontal':'Horizontal row','biceps':'Biceps','triceps':'Triceps','quad':'Quad / squat pattern','glute':'Glutes / hip extension','hamstring':'Hamstring / leg curl','posterior':'Posterior chain','calf':'Calves','delt-side':'Side delt','delt-rear':'Rear delt','core':'Core','forearm':'Forearm','cardio':'Cardio','mobility':'Mobility','other':'Other'};
 function swapItem(k){
-  return '<div class="swapitem" onclick="doSwap(\''+k+'\')">'+EX[k].name+'<small>'+EX[k].sets.split('\n').join(', ')+'</small></div>';
+  return '<div class="swapitem" onclick="doSwap(\''+k+'\')">'+EX[k].name+'<small>'+EX[k].sets.split('\n').map(fmtLine).join(', ')+'</small></div>';
 }
 function openSwap(id){
   swapTarget=id;
@@ -5656,7 +5702,7 @@ function mkParse(sets){
 function mkNote(msg,title){ask(msg,function(){},title||'Hold on',"OK",null,null);}
 
 // ---------- open / close ----------
-function mkTap(wk){if(LP.fired){LP.fired=false;return;}openW(wk);}
+function mkTap(wk,dk){if(LP.fired){LP.fired=false;return;}openW(wk,dk);}
 var LP={t:null,fired:false,x:0,y:0};
 function mkBindCards(){
   [].forEach.call(document.querySelectorAll('#weekCards .card,#extraCards .card'),function(el){
@@ -5912,7 +5958,9 @@ function mkWantSlots(editId,want){
 function mkWantSlot(editId,want){
   if(want)return want;
   if(editId)return dayKeyOf(editId)||null;
-  for(var i=0;i<DAYS.length;i++)if(!dayFull(DAYS[i].k))return DAYS[i].k;
+  // A brand-new workout starts on no day at all. Defaulting to "first free day" meant NEW
+  // WORKOUT silently claimed Sunday, and because the day tiles ADD rather than switch, tapping
+  // Tuesday scheduled it twice. SAVED is the honest starting point; days are chosen, not dealt.
   return null;
 }
 function openMake(base,editId,blank,want){
@@ -6655,7 +6703,7 @@ function mkPickList(){
     var own=!!DB.cex[k];
     return '<div class="swapitem" onclick="mkAddEx(\''+k+'\')" style="display:flex;align-items:center;gap:10px">'+
            '<span style="flex:1;min-width:0">'+mkEsc(EX[k].name)+
-           '<small>'+mkEsc(EX[k].sets.split('\n').join(', '))+'</small></span>'+
+           '<small>'+mkEsc(EX[k].sets.split('\n').map(fmtLine).join(', '))+'</small></span>'+
            (own?'<span class="mk-x" onclick="event.stopPropagation();mkEditCex(\''+k+'\')" title="Edit"><svg viewBox="0 0 20 20"><path d="M13.5 3.5l3 3-9 9H4.5v-3z"/></svg></span>':'')+
            '</div>';
   };
@@ -6899,7 +6947,7 @@ function finishNow(){
   var txt=buildExport(wk,A);
   var entries={};
   for(var k in A.entries){var arr=A.entries[k].filter(function(x){return x;});if(arr.length)entries[k]=arr;}
-  DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||'',swaps:A.swaps||{},sealed:1});
+  DB.logs.push({day:wk,date:A.date,entries:entries,note:A.note||'',swaps:A.swaps||{},sealed:1,wk:A.wk||dayGuess(wk)});
   delete DB.active[wk];
   saveDB();
   syncPumpBtn();
@@ -10023,7 +10071,7 @@ function exAddList(){
   out.sort(function(a,b){return EX[a].name<EX[b].name?-1:1;});
   document.getElementById('exAddList').innerHTML=out.length?out.slice(0,60).map(function(k){
     return '<div class="swapitem" onclick="exAddPick(\''+k+'\')">'+EX[k].name+
-      '<small>'+EX[k].sets.split('\n').join(', ')+'</small></div>';
+      '<small>'+EX[k].sets.split('\n').map(fmtLine).join(', ')+'</small></div>';
   }).join(''):'<div class="exed-sub">Nothing matches that.</div>';
 }
 function exAddPick(id){
@@ -11484,6 +11532,15 @@ function sbEnd(){
   });
   document.getElementById('session').classList.remove('on');
   if(document.getElementById('make'))document.getElementById('make').classList.remove('on');
+  // The sandbox replays the first-run welcome and the forging ritual, and LEAVE can land while
+  // either is up. They were not on the sweep, so the question stayed standing over the REAL
+  // week - and answering "Build one for me" from there rebuilt real data. Torn down like
+  // everything else sandbox-born.
+  var wc=document.getElementById('welcome');
+  if(wc){wc.classList.remove('on');wc.setAttribute('aria-hidden','true');}
+  document.body.classList.remove('wcon');
+  if(document.getElementById('ez'))document.getElementById('ez').classList.remove('on');
+  STARTPEND=false;
   CUR=null;stopTimer();stopHold();resetHoldState();
   DB=SBDB;SBDB=null;
   if(SBLIB){libSwap(SBLIB);SBLIB=null;}   // your library back, whole, exactly as it went in
