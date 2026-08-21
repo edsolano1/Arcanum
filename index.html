@@ -3676,7 +3676,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.139';
+var APPV='v4.140';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -11171,7 +11171,8 @@ var EZ_ART={
   blade:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 40L34 14l6-4 -2 7L14 42z"/><path d="M15 33l5 5M11 41l-3 3" stroke-width="2"/><path class="au" d="M33 15l3 3"/></svg>',
   anvil:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M8 18h24c4 0 8 1 11 3-3 2-7 4-12 4h-2c-2 4-3 6-3 8 2 2 4 4 7 5v4H15v-4c3-1 5-3 7-5 0-2-1-4-3-8h-2H8z"/><path class="au" d="M14 13l4 -5M22 12l1-6M30 13l3-5" stroke-linecap="round"/></svg>',
   stack:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M14 40l4-8h16l4 8z"/><path d="M17 30l4-8h10l4 8z"/><path class="au" d="M21 20l3-6h4l3 6z"/></svg>',
-  wind:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 20h22c5 0 5-7 0-7"/><path d="M8 28h32c5 0 5 7 0 7"/><path class="au" d="M8 36h16"/></svg>'
+  wind:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 20h22c5 0 5-7 0-7"/><path d="M8 28h32c5 0 5 7 0 7"/><path class="au" d="M8 36h16"/></svg>',
+  flame:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M26 8c2 6 9 9 9 18a9 9 0 0 1-18 0c0-5 3-8 5-11 1 3 2 4 4 5-1-4-1-8 0-12z"/><path class="au" d="M26 42a5 5 0 0 0 5-5c0-3-3-4-5-7-2 3-5 4-5 7a5 5 0 0 0 5 5z"/></svg>'
 };
 function ezDays(){
   var dots=function(n){var h='<svg viewBox="0 0 52 52" fill="none">';
@@ -11190,11 +11191,12 @@ var EZ_STEPS=[
     ['adv','Advanced','Consistent for years and ready to be pushed',EZ_ART.blade]];}},
   {t:'How many days a week?',s:'Only count days you will actually show up. Fewer days done beats more days planned.',
    k:'days',opts:function(){return ezDays().map(function(d){return [d[0],d[1],d[2],d[3]];});}},
-  {t:'What is it for?',s:'This sets how heavy, how many reps, and how long you rest.',
+  {t:'What is it for?',s:'This sets how heavy, how many reps, how long you rest — and whether the week carries cardio.',
    k:'goal',opts:function(){return [
-    ['strong','Get strong','Heavier bar, fewer reps, long rests',EZ_ART.anvil],
-    ['muscle','Build muscle','Moderate weight, more reps, steady pace',EZ_ART.stack],
-    ['move','Get moving','Lighter work, higher reps, short rests - plus a daily walk',EZ_ART.wind]];}}
+    ['strong','Get strong','Heavy fives on the big lifts, long rests, accessories kept honest',EZ_ART.anvil],
+    ['muscle','Build muscle','Moderate weight, eights to fifteens, steady pace',EZ_ART.stack],
+    ['lean','Lose weight','Supersets for density, a cardio burn to end every day, a daily walk',EZ_ART.flame],
+    ['move','Just get moving','Lighter all round, shorter days - plus the daily walk',EZ_ART.wind]];}}
 ];
 function ezOpen(){
   EZ={step:0,level:null,days:null,goal:null};
@@ -11229,58 +11231,133 @@ function ezRender(){
   document.getElementById('ez').scrollTop=0;
 }
 // ---------- the generator ----------
-// Starting weights per lift at intermediate, scaled down for beginners and up for advanced,
-// rounded to real plates. These are FIRST-SESSION numbers, deliberately modest: the first
-// session sets the baseline and the level-up engine climbs from there - overshooting a
-// stranger's first day is how apps get deleted.
+// A program engine, not a template stamp. Three independent axes:
+//   LEVEL picks the exercise for each ROLE (machines for a beginner, the bar as you
+//         advance) and tempers the volume;
+//   DAYS  picks the SPLIT (2 = full body or upper/lower, 3 = full body or push/pull/legs,
+//         4 = upper/lower twice with varied second halves, 5 = PPL plus upper/lower);
+//   GOAL  writes the PRESCRIPTION per role - a strength week means fives on the bar and
+//         still twelves on the curls, because nobody strength-trains a lateral raise.
+// Weight loss is its own goal, not a rebadge: accessories pair into supersets for
+// density, every day ends on a cardio finisher, and the daily walk goes on the shelf.
+//
+// Starting weights are per lift at intermediate, scaled by level, rounded to real plates,
+// and deliberately modest: the first session sets the baseline and the level-up engine
+// climbs from there - overshooting a stranger's first day is how apps get deleted.
 var EZ_W={bench:65,ohp:45,bsquat:75,deadlift:95,incdb:25,mbench:60,lpress:120,latpd:55,
-          row:60,preacher:25,hammer:17.5,rope:25,ohext:20,dblat:12.5,slegcurl:60,lext:60,
+          row:60,machrow:70,hthrust:90,preacher:25,sdbcurl:20,hammer:17.5,rope:25,ohext:20,
+          skull:20,dblat:12.5,revfly:45,mfly:60,dbfly:20,slegcurl:60,lext:60,
           dcalfr:30,scalfr:70};
-var EZ_PLANS={
-  beg:[{n:'Full Body A',ids:['lpress','mbench','latpd','dblat','plank']},
-       {n:'Full Body B',ids:['slegcurl','incdb','row','preacher','hollow']}],
-  int:[{n:'Upper Body',ids:['bench','ohp','latpd','row','rope']},
-       {n:'Lower Body',ids:['bsquat','lpress','slegcurl','scalfr','plank']}],
-  adv:[{n:'Push Day',ids:['bench','ohp','incdb','dblat','ohext']},
-       {n:'Pull Day',ids:['deadlift','latpd','row','preacher','hammer']},
-       {n:'Leg Day',ids:['bsquat','lpress','slegcurl','dcalfr','hollow']}]
+// role -> the lift that fills it, per level
+var EZ_POOL={
+  squat:  {beg:'lpress', int:'bsquat', adv:'bsquat'},
+  hinge:  {beg:'hthrust',int:'deadlift',adv:'deadlift'},
+  hpress: {beg:'mbench', int:'bench',  adv:'bench'},
+  vpress: {beg:'dblat',  int:'ohp',    adv:'ohp'},
+  incline:{beg:'incdb',  int:'incdb',  adv:'incdb'},
+  vpull:  {beg:'latpd',  int:'latpd',  adv:'latpd'},
+  hpull:  {beg:'machrow',int:'row',    adv:'row'},
+  chestI: {beg:'mfly',   int:'dbfly',  adv:'dbfly'},
+  sideD:  {beg:'dblat',  int:'dblat',  adv:'dblat'},
+  rearD:  {beg:'revfly', int:'revfly', adv:'revfly'},
+  quadI:  {beg:'lext',   int:'lext',   adv:'lext'},
+  hamI:   {beg:'slegcurl',int:'slegcurl',adv:'slegcurl'},
+  calf:   {beg:'scalfr', int:'scalfr', adv:'dcalfr'},
+  bicep:  {beg:'preacher',int:'sdbcurl',adv:'sdbcurl'},
+  bicep2: {beg:'hammer', int:'hammer', adv:'hammer'},
+  tricep: {beg:'rope',   int:'rope',   adv:'rope'},
+  tricep2:{beg:'ohext',  int:'skull',  adv:'skull'},
+  core:   {beg:'plank',  int:'plank',  adv:'plank'},
+  core2:  {beg:'bike',   int:'hollow', adv:'hollow'}
+};
+// Each day is roles with a ROLE CLASS: main / sec / acc / iso / core. Pairs in [] are
+// superset candidates - realised only for the weight-loss goal, ordinary rows otherwise.
+var EZ_DAYS={
+  fullA:{n:'Full Body A',r:[['squat','main'],['hpress','main'],['hpull','sec'],[['sideD','iso'],['bicep','iso']],['core','core']]},
+  fullB:{n:'Full Body B',r:[['hinge','main'],['vpress','sec'],['vpull','sec'],[['tricep','iso'],['hamI','iso']],['core2','core']]},
+  upper1:{n:'Upper Body',r:[['hpress','main'],['vpull','sec'],['vpress','sec'],[['bicep','iso'],['tricep','iso']],['rearD','iso']]},
+  lower1:{n:'Lower Body',r:[['squat','main'],['hamI','sec'],['quadI','acc'],[['calf','iso'],['core','core']]]},
+  upper2:{n:'Upper Body B',r:[['incline','main'],['hpull','sec'],['chestI','acc'],[['bicep2','iso'],['tricep2','iso']],['sideD','iso']]},
+  lower2:{n:'Lower Body B',r:[['hinge','main'],['squat','sec'],['hamI','acc'],[['calf','iso'],['core2','core']]]},
+  push:{n:'Push Day',r:[['hpress','main'],['vpress','sec'],['incline','acc'],[['chestI','iso'],['tricep','iso']],['sideD','iso']]},
+  pull:{n:'Pull Day',r:[['hinge','main'],['vpull','sec'],['hpull','sec'],[['rearD','iso'],['bicep','iso']],['bicep2','iso']]},
+  legs:{n:'Leg Day',r:[['squat','main'],['hamI','sec'],['quadI','acc'],[['calf','iso'],['core','core']]]}
+};
+// the split: which days make the week, by day count and level
+function ezSplit(level,days){
+  var D=EZ_DAYS;
+  if(days<=2)return level==='beg'?[D.fullA,D.fullB]:[D.upper1,D.lower1];
+  if(days===3)return level==='beg'?[D.fullA,D.fullB,D.fullA]:[D.push,D.pull,D.legs];
+  if(days===4)return [D.upper1,D.lower1,D.upper2,D.lower2];
+  return level==='beg'?[D.fullA,D.lower1,D.fullB,D.upper1,D.fullA]:[D.push,D.pull,D.legs,D.upper2,D.lower2];
+}
+// the prescription: sets x reps x rest per role class, per goal
+var EZ_RX={
+  strong:{main:{s:5,r:5, rest:'3 min'}, sec:{s:4,r:6, rest:'2 min'}, acc:{s:3,r:8, rest:'90 sec'}, iso:{s:2,r:12,rest:'60 sec'}, core:{s:3,t:30,rest:'45 sec'}},
+  muscle:{main:{s:4,r:8, rest:'2 min'}, sec:{s:3,r:10,rest:'90 sec'}, acc:{s:3,r:12,rest:'75 sec'}, iso:{s:3,r:15,rest:'60 sec'}, core:{s:3,t:35,rest:'45 sec'}},
+  lean:  {main:{s:3,r:12,rest:'75 sec'},sec:{s:3,r:12,rest:'60 sec'}, acc:{s:3,r:15,rest:'45 sec'}, iso:{s:3,r:15,rest:'45 sec'}, core:{s:3,t:40,rest:'30 sec'}},
+  move:  {main:{s:3,r:10,rest:'90 sec'},sec:{s:2,r:12,rest:'75 sec'}, acc:{s:2,r:12,rest:'60 sec'}, iso:{s:2,r:15,rest:'60 sec'}, core:{s:2,t:30,rest:'45 sec'}}
 };
 var EZ_SLOTS={2:['mon','thu'],3:['mon','wed','fri'],4:['mon','tue','thu','fri'],5:['mon','tue','wed','thu','fri']};
+var EZ_FIN=['stairs','rower','cbike'];   // weight-loss finishers, rotated across the week
+function ezRow(role,cls,level,mult,goal){
+  var id=(EZ_POOL[role]||{})[level];if(!id||!EX[id])return null;
+  var rx=EZ_RX[goal][cls]||EZ_RX[goal].acc;
+  var sets=Math.max(2,rx.s-(level==='beg'?1:0));
+  var line;
+  if(cls==='core'&&/sec/.test(EX[id].sets))line=rx.t+' sec';
+  else if(cls==='core')line='0x'+(rx.r||15);
+  else if(EZ_W[id]!=null){
+    var w=Math.max(5,Math.round(EZ_W[id]*mult/5)*5);
+    line=w+'x'+rx.r;
+  }
+  else line='0x'+rx.r;
+  var out=[];for(var i=0;i<sets;i++)out.push(line);
+  return [id,{sets:out.join('\n'),rest:rx.rest}];
+}
 function ezForge(){
   var mult=EZ.level==='beg'?0.6:EZ.level==='adv'?1.4:1;
-  var reps=EZ.goal==='strong'?5:EZ.goal==='move'?14:10;
-  var rest=EZ.goal==='strong'?'3 min':EZ.goal==='move'?'60 sec':'90 sec';
-  var hold=EZ.goal==='move'?40:30;
-  var plans=EZ_PLANS[EZ.level]||EZ_PLANS.int,slots=EZ_SLOTS[EZ.days]||EZ_SLOTS[3];
+  var goal=EZ.goal,level=EZ.level;
+  var plan=ezSplit(level,EZ.days),slots=EZ_SLOTS[EZ.days]||EZ_SLOTS[3];
   dayMap();
-  // One workout per unique plan, REUSED across the week when days repeat - Full Body A on
-  // Monday and Thursday is one piece standing on two days, so a level-up on Monday is
-  // already the target on Thursday. Multi-day placement was built for exactly this.
-  var made=plans.map(function(p,pi){
-    var rows=p.ids.map(function(id){
-      var e=EX[id];if(!e)return null;
-      var line;
-      if(/sec/.test(e.sets))line=hold+' sec';
-      else if(EZ_W[id]!=null){
-        var w=Math.max(5,Math.round(EZ_W[id]*mult/5)*5);
-        line=w+'x'+reps;
+  // One workout per unique day-shape, REUSED where the split repeats it - Full Body A on
+  // Monday and Friday is one piece standing on two days, so a raise on one is already
+  // the other's target.
+  var madeBy={},order=[];
+  plan.forEach(function(d,i){
+    if(madeBy[d.n]){order.push(madeBy[d.n]);return;}
+    var sections=[],straight=[];
+    d.r.forEach(function(slot){
+      if(Array.isArray(slot[0])){    // a superset candidate pair
+        var a=ezRow(slot[0][0],slot[0][1],level,mult,goal);
+        var b=ezRow(slot[1][0],slot[1][1],level,mult,goal);
+        if(goal==='lean'&&a&&b){
+          if(straight.length){sections.push({title:'Straight sets',ss:false,rows:straight});straight=[];}
+          sections.push({title:'Superset',ss:true,rows:[a,b]});
+        }else{if(a)straight.push(a);if(b)straight.push(b);}
+        return;
       }
-      else line='0x'+(reps+5);
-      return [id,{sets:[line,line,line].join('\n'),rest:/sec/.test(line)?'45 sec':rest}];
-    }).filter(Boolean);
-    var id='cus'+Date.now().toString(36)+pi;
-    DB.custom[id]={name:p.n,custom:1,made:Date.now(),kind:'lift',tag:'Yours',time:'~9:00 PM',
-      color:MK_COLS[pi%MK_COLS.length],
-      sections:[{title:'Straight sets',ss:false,rows:rows}]};
-    return id;
+      var row=ezRow(slot[0],slot[1],level,mult,goal);
+      if(row)straight.push(row);
+    });
+    // the fat-loss week ends every day on a burn, rotating the machine so no two days match
+    if(goal==='lean'){
+      var fin=EZ_FIN[i%EZ_FIN.length];
+      if(EX[fin])straight.push([fin,{sets:'10 min',rest:''}]);
+    }
+    if(straight.length)sections.push({title:'Straight sets',ss:false,rows:straight});
+    var id='cus'+Date.now().toString(36)+i;
+    DB.custom[id]={name:d.n,custom:1,made:Date.now(),kind:'lift',tag:'Yours',time:'~9:00 PM',
+      color:MK_COLS[order.length%MK_COLS.length],sections:sections};
+    madeBy[d.n]=id;order.push(id);
   });
   slots.forEach(function(day,i){
-    var id=made[i%made.length];
+    var id=order[i];
     DB.days[day]=DB.days[day]||[];
     if(DB.days[day].indexOf(id)<0)DB.days[day].push(id);
   });
-  // Get moving carries its promise: the daily walk goes on the shelf, ready for any day.
-  if(EZ.goal==='move'){
+  // Both cardio-leaning goals carry the walk: the cheapest habit with the longest reach.
+  if(goal==='lean'||goal==='move'){
     var wid='cus'+Date.now().toString(36)+'w';
     DB.custom[wid]={name:'Power Walk',custom:1,made:Date.now(),kind:'cardio',tag:'Yours',time:'Anytime',color:'#e0b667',
       sections:[{title:'Straight sets',ss:false,rows:[['walk',{sets:'30 min',rest:''}]]}]};
