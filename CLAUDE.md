@@ -138,8 +138,10 @@ writes through — `mkTouch()`, debounced 500ms. There is no "unsaved" state in 
    same workout-item card in both) and ask "this week or just today?" once on the way out of a
    session, rather than merging the modes. **Do not update `exEditOvl` piecemeal** — that work is
    thrown away if this happens.
-2. **Analysis features.** Volume totals and estimated 1RM first (arithmetic over data already
-   held), then one chart per exercise. Full gap analysis against Hevy/Strong/Jefit exists as a
-   published artifact.
+2. **Analysis features.** v1 shipped in v4.136: the Progress sheet's exercise rows now open
+   into est 1RM (Epley on the session's top set), volume last/best, and an SVG line chart per
+   exercise — assisted work charts assistance falling, timed work charts the hold. Still open:
+   day/week-level volume trends, and richer charts if v1 earns them. Full gap analysis against
+   Hevy/Strong/Jefit exists as a published artifact.
 3. **Kilograms.** Needs a real switch, not a second label — stored numbers need converting or
    tagging.
