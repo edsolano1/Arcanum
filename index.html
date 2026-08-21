@@ -1962,6 +1962,29 @@ body.light .srow.done .chk,body.light .srow.ispr .chk,body.light .finishbtn{box-
              linear-gradient(180deg,transparent 55%,rgba(0,0,0,.45));}
 .card.sealed:hover{box-shadow:none;border-color:#3a4457;}
 .seal{position:absolute;right:12px;bottom:10px;width:20px;height:20px;opacity:.3;pointer-events:none;}
+/* ---- THE QUENCH (Forge) ----
+   A finished day is a finished PIECE: pulled from the fire and cooled. Neutral ash - no
+   hue at all, chosen over warm ash and gunmetal on the panel - because next to a warm
+   world, hue-absence itself reads as cold. Deliberately OPAQUE where every live card is
+   translucent: the ground's firelight must not re-warm the metal, and the solidity is the
+   point - live days are still part of the fire, a finished one is settled matter. The
+   sheen band and the lighter top edge are the light on a polished face; both are static
+   paint, costing nothing per frame. The gold COMPLETED pill stays exactly as it was: a
+   maker's stamp wants metal under it. The old gold ouroboros seal is hidden here - the
+   first world's serpent has no business signing the third world's work. */
+body.forge .card.sealed{
+  background:
+    linear-gradient(115deg,rgba(255,255,255,0) 38%,rgba(255,255,255,.05) 46%,rgba(255,255,255,0) 55%),
+    #171716;
+  border-color:#343433;border-top-color:#454543;}
+body.forge .card.sealed .card-name{color:#a8a6a2;}
+body.forge .card.sealed .card-meta{color:#727170;}
+body.forge .card.sealed .carddrag{color:#5c5b59;}
+body.forge .card.sealed .seal{display:none;}
+body.forge .daybox.quenched{border-color:#2c2c2b;background:rgba(23,23,22,.42);}
+body.forge .daybox.quenched .dayhead{color:#84827f;}
+body.forge .daybox.quenched .dayglow{display:none;}
+body.forge .daybox.today.quenched{border-color:#3a3a38;}
 .pill-done{background:transparent;border:1px solid color-mix(in srgb,var(--gold) 42%,transparent);color:var(--gold);}
 body.light .card.sealed{background:var(--surface2);border-color:var(--line);}
 body.light .card.sealed::after{opacity:.35;background:repeating-linear-gradient(135deg,rgba(60,72,96,.07) 0 2px,transparent 2px 6px);}
@@ -3578,7 +3601,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.133';
+var APPV='v4.134';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4233,7 +4256,10 @@ function planCard(id,i,nx){
 // draws its header and a place to drop into rather than vanishing.
 function dayBox(d,nx,n0){
   var ids=(DB.days[d.k]||[]),isToday=(new Date().getDay()===d.js);
-  var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+'" data-day="'+d.k+'">'+(isToday?'<i class="dayglow"></i>':'');
+  // Every piece off this day's fire is finished: the whole bench cools, header and all.
+  var ltw=loggedThisWeek();
+  var quenched=ids.length&&ids.every(function(id){return loggedCount(id)===0&&!!ltw[id];});
+  var h='<div class="daybox'+(isToday?' today':'')+(ids.length?'':' empty')+(quenched?' quenched':'')+'" data-day="'+d.k+'">'+(isToday?'<i class="dayglow"></i>':'');
   // No count. How many a day can hold is not something to be reminded of on every day you own -
   // it only matters at the moment you try to exceed it, and it says so then.
   // The add for a day that already holds something rides IN the header now, not on a dashed
