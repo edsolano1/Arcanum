@@ -143,9 +143,23 @@ writes through — `mkTouch()`, debounced 500ms. There is no "unsaved" state in 
    exercise — assisted work charts assistance falling, timed work charts the hold. Still open:
    day/week-level volume trends, and richer charts if v1 earns them. Full gap analysis against
    Hevy/Strong/Jefit exists as a published artifact.
-3. **Kilograms.** Shipped in v4.141 as a display skin: storage stays pounds forever, the
-   Units toggle (Settings) converts at render and converts input back exactly once. Session
-   inputs carry the exact pound value in `data-lb` while showing kg — that is what stops a
-   145 lb target round-tripping through "66 kg" into a 145.5 phantom PR. Still open: plate
-   math fallback steps are 2.5/5 lb even in kg mode (learned lattices are unit-agnostic, so
-   this self-corrects per machine after two logged weights).
+3. **Kilograms.** The toggle shipped in v4.141 as a display skin: storage stays pounds
+   forever, the Units toggle (Settings) converts at render and converts input back exactly
+   once. Session inputs carry the exact pound value in `data-lb` while showing kg — that is
+   what stops a 145 lb target round-tripping through "66 kg" into a 145.5 phantom PR.
+
+   **Committed: kg users are first-class, not a conversion afterthought.** They get the
+   same experience as lb users and never do mental math to make their numbers fit. This is
+   the standard approach across weight-measuring software (lifting apps, scales, health
+   apps): one canonical unit internally, conversion only at the edges, and — the part that
+   separates good from lazy — every number the app GENERATES is produced natively in the
+   user's unit, so suggestions always read as round, natural values in their world. The
+   remaining build-out, in order:
+   - **First run asks the unit** before any number is shown — a step in the welcome/forging
+     ritual, not a setting to discover later.
+   - **The generator speaks the unit**: in kg mode the wizard computes starting weights as
+     natural kg (the bar is 20 kg, not 20.4; rounding is to 2.5 kg, not 5 lb) and stores
+     the exact lb equivalent. A kg user's first week must look like a kg coach wrote it.
+   - **Plate-math fallback goes unit-aware**: level-up steps of 2.5/5 kg in kg mode
+     (learned machine lattices are already unit-agnostic and need nothing).
+   - Storage stays canonical-lb throughout — no data migration, ever.
