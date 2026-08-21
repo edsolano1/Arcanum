@@ -2914,6 +2914,8 @@ body.wcon{overflow:hidden;}
     </div>
     <div class="sfx-lbl" style="margin-top:14px"><span>Motion</span></div>
     <div class="presets" id="motionRow"></div>
+    <div class="sfx-lbl" style="margin-top:14px"><span>Units</span></div>
+    <div class="presets" style="grid-template-columns:1fr 1fr" id="unitRow"></div>
     <!-- Backup is off the sheet for this release. doBackup/pickRestore/doRestore are untouched and
          the file input stays, so the pair is two lines of markup away from coming back. -->
     <input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="doRestore(this)">
@@ -3676,7 +3678,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.140';
+var APPV='v4.141';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -3903,7 +3905,7 @@ function refLink(id,name){
 function fmtSets(sets){
   return sets.map(function(s){
     if(!s)return '-';
-    var base=s.w?(s.w+'\u00d7'+s.r):(s.r+(s.unit?' '+s.unit:''));
+    var base=s.w?(fmtW(s.w)+'\u00d7'+s.r):(s.r+(s.unit?' '+s.unit:''));
     return base+(s.pr?' PR':'')+(s.br&&s.br>10?'*':'');
   }).join(', ');
 }
@@ -4100,7 +4102,7 @@ function lvlFmt(s){
   s=String(s);
   var m=s.match(/^0x(\d+)$/);
   if(m)return m[1]+' reps';   // a zero-weight line is a rep count, not "0 × 22"
-  return s.replace('x','&thinsp;&times;&thinsp;');
+  return fmtLine(s).replace('x','&thinsp;&times;&thinsp;');
 }
 // What the chip's inline editor is actually editing, read off the target's shape:
 // a zero-weight line edits reps, a timed line edits seconds, anything else the weight.
@@ -4141,8 +4143,8 @@ function lvlRender(){
       lvlGroups(p).map(function(x,gi){
         if(LVLED&&LVLED.pi===pi&&LVLED.gi===gi){
           var kind=lvlKind(x.t),t0=parseTarget(x.t);
-          var v0=kind==='w'?t0.w:t0.r;
-          var em=kind==='w'?'lb':kind==='r'?'reps':'sec';
+          var v0=kind==='w'?fmtW(t0.w):t0.r;
+          var em=kind==='w'?wUnitName():kind==='r'?'reps':'sec';
           return '<span class="mk-sr open"><input class="mk-num sm" type="number" inputmode="decimal" step="'+(kind==='w'?'0.5':'1')+'" value="'+v0+'" oninput="lvlEditVal(this.value)"><em>'+em+'</em>'+
                  '<button class="mk-rest-ok" onclick="lvlEditOK()">OK</button></span>';
         }
@@ -4173,7 +4175,11 @@ function lvlEditOK(){
     for(var i=g.at;i<g.at+g.n;i++){
       if(kind==='r')p.to[i]='0x'+Math.max(1,Math.round(v));
       else if(kind==='s')p.to[i]=Math.max(1,Math.round(v))+' sec';
-      else p.to[i]=String(v%1?v.toFixed(1):v)+'x'+String(p.to[i]).split('x')[1];
+      else{
+        // typed in the display unit, stored in pounds - converted exactly once
+        var lb=Math.round(inW(v)*100)/100;
+        p.to[i]=String(lb%1?lb:lb)+'x'+String(p.to[i]).split('x')[1];
+      }
     }
     // a hand-set number is the truth about the machine; the estimate mark comes off
     p.est=false;
@@ -5183,7 +5189,7 @@ function renderSession(){
       html+='<div class="ex-stats">'+
             '<span class="ex-stat st-tgt">Target <b>'+r.sets.split('\n').join(', ')+'</b></span>'+
             (L?'<span class="ex-stat st-last">Last <b>'+fmtSets(L.sets)+'</b></span>':'')+
-            (bst?'<span class="ex-stat st-best">Best <b>'+(bst.w?bst.w+'\u00d7'+bst.r:bst.r+(bst.unit?' '+bst.unit:''))+'</b></span>':'')+
+            (bst?'<span class="ex-stat st-best">Best <b>'+(bst.w?fmtW(bst.w)+'\u00d7'+bst.r:bst.r+(bst.unit?' '+bst.unit:''))+'</b></span>':'')+
             '</div></div>';   // closes ex-stats, then ex-body
       // The button sits beside the instructions because that is where you already look for
       // "how do I do this one".
@@ -5207,7 +5213,8 @@ function renderSession(){
         // It is a property of the exercise, not of the number, which is why it is a flag and not
         // inferred from the zero - Push-Up is programmed at 0 and is meant to take weight later.
         if(t.type==='wr'&&!r.bw){
-          html+='<input class="inp" id="w-'+id+'-'+i+'" readonly value="'+vw+'" onclick="openEdit(\''+id+'\','+i+',\'w\')">'+
+          // value speaks the current unit; data-lb keeps the exact pound truth for logging
+          html+='<input class="inp" id="w-'+id+'-'+i+'" readonly value="'+fmtW(vw)+'" data-lb="'+vw+'" onclick="openEdit(\''+id+'\','+i+',\'w\')">'+
                 '<span class="mul">&times;</span>'+
                 '<input class="inp" id="r-'+id+'-'+i+'" readonly value="'+vr+'" onclick="openEdit(\''+id+'\','+i+',\'r\')">';
         }else{
@@ -5262,7 +5269,7 @@ function openEdit(id,i,which){
   edCtx={id:id,i:i,which:which,val:cur,isSec:isSec};
   document.getElementById('edEx').textContent=r.name;
   document.getElementById('edSet').textContent='Set '+(i+1)+' \u00b7 '+(which==='w'?'Weight':(isSec?'Seconds':'Reps'));
-  document.getElementById('edUnit').textContent=which==='w'?'lbs':(isSec?'seconds':'reps');
+  document.getElementById('edUnit').textContent=which==='w'?(wUnitName()+'s'):(isSec?'seconds':'reps');
   edPad();
   var tgt=(r.sets.split('\n')[i]||'').trim();
   document.getElementById('edHint').textContent='Target for this set: '+tgt;
@@ -5282,10 +5289,19 @@ function saveEdit(){
   if(!edCtx)return;
   edCtx.val=edRead();
   var el=document.getElementById((edCtx.which==='w'?'w-':'r-')+edCtx.id+'-'+edCtx.i);
-  el.value=Math.round(edCtx.val*100)/100;
+  // The pad speaks the display unit; storage speaks pounds. A weight converts exactly once
+  // here - the input keeps the exact pound value in data-lb and shows the display form.
+  if(edCtx.which==='w'){
+    var lb=inW(edCtx.val);
+    el.dataset.lb=lb;
+    el.value=fmtW(lb);
+  }else{
+    el.value=Math.round(edCtx.val*100)/100;
+  }
   var A=DB.active[CUR];
   if(A&&A.entries[edCtx.id]&&A.entries[edCtx.id][edCtx.i]){
-    A.entries[edCtx.id][edCtx.i].w=parseFloat(document.getElementById('w-'+edCtx.id+'-'+edCtx.i).value)||0;
+    var wIn=document.getElementById('w-'+edCtx.id+'-'+edCtx.i);
+    A.entries[edCtx.id][edCtx.i].w=wIn?(wIn.dataset.lb!==undefined?parseFloat(wIn.dataset.lb)||0:inW(wIn.value)):0;
     A.entries[edCtx.id][edCtx.i].r=parseFloat(document.getElementById('r-'+edCtx.id+'-'+edCtx.i).value)||0;
     saveDB();
   }
@@ -5299,6 +5315,7 @@ function saveEdit(){
       if(!nx)break;
       if(A&&A.entries[edCtx.id]&&A.entries[edCtx.id][j])continue;
       nx.value=el.value;
+      if(el.dataset.lb!==undefined)nx.dataset.lb=el.dataset.lb;
     }
   }
   closeOvl('editOvl');edCtx=null;
@@ -5321,7 +5338,8 @@ function toggleSet(id,i,rest,unit){
     row.classList.remove('ismatch');row.classList.remove('isunder');
     sfxUndo();
   }else{
-    var w=parseFloat(document.getElementById('w-'+key).value)||0;
+    var wEl=document.getElementById('w-'+key);
+    var w=wEl.dataset.lb!==undefined?(parseFloat(wEl.dataset.lb)||0):inW(wEl.value);
     var r=parseInt(document.getElementById('r-'+key).value)||0;
     var e={w:w,r:r,unit:unit||''};
     if(holdBreak[key]>0)e.br=holdBreak[key];
@@ -6134,7 +6152,7 @@ function mkSet(i,k,v){
   var r=MK.rows[i];if(!r)return;
   if(k==='rest'){r.rest=v;return;}
   if(k==='n')r.n=Math.max(1,Math.min(12,parseInt(v,10)||1));
-  else if(k==='w')r.w=parseFloat(v)||0;
+  else if(k==='w')r.w=Math.round(inW(v)*100)/100;
   else r.r=parseInt(v,10)||0;
   // Anything typed in the summary is a statement about EVERY set, so the per-set detail is
   // rewritten to match rather than left behind to contradict it. This is the one place the
@@ -6346,7 +6364,7 @@ function mkSetsUI(r,i){
        // words took is exactly what the rest chip needed to sit on its own set's line instead
        // of wrapping under it with a row to itself. Single-number rows keep their word - a
        // lone 10 has to say whether it is reps or seconds.
-       (u==='wr'?'<input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+c.w+'" oninput="'+wIn+'">'+
+       (u==='wr'?'<input class="mk-num" type="number" inputmode="decimal" step="0.5" value="'+fmtW(c.w)+'" oninput="'+wIn+'">'+
                  '<span class="mk-ps-x">&times;</span>':'')+
        '<input class="mk-num" type="number" inputmode="numeric" value="'+c.r+'" oninput="'+rIn+'">'+
        (u==='wr'?'':'<span class="mk-ps-u">'+unitTxt+'</span>')+
@@ -6422,7 +6440,7 @@ function mkSetLine(i,k,f,v){
   var r=MK.rows[i];if(!r)return;
   r.lines=mkLinesFor(r);
   var c=mkLineVal(r.lines[k],r.hold);
-  if(f==='w')c.w=parseFloat(v)||0;else c.r=parseInt(v,10)||0;
+  if(f==='w')c.w=Math.round(inW(v)*100)/100;else c.r=parseInt(v,10)||0;
   r.lines[k]=r.hold?((c.r||30)+' sec'):((c.w||0)+'x'+(c.r||0));
   r.custom=1;mkTouch();
 }
@@ -6803,7 +6821,7 @@ function mkCommit(stay){
 
 // ---------- finish + export ----------
 function buildExport(wk,A){
-  var w=W[wk],out=APPNAME()+' \u2014 '+w.name.replace('Optional: ','')+'\n'+pretty(A.date)+'\n\n';
+  var w=W[wk],out=APPNAME()+' \u2014 '+w.name.replace('Optional: ','')+'\n'+pretty(A.date)+(UNIT_KG?'  \u00b7  weights in kg':'')+'\n\n';
   w.sections.forEach(function(sec){
     sec.rows.forEach(function(row){
       var rf=rowFor(A.swaps,row),id=rf.id,ent=(A.entries[id]||[]).filter(function(x){return x;});
@@ -6847,7 +6865,7 @@ function renderSummary(s){
     return '<div class="sum-c'+(cls?' '+cls:'')+'"><div class="sum-n">'+n+(unit?'<small>'+unit+'</small>':'')+'</div><div class="sum-l">'+label+'</div></div>';
   }
   var cells=[cell(s.sets,'','Sets logged')];
-  if(s.vol>0)cells.push(cell(s.vol.toLocaleString(),' lbs','Weight moved'));
+  if(s.vol>0)cells.push(cell(Math.round(dspW(s.vol)).toLocaleString(),' '+wUnitName()+'s','Weight moved'));
   if(s.reps>0)cells.push(cell(s.reps,'','Total reps'));
   if(s.held>0){var hd=fmtHeld(s.held);cells.push(cell(hd.n,hd.u,'Time held'));}
   cells.push(s.mins?cell(s.mins,' min','Time in session'):cell('\u2014','','Time in session'));
@@ -7416,7 +7434,7 @@ function topSet(sets){
   });
   if(!b)return '';
   if(b.unit==='sec')return b.r+' sec';
-  return (b.w?b.w+'\u00d7'+b.r:b.r+' reps');
+  return (b.w?fmtW(b.w)+'\u00d7'+b.r:b.r+' reps');
 }
 // Walks are graded on turning up, not on load, so they get a strip of their own rather than
 // a row in the vs-last-session table.
@@ -7476,15 +7494,15 @@ function progDetail(id){
   var best=k==='inv'?Math.min.apply(0,vs):Math.max.apply(0,vs),last=vs[vs.length-1];
   var bestVol=0;S.forEach(function(s){if(s.vol>bestVol)bestVol=s.vol;});
   var h='';
-  if(k==='wr')h+='<div class="pg-1rm"><span>EST 1RM</span><b>'+Math.round(best)+'</b><i>best</i><b>'+Math.round(last)+'</b><i>latest</i></div>'+
+  if(k==='wr')h+='<div class="pg-1rm"><span>EST 1RM</span><b>'+Math.round(dspW(best))+'</b><i>'+wUnitName()+' best</i><b>'+Math.round(dspW(last))+'</b><i>latest</i></div>'+
     '<div class="pg-cap">Estimated one-rep max per session, from each session&rsquo;s top set</div>';
-  else if(k==='inv')h+='<div class="pg-1rm"><span>ASSISTANCE</span><b>'+last+'</b><i>latest &mdash; less is more here</i></div>'+
+  else if(k==='inv')h+='<div class="pg-1rm"><span>ASSISTANCE</span><b>'+fmtW(last)+'</b><i>'+wUnitName()+' latest &mdash; less is more here</i></div>'+
     '<div class="pg-cap">Assistance weight per session &mdash; the line falling is the progress</div>';
   else h+='<div class="pg-1rm"><span>BEST</span><b>'+best+'</b><i>'+(k==='sec'?'sec':'reps')+' ever</i><b>'+last+'</b><i>latest</i></div>'+
     '<div class="pg-cap">Best '+(k==='sec'?'hold':'set')+' per session</div>';
   h+=progChart(S);
   h+='<div class="pg-range"><span>'+pretty(S[0].date)+'</span><span>'+S.length+' session'+(S.length===1?'':'s')+'</span><span>'+pretty(S[S.length-1].date)+'</span></div>';
-  h+='<div class="pg-range"><span>Volume: last '+Math.round(S[S.length-1].vol)+'</span><span>best '+Math.round(bestVol)+'</span></div>';
+  h+='<div class="pg-range"><span>Volume: last '+Math.round(dspW(S[S.length-1].vol)).toLocaleString()+' '+wUnitName()+'</span><span>best '+Math.round(dspW(bestVol)).toLocaleString()+'</span></div>';
   return '<div class="pg-detail">'+h+'</div>';
 }
 var PGSEL=null;
@@ -7556,7 +7574,7 @@ function histEditSet(key,si){
 // staged, not written - same rule as every other inline editor here: oninput never redraws
 function histEditVal(f,v){
   if(!HIST.edv)return;
-  HIST.edv[f]=f==='w'?(parseFloat(v)||0):(parseInt(v,10)||0);
+  HIST.edv[f]=f==='w'?(Math.round(inW(v)*100)/100):(parseInt(v,10)||0);
 }
 function histEditOK(){
   var L=DB.logs[HIST.sel];
@@ -7622,12 +7640,12 @@ function renderHist(){
           if(HIST.ed&&HIST.ed.key===id&&HIST.ed.si===si){
             var single=!!s.unit;
             return '<span class="hset hed">'+
-              (single?'':'<input class="mk-num sm" type="number" inputmode="decimal" step="0.5" value="'+s.w+'" oninput="histEditVal(&#39;w&#39;,this.value)"><i>&times;</i>')+
+              (single?'':'<input class="mk-num sm" type="number" inputmode="decimal" step="0.5" value="'+fmtW(s.w)+'" oninput="histEditVal(&#39;w&#39;,this.value)"><i>&times;</i>')+
               '<input class="mk-num sm" type="number" inputmode="numeric" value="'+s.r+'" oninput="histEditVal(&#39;r&#39;,this.value)">'+
               (single?'<i>'+s.unit+'</i>':'')+
               '<button class="mk-rest-ok" onclick="histEditOK()">OK</button></span>';
           }
-          var v=s.unit==='sec'?(s.r+'s held'):(s.w?s.w+'\u00d7'+s.r:s.r+' reps');
+          var v=s.unit==='sec'?(s.r+'s held'):(s.w?fmtW(s.w)+'\u00d7'+s.r:s.r+' reps');
           return '<span class="hset'+(s.pr?' pr':'')+'" onclick="histEditSet(\''+id+'\','+si+')" title="Tap to correct this set">'+v+'</span>';
         }).join('')+'</div></div>';
     }
@@ -7936,6 +7954,37 @@ function drawSfxKeys(){
 // New key: the old one stored 0-3 with 3 meaning MUTE, so reading it on this scale would turn
 // a muted alert into a quiet one and a High alert into silence. Left alone under its old name,
 // so a build rolled back still finds what it wrote.
+// ---------- units ----------
+// Kilograms are a SKIN, not a storage format. Every number in DB stays pounds forever -
+// history, grading, the lattice learner, level-ups all keep operating on exact stored
+// values - and the toggle converts only at the eyes and the fingertips. This is what stops
+// a 145 lb bench from round-tripping through "65.8 kg" into a 145.06 that grades as a
+// phantom PR: inputs carry the exact pound value in data-lb while showing kilograms, and
+// anything typed converts exactly once on the way in.
+var UNIT_KG=(function(){try{return localStorage.getItem('arc_kg')==='1';}catch(e){return false;}})();
+var LB_PER_KG=2.20462;
+function dspW(lb){return UNIT_KG?Math.round(lb/LB_PER_KG*2)/2:lb;}   // kg shown to the half
+function fmtW(lb){var v=dspW(lb);return String(v%1?v.toFixed(1):v);}
+function inW(v){v=parseFloat(v)||0;return UNIT_KG?v*LB_PER_KG:v;}
+function wUnitName(){return UNIT_KG?'kg':'lb';}
+// a target line like "145x8" with its weight spoken in the current unit
+function fmtLine(s){
+  return String(s).replace(/^([\d.]+)x/,function(_,w){return fmtW(parseFloat(w))+'x';});
+}
+function kgSet(on){
+  UNIT_KG=!!on;
+  try{localStorage.setItem('arc_kg',on?'1':'0');}catch(e){}
+  drawUnitRow();renderHome();
+  if(typeof sessionOpen==='function'&&sessionOpen())renderSession();
+  try{sfxLog();}catch(e){}
+}
+function drawUnitRow(){
+  var e=document.getElementById('unitRow');if(!e)return;
+  e.innerHTML=[['0','Pounds'],['1','Kilograms']].map(function(u){
+    var on=(UNIT_KG?'1':'0')===u[0];
+    return '<button class="preset sm'+(on?' on':'')+'" onclick="kgSet('+u[0]+')">'+u[1]+'</button>';
+  }).join('');
+}
 var ALERT_MAX=10;
 var ALERT_LVL=(function(){try{var v=parseInt(localStorage.getItem('arc_alert10'));return isNaN(v)?6:Math.max(0,Math.min(ALERT_MAX,v));}catch(e){return 6;}})();
 function alertGain(n){return n<=0?0:3.2*n/ALERT_MAX;}
@@ -9711,7 +9760,7 @@ function openTimerSheet(){
 }
 function openSettings(){
   initAudio();
-  drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();drawSfxKeys();
+  drawAlertLvl();drawThemePick();drawNotifTog();drawMotion();drawSfxKeys();drawUnitRow();
   var ts=document.getElementById('themeSet');
   if(ts)ts.style.display=THEMES_ON?'':'none';
   // The two tour buttons say which LENGTH they are, so the theme's word for "Tutorial" no longer
@@ -9783,7 +9832,7 @@ function drawExEdit(){
   document.getElementById('exEdSets').textContent=e.lines.length;
   document.getElementById('exEdSub').textContent=
     (e.ids.length>1?'Rest and rounds apply to all '+e.ids.length+' exercises in this superset. ':'')+
-    'Target for each set: '+e.lines.join(', ')+'. A new set copies the last one.';
+    'Target for each set: '+e.lines.map(fmtLine).join(', ')+'. A new set copies the last one.';
   var b=exBlockOf(e.wk,e.id),grp=document.getElementById('exEdGrp'),gh='';
   // Four sentences used to stand here - take out, break apart, move earlier, move later -
   // every one blind to which exercise it would act on, every one acting only on the held
