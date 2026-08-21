@@ -2383,6 +2383,30 @@ html.light .sp-mark .cut,body.light .sp-mark .cut{fill:#e9eef5;}
    opacity and a short rise, staggered down the column so the eye is led from the mark to the
    two answers rather than being handed the whole screen at once. Nothing here loops: it plays
    once, on arrival, and then holds still. That is the difference between a moment and a fidget. */
+/* ---- the forging ritual (easy mode) ---- */
+#ez{display:none;position:fixed;inset:0;z-index:212;background:var(--bg);
+  padding:calc(16px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));
+  overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#ez.on{display:block;}
+.ez-in{max-width:430px;margin:0 auto;}
+.ez-top{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.ez-dots{display:flex;gap:7px;margin-left:auto;margin-right:4px;}
+.ez-dots i{width:7px;height:7px;border-radius:50%;background:color-mix(in srgb,var(--txt3) 40%,transparent);transition:.2s;}
+.ez-dots i.on{background:var(--gold);box-shadow:0 0 8px -1px color-mix(in srgb,var(--gold) 70%,transparent);}
+.ez-t{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;font-weight:700;letter-spacing:-.02em;color:var(--txt);margin:14px 2px 4px;}
+body.forge .ez-t{letter-spacing:.06em;text-transform:uppercase;font-size:21px;}
+.ez-s{font-size:13px;color:var(--txt2);margin:0 2px 18px;line-height:1.5;}
+.ez-card{display:flex;align-items:center;gap:15px;width:100%;text-align:left;cursor:pointer;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:15px 16px;margin-bottom:11px;transition:border-color .15s,transform .1s;color:var(--txt);}
+.ez-card:active{transform:scale(.985);}
+.ez-card:hover{border-color:color-mix(in srgb,var(--go) 45%,var(--line));}
+.ez-card b{display:block;font-size:15.5px;font-weight:600;}
+.ez-card small{display:block;margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--txt3);}
+.ez-art{width:52px;height:52px;flex-shrink:0;color:var(--go);}
+.ez-art svg{width:100%;height:100%;}
+.ez-art .au{stroke:var(--gold);}
+.ez-forge{margin-top:8px;}
 #welcome{display:none;position:fixed;inset:0;z-index:210;background:var(--bg);
   padding:calc(28px + env(safe-area-inset-top,0px)) 22px calc(28px + env(safe-area-inset-bottom,0px));
   overflow-y:auto;-webkit-overflow-scrolling:touch;}
@@ -2842,9 +2866,25 @@ body.wcon{overflow:hidden;}
       </button>
       <button class="wc-pick" onclick="wcPick(1)">
         <b>Build one for me</b>
-        <small>Start with a week already laid out</small>
+        <small>Answer three questions, get a week</small>
       </button>
     </div>
+  </div>
+</div>
+
+<!-- EASY MODE: the forging ritual. "Build one for me" used to hand over one fixed program;
+     now it asks three questions - how far along, how many days, what for - and forges a
+     week to match. Same one-question-per-screen discipline as the welcome above it: each
+     screen is a single choice among a few big, drawn options. Everything it generates is
+     ordinary custom workouts built from the ordinary library, so nothing downstream knows
+     the week was forged rather than built by hand. -->
+<div id="ez" aria-hidden="true">
+  <div class="ez-in">
+    <div class="ez-top">
+      <div class="iconbtn" onclick="ezBack()"><svg viewBox="0 0 20 20"><path d="M16 10H4M9 5l-5 5 5 5"/></svg></div>
+      <div class="ez-dots" id="ezDots"></div>
+    </div>
+    <div id="ezBody"></div>
   </div>
 </div>
 
@@ -3636,7 +3676,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.138';
+var APPV='v4.139';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7706,6 +7746,9 @@ function onBackButton(){
   // The welcome is not an .ovl, so back fell straight past it and asked whether to quit - on the
   // one screen where quitting is the last thing anybody means. It answers with the empty week,
   // which is the choice that assumes least: nothing is built, and the builder is one tap away.
+  // the ritual steps back one question at a time, then out to the welcome
+  var ez=document.getElementById('ez');
+  if(ez&&ez.classList.contains('on')){ezBack();backGuard();return;}
   var wc=document.getElementById('welcome');
   if(wc&&wc.classList.contains('on')){wcPick(0);backGuard();return;}
   var ov=topOvl();
@@ -11108,8 +11151,145 @@ function wcPick(n){
   var w=document.getElementById('welcome');
   if(w){w.classList.remove('on');w.setAttribute('aria-hidden','true');}
   document.body.classList.remove('wcon');
-  if(n===1)installStarter();
+  // "Build one for me" opens the forging ritual now instead of installing one fixed
+  // program - the ritual ends on the home screen itself, tour offer included.
+  if(n===1){ezOpen();return;}
   renderHome();window.scrollTo(0,0);
+  setTimeout(tutOffer,650);
+}
+
+// ---------- easy mode: the forging ritual ----------
+// Three questions, each a single screen of drawn choices, then a generated week. The
+// answers never leave this object; what leaves is ordinary DB.custom workouts placed on
+// ordinary days, indistinguishable from hand-built ones to everything downstream.
+var EZ={step:0,level:null,days:null,goal:null};
+// The art: raw ore, a worked ingot, a finished blade - how far along the metal is, which
+// is what "beginner / intermediate / advanced" actually means in this world.
+var EZ_ART={
+  ore:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M14 36l-4-9 7-10 11-4 12 6 3 11-7 9H20z"/><path class="au" d="M18 27l6-7M26 32l8-10" stroke-width="1.9" stroke-linecap="round"/><circle class="au" cx="33" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>',
+  ingot:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M10 33l6-12h20l6 12z"/><path d="M10 33h32v4H10z"/><path class="au" d="M19 26h14" stroke-linecap="round"/></svg>',
+  blade:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 40L34 14l6-4 -2 7L14 42z"/><path d="M15 33l5 5M11 41l-3 3" stroke-width="2"/><path class="au" d="M33 15l3 3"/></svg>',
+  anvil:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M8 18h24c4 0 8 1 11 3-3 2-7 4-12 4h-2c-2 4-3 6-3 8 2 2 4 4 7 5v4H15v-4c3-1 5-3 7-5 0-2-1-4-3-8h-2H8z"/><path class="au" d="M14 13l4 -5M22 12l1-6M30 13l3-5" stroke-linecap="round"/></svg>',
+  stack:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M14 40l4-8h16l4 8z"/><path d="M17 30l4-8h10l4 8z"/><path class="au" d="M21 20l3-6h4l3 6z"/></svg>',
+  wind:'<svg viewBox="0 0 52 52" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 20h22c5 0 5-7 0-7"/><path d="M8 28h32c5 0 5 7 0 7"/><path class="au" d="M8 36h16"/></svg>'
+};
+function ezDays(){
+  var dots=function(n){var h='<svg viewBox="0 0 52 52" fill="none">';
+    for(var i=0;i<7;i++){var x=8+i*6;h+='<circle cx="'+x+'" cy="26" r="2.4" '+(i<n?'fill="currentColor" class="au" stroke="none"':'stroke="currentColor" stroke-width="1.2"')+'/>';}
+    return h+'</svg>';};
+  return [[2,'Two days','The bare minimum that still moves the needle',dots(2)],
+          [3,'Three days','The classic - a day of rest between every fire',dots(3)],
+          [4,'Four days','Each half of the body gets its own two days',dots(4)],
+          [5,'Five days','A day for every part, weekend off',dots(5)]];
+}
+var EZ_STEPS=[
+  {t:'How far along is the metal?',s:'Be honest - the week is built to match, and it levels up with you either way.',
+   k:'level',opts:function(){return [
+    ['beg','Beginner','New to this, or coming back from a long time away',EZ_ART.ore],
+    ['int','Intermediate','Training on and off for a year or more',EZ_ART.ingot],
+    ['adv','Advanced','Consistent for years and ready to be pushed',EZ_ART.blade]];}},
+  {t:'How many days a week?',s:'Only count days you will actually show up. Fewer days done beats more days planned.',
+   k:'days',opts:function(){return ezDays().map(function(d){return [d[0],d[1],d[2],d[3]];});}},
+  {t:'What is it for?',s:'This sets how heavy, how many reps, and how long you rest.',
+   k:'goal',opts:function(){return [
+    ['strong','Get strong','Heavier bar, fewer reps, long rests',EZ_ART.anvil],
+    ['muscle','Build muscle','Moderate weight, more reps, steady pace',EZ_ART.stack],
+    ['move','Get moving','Lighter work, higher reps, short rests - plus a daily walk',EZ_ART.wind]];}}
+];
+function ezOpen(){
+  EZ={step:0,level:null,days:null,goal:null};
+  document.getElementById('ez').classList.add('on');
+  ezRender();
+}
+function ezClose(){document.getElementById('ez').classList.remove('on');}
+function ezBack(){
+  if(EZ.step>0){EZ.step--;ezRender();return;}
+  // step zero backs out to the welcome question itself
+  ezClose();
+  var w=document.getElementById('welcome');
+  if(w){w.classList.add('on');w.setAttribute('aria-hidden','false');document.body.classList.add('wcon');}
+}
+function ezPick(k,v){
+  EZ[k]=v;
+  if(EZ.step<EZ_STEPS.length-1){EZ.step++;ezRender();}
+  else ezForge();
+}
+function ezRender(){
+  var st=EZ_STEPS[EZ.step];
+  document.getElementById('ezDots').innerHTML=EZ_STEPS.map(function(_,i){
+    return '<i'+(i<=EZ.step?' class="on"':'')+'></i>';}).join('');
+  var h='<div class="ez-t">'+st.t+'</div><div class="ez-s">'+st.s+'</div>';
+  st.opts().forEach(function(o){
+    h+='<button class="ez-card" onclick="ezPick(\''+st.k+'\','+(typeof o[0]==='string'?'\''+o[0]+'\'':o[0])+')">'+
+       '<span class="ez-art">'+o[3]+'</span><span><b>'+o[1]+'</b><small>'+o[2]+'</small></span></button>';
+  });
+  var body=document.getElementById('ezBody');
+  body.innerHTML=h;
+  body.classList.remove('slide-in');void body.offsetWidth;body.classList.add('slide-in');
+  document.getElementById('ez').scrollTop=0;
+}
+// ---------- the generator ----------
+// Starting weights per lift at intermediate, scaled down for beginners and up for advanced,
+// rounded to real plates. These are FIRST-SESSION numbers, deliberately modest: the first
+// session sets the baseline and the level-up engine climbs from there - overshooting a
+// stranger's first day is how apps get deleted.
+var EZ_W={bench:65,ohp:45,bsquat:75,deadlift:95,incdb:25,mbench:60,lpress:120,latpd:55,
+          row:60,preacher:25,hammer:17.5,rope:25,ohext:20,dblat:12.5,slegcurl:60,lext:60,
+          dcalfr:30,scalfr:70};
+var EZ_PLANS={
+  beg:[{n:'Full Body A',ids:['lpress','mbench','latpd','dblat','plank']},
+       {n:'Full Body B',ids:['slegcurl','incdb','row','preacher','hollow']}],
+  int:[{n:'Upper Body',ids:['bench','ohp','latpd','row','rope']},
+       {n:'Lower Body',ids:['bsquat','lpress','slegcurl','scalfr','plank']}],
+  adv:[{n:'Push Day',ids:['bench','ohp','incdb','dblat','ohext']},
+       {n:'Pull Day',ids:['deadlift','latpd','row','preacher','hammer']},
+       {n:'Leg Day',ids:['bsquat','lpress','slegcurl','dcalfr','hollow']}]
+};
+var EZ_SLOTS={2:['mon','thu'],3:['mon','wed','fri'],4:['mon','tue','thu','fri'],5:['mon','tue','wed','thu','fri']};
+function ezForge(){
+  var mult=EZ.level==='beg'?0.6:EZ.level==='adv'?1.4:1;
+  var reps=EZ.goal==='strong'?5:EZ.goal==='move'?14:10;
+  var rest=EZ.goal==='strong'?'3 min':EZ.goal==='move'?'60 sec':'90 sec';
+  var hold=EZ.goal==='move'?40:30;
+  var plans=EZ_PLANS[EZ.level]||EZ_PLANS.int,slots=EZ_SLOTS[EZ.days]||EZ_SLOTS[3];
+  dayMap();
+  // One workout per unique plan, REUSED across the week when days repeat - Full Body A on
+  // Monday and Thursday is one piece standing on two days, so a level-up on Monday is
+  // already the target on Thursday. Multi-day placement was built for exactly this.
+  var made=plans.map(function(p,pi){
+    var rows=p.ids.map(function(id){
+      var e=EX[id];if(!e)return null;
+      var line;
+      if(/sec/.test(e.sets))line=hold+' sec';
+      else if(EZ_W[id]!=null){
+        var w=Math.max(5,Math.round(EZ_W[id]*mult/5)*5);
+        line=w+'x'+reps;
+      }
+      else line='0x'+(reps+5);
+      return [id,{sets:[line,line,line].join('\n'),rest:/sec/.test(line)?'45 sec':rest}];
+    }).filter(Boolean);
+    var id='cus'+Date.now().toString(36)+pi;
+    DB.custom[id]={name:p.n,custom:1,made:Date.now(),kind:'lift',tag:'Yours',time:'~9:00 PM',
+      color:MK_COLS[pi%MK_COLS.length],
+      sections:[{title:'Straight sets',ss:false,rows:rows}]};
+    return id;
+  });
+  slots.forEach(function(day,i){
+    var id=made[i%made.length];
+    DB.days[day]=DB.days[day]||[];
+    if(DB.days[day].indexOf(id)<0)DB.days[day].push(id);
+  });
+  // Get moving carries its promise: the daily walk goes on the shelf, ready for any day.
+  if(EZ.goal==='move'){
+    var wid='cus'+Date.now().toString(36)+'w';
+    DB.custom[wid]={name:'Power Walk',custom:1,made:Date.now(),kind:'cardio',tag:'Yours',time:'Anytime',color:'#e0b667',
+      sections:[{title:'Straight sets',ss:false,rows:[['walk',{sets:'30 min',rest:''}]]}]};
+    DB.extra=DB.extra||[];DB.extra.push(wid);
+  }
+  mergeCustom();saveDB();
+  ezClose();
+  renderHome();window.scrollTo(0,0);
+  try{sfxIgnite();}catch(e){}
   setTimeout(tutOffer,650);
 }
 
