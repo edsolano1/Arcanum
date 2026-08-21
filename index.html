@@ -2617,7 +2617,7 @@ body.wcon{overflow:hidden;}
     <div class="wk-stats" id="wkStats"></div>
     <div class="wk-grid">
       <label class="wk-f"><span>Minutes</span><input class="wk-in" id="wkMin" type="number" inputmode="decimal" oninput="wkPace()"></label>
-      <label class="wk-f"><span>Miles</span><input class="wk-in" id="wkDist" type="number" inputmode="decimal" step="0.01" oninput="wkPace()"></label>
+      <label class="wk-f"><span id="wkDistLbl">Miles</span><input class="wk-in" id="wkDist" type="number" inputmode="decimal" step="0.01" oninput="wkPace()"></label>
       <label class="wk-f"><span>Steps</span><input class="wk-in" id="wkSteps" type="number" inputmode="numeric"></label>
     </div>
     <div class="wk-pace" id="wkPace"></div>
@@ -2654,7 +2654,7 @@ body.wcon{overflow:hidden;}
   <div class="sheet">
     <h3>Session logged</h3>
     <div class="sum" id="sumCard"></div>
-    <p>Paste this into your chat with Claude for the review.</p>
+    <p>Plain text &mdash; save it anywhere, send it to anyone, or paste it into any chat for a review.</p>
     <textarea id="exportTxt" readonly></textarea>
     <div class="sheet-btns">
       <div class="btn btn-go" onclick="copyExport()" id="copyBtn">COPY</div>
@@ -2683,7 +2683,7 @@ body.wcon{overflow:hidden;}
 <div class="ovl" id="backupOvl">
   <div class="sheet">
     <h3>Backup &amp; restore</h3>
-    <p>Your logs live in this browser's storage. Clearing browsing data erases them. Copy this text somewhere safe (notes app, email to yourself) and you can paste it back any time.</p>
+    <p>Your logs live on this device and nowhere else &mdash; clearing the app or browser data erases them. Copy this text somewhere safe (notes app, email to yourself) and you can paste it back any time.</p>
     <textarea id="backupTxt" spellcheck="false"></textarea>
     <div class="sheet-btns">
       <div class="btn btn-go" onclick="copyEl('backupTxt','bkCopy')" id="bkCopy">COPY BACKUP</div>
@@ -3520,10 +3520,10 @@ var GEN_TXT={
   unsealMsg: 'Every completed day opens again so you can repeat it. Nothing is deleted — all of it stays in your history.',
   unsealTtl: 'Reopen the week?',
   unsealYes: 'REOPEN',
-  sealTtl1:  'Complete the open session?',
-  sealTtlN:  'Complete the open sessions?',
-  sealYes:   'COMPLETE & CONTINUE',
-  sealLine:  ' Opening this one will complete your current session',
+  sealTtl1:  'Close out the open session?',
+  sealTtlN:  'Close out the open sessions?',
+  sealYes:   'CLOSE OUT & CONTINUE',
+  sealLine:  ' Opening this one will close out your current session',
   sealAlt:   'BACK TO SESSION',
   sealMore:  ' Or go back to it and pick up where you left off.',
   restingTtl:'Resting',
@@ -3593,10 +3593,10 @@ function TXT(k){
                 :'Every sealed day opens again so you can run it a second time. Nothing is deleted \u2014 all of it stays in your history.',
     unsealTtl: f?'Back to the fire?':'Unseal the week?',
     unsealYes: f?'REHEAT':'UNSEAL',
-    sealTtl1:  f?'Quench the open piece?':'Seal the open session?',
+    sealTtl1:  f?'Set the open piece aside?':'Close out the open session?',
     sealTtlN:  f?'Quench the open pieces?':'Seal the open sessions?',
-    sealYes:   f?'QUENCH & CONTINUE':'SEAL & CONTINUE',
-    sealLine:  f?' Opening this one will quench your current piece':' Opening this one will seal your current session',
+    sealYes:   f?'SET ASIDE & CONTINUE':'CLOSE OUT & CONTINUE',
+    sealLine:  f?' Opening this one will set your current piece aside':' Opening this one will close out your current session',
     sealAlt:   'BACK TO SESSION',
     sealMore:  ' Or go back to it and pick up where you left off.',
     restingTtl:f?'Cooling':'Resting',
@@ -3683,7 +3683,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.142';
+var APPV='v4.143';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4371,7 +4371,8 @@ function planCard(id,i,nx,dk){
   // the size of the day. The ADD-ON tag went because the meta already says Optional, and YOURS
   // because whose day it is has never been something you needed telling twice.
   // DB.restLabel first: what the rest day is FOR is the user's own, not the app's to state.
-  var meta=v==='rest'?(DB.restLabel||(e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+totalSets(id)+' sets':totalSets(id)+' sets');
+  var ts=totalSets(id),tsw=ts+(ts===1?' set':' sets');
+  var meta=v==='rest'?(DB.restLabel||(e&&e.label)||'Rest'):(v==='opt'?'Optional &middot; '+tsw:tsw);
   return '<div class="card'+(v?' '+v:'')+(sealed?' sealed':'')+(up?' upnext':'')+'" data-base="'+id+'" style="--c:'+dayC(id)+';--gd:-'+(i*0.77).toFixed(2)+'s" onclick="mkTap(\''+id+'\',\''+dk+'\')">'+
     (sealed?'<svg class="seal" viewBox="0 0 100 100">'+ouroboros('var(--gold)','var(--surface)',false)+'</svg>':'')+
     '<div class="card-top"><span class="card-name">'+w.name.replace('Optional: ','')+'</span>'+
@@ -4947,7 +4948,7 @@ function renderSides(){
   var open=loggedCount('pump');
   el.innerHTML=
     '<div class="side'+(walkRunning()?' going':'')+'" id="sideWalk" onclick="openWalk()">'+
-      '<span class="side-i">'+WALK_ICON_SVG+'</span><b>Log cardio</b>'+
+      '<span class="side-i">'+WALK_ICON_SVG+'</span><b>Log a walk</b>'+
       '<small>'+walkStatus()+'</small></div>'+
     '<div class="side" id="sidePump" onclick="openPump()">'+
       '<span class="side-i" style="color:var(--gold)">'+pumpIconSvg()+'</span><b>Pump day</b>'+
@@ -5027,7 +5028,7 @@ function renderHome(){
   document.getElementById('extraHint').style.display='';
   document.getElementById('extraHint').innerHTML=xs.length
     ? 'Not part of the week &mdash; open one whenever you want it'
-    : 'Empty. Hold a day above to '+mkEsc(MKTXT().xa.charAt(0).toLowerCase()+MKTXT().xa.slice(1))+'.';
+    : 'A new workout starts here until you give it days. You can also hold a day above to '+mkEsc(MKTXT().xa.charAt(0).toLowerCase()+MKTXT().xa.slice(1))+'.';
   mkBindCards();
   cardBind();
   syncPumpBtn();
@@ -5126,7 +5127,7 @@ function openW(wk,dk){
     var names=open.map(function(k){return W[k].name.replace('Optional: ','');});
     var n1=loggedCount(open[0]);
     var msg=(open.length===1?names[0]+' is still open with '+n1+(n1===1?' set':' sets')+' on it.':open.length+' other sessions are still open: '+names.join(', ')+'.')+
-      TXT('sealLine')+(open.length===1?'':'s')+'. Every set you logged is saved to your history \u2014 nothing is lost.'+
+      TXT('sealLine')+(open.length===1?'':'s')+'. Every set you logged is saved to your history \u2014 nothing is lost \u2014 but the day will not show as COMPLETED: only finishing a session from inside it does that.'+
       (open.length===1?TXT('sealMore'):'');
     ask(msg,function(){
       open.forEach(sealAway);
@@ -5428,7 +5429,7 @@ function toggleSet(id,i,rest,unit){
 }
 function updateProg(){
   var tot=totalSets(CUR),done=loggedCount(CUR),pct=tot?done/tot:0;
-  document.getElementById('sSub').innerHTML='<b>'+done+'</b> of '+tot+' sets';
+  document.getElementById('sSub').innerHTML='<b>'+done+'</b> of '+tot+(tot===1?' set':' sets');
   var C=106.8;
   document.getElementById('ringBar').setAttribute('stroke-dashoffset',C-C*pct);
   document.getElementById('ringLbl').textContent=done+'/'+tot;
@@ -6912,7 +6913,7 @@ function renderSummary(s){
   function cell(n,unit,label,cls){
     return '<div class="sum-c'+(cls?' '+cls:'')+'"><div class="sum-n">'+n+(unit?'<small>'+unit+'</small>':'')+'</div><div class="sum-l">'+label+'</div></div>';
   }
-  var cells=[cell(s.sets,'','Sets logged')];
+  var cells=[cell(s.sets,'',s.sets===1?'Set logged':'Sets logged')];
   if(s.vol>0)cells.push(cell(Math.round(dspW(s.vol)).toLocaleString(),' '+wUnitName()+'s','Weight moved'));
   if(s.reps>0)cells.push(cell(s.reps,'','Total reps'));
   if(s.held>0){var hd=fmtHeld(s.held);cells.push(cell(hd.n,hd.u,'Time held'));}
@@ -7716,7 +7717,7 @@ function renderHist(){
           '<div class="hrow-b">'+
             '<div class="hrow-d">'+pretty(L.date)+'</div>'+
             '<div class="hrow-n">'+(w?w.name.replace('Optional: ',''):L.day)+'</div>'+
-            '<div class="hrow-m">'+s.n+' sets'+(s.pr?' &middot; <span class="pr">'+s.pr+' record'+(s.pr>1?'s':'')+'</span>':'')+'</div>'+
+            '<div class="hrow-m">'+s.n+(s.n===1?' set':' sets')+(s.pr?' &middot; <span class="pr">'+s.pr+' record'+(s.pr>1?'s':'')+'</span>':'')+'</div>'+
           '</div><div class="hrow-a">&rsaquo;</div>'+
         '</div>'+out;
     });
@@ -7732,7 +7733,7 @@ function renderHist(){
   var first=new Date(m.y,m.m,1),lead=first.getDay(),days=new Date(m.y,m.m+1,0).getDate();
   var now=new Date(),isNow=now.getFullYear()===m.y&&now.getMonth()===m.m;
   var cells=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d){return '<div class="hdow">'+d.toUpperCase()+'</div>';}).join('');
-  for(var i=0;i<lead;i++)cells+='<div class="hcell pad">0</div>';
+  for(var i=0;i<lead;i++)cells+='<div class="hcell pad"></div>';
   for(var d=1;d<=days;d++){
     var idx=byDay[d],w=idx!==undefined?W[DB.logs[idx].day]:null;
     cells+='<div class="hcell'+(idx!==undefined?' has':'')+(isNow&&now.getDate()===d?' now':'')+'"'+
@@ -9752,7 +9753,7 @@ function wkPace(){
   if(m>0&&d>0){
     var p=m/d,mm=Math.floor(p),ss=Math.round((p-mm)*60);
     if(ss===60){mm++;ss=0;}
-    el.textContent=mm+':'+String(ss).padStart(2,'0')+' per mile';
+    el.textContent=mm+':'+String(ss).padStart(2,'0')+(UNIT_KG?' per km':' per mile');
   }else el.textContent='';
 }
 function wkSetFeel(f){WKFEEL=(WKFEEL===f?null:f);drawFeel();}
@@ -9772,6 +9773,8 @@ function drawWalk(){
   document.getElementById('wkStats').innerHTML=
     '<div class="wk-s"><b>'+st+'<small>'+(st===1?'day':'days')+'</small></b><span>Streak at '+WALK_TGT+' min</span></div>'+
     '<div class="wk-s"><b>'+wkm+'<small>/ '+(WALK_TGT*7)+'</small></b><span>Minutes this week</span></div>';
+  var dl=document.getElementById('wkDistLbl');
+  if(dl)dl.textContent=UNIT_KG?'Kilometers':'Miles';
   drawFeel();wkPace();
 }
 function openWalk(){
@@ -9788,8 +9791,10 @@ function saveWalk(){
   if(!(m>0)){document.getElementById('wkHint').textContent='How many minutes? Start the clock or type it in.';return;}
   var d=parseFloat(document.getElementById('wkDist').value),s=parseInt(document.getElementById('wkSteps').value,10);
   DB.walks=DB.walks||[];
+  // distance is typed in the display unit and stored in miles, the same one-conversion-at-the-
+  // edge rule the weights follow - a metric walker types kilometers and never does the math
   DB.walks.push({date:iso(new Date()),min:Math.round(m*10)/10,
-    dist:(d>0?Math.round(d*100)/100:null),steps:(s>0?s:null),feel:WKFEEL,ts:Date.now()});
+    dist:(d>0?Math.round((UNIT_KG?d/1.60934:d)*100)/100:null),steps:(s>0?s:null),feel:WKFEEL,ts:Date.now()});
   DB.walkRun=null;saveDB();
   try{sfxLog();}catch(e){}
   closeOvl('walkOvl');renderHome();
