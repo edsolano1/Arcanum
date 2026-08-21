@@ -143,5 +143,9 @@ writes through — `mkTouch()`, debounced 500ms. There is no "unsaved" state in 
    exercise — assisted work charts assistance falling, timed work charts the hold. Still open:
    day/week-level volume trends, and richer charts if v1 earns them. Full gap analysis against
    Hevy/Strong/Jefit exists as a published artifact.
-3. **Kilograms.** Needs a real switch, not a second label — stored numbers need converting or
-   tagging.
+3. **Kilograms.** Shipped in v4.141 as a display skin: storage stays pounds forever, the
+   Units toggle (Settings) converts at render and converts input back exactly once. Session
+   inputs carry the exact pound value in `data-lb` while showing kg — that is what stops a
+   145 lb target round-tripping through "66 kg" into a 145.5 phantom PR. Still open: plate
+   math fallback steps are 2.5/5 lb even in kg mode (learned lattices are unit-agnostic, so
+   this self-corrects per machine after two logged weights).
