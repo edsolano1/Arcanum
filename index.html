@@ -5,18 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ARCANUM">
+<meta name="apple-mobile-web-app-title" content="FORGE">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- First frame only. THEME_BAR overwrites this the moment a theme applies; this is what the
      system bar wears in between, so it matches the ground the icon is drawn on. -->
 <meta name="theme-color" content="#0a0605">
-<meta name="application-name" content="Arcanum">
+<meta name="application-name" content="Forge">
 <meta name="msapplication-TileColor" content="#07080e">
 <meta name="msapplication-TileImage" content="icons/arcanum-192.png">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/arcanum-180.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/arcanum-512.png">
-<title>ARCANUM</title>
+<title>FORGE</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Cormorant+Garamond:wght@400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Big+Shoulders+Display:wght@600;700;800&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&family=Libre+Franklin:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <script>
@@ -2517,7 +2517,7 @@ body.wcon{overflow:hidden;}
   <div class="lx-in">
     <div class="lx-logo" id="lxLogo"></div>
     <div class="lx-rule"></div>
-    <div class="lx-word">Arcanum</div>
+    <div class="lx-word">Forge</div>
   </div>
   <div class="sp-board" hidden>
     <div class="sp-frame">
@@ -2531,7 +2531,7 @@ body.wcon{overflow:hidden;}
           <g class="gy gy-moon"><path d="M50 36.5l2.9 10.6L63.5 50l-10.6 2.9L50 63.5l-2.9-10.6L36.5 50l10.6-2.9z" fill="currentColor"/></g>
         </g>
       </svg>
-      <div class="sp-word">Arcanum</div>
+      <div class="sp-word">Forge</div>
       <div class="sp-rule"></div>
       <div class="sp-tag" id="spTag">Loading</div>
     </div>
@@ -2558,7 +2558,7 @@ body.wcon{overflow:hidden;}
   <div class="brand">
     <span class="markwrap"><svg class="mark" width="36" height="36" viewBox="0 0 100 100" fill="none" id="mark"></svg><svg class="mark markglow" width="36" height="36" viewBox="0 0 100 100" fill="none" id="markGlow" aria-hidden="true"></svg></span>
     <div class="brandtxt">
-      <div class="wordmark">ARCANUM</div>
+      <div class="wordmark">FORGE</div>
       <div class="tagline" id="tagline"></div>
     </div>
     <!-- The quick timer lives in a session, not out here. A rest belongs to a set, and the week
@@ -3535,8 +3535,8 @@ var GEN_TXT={
   splashTag: 'Loading',
   restTtl:   'Rest over',
   restBody:  'Next set is ready.',
-  closeTtl:  'Close Arcanum?',
-  closeMsg:  'Arcanum closes. Your session stays exactly where it is — nothing is lost.'
+  closeTtl:  'Close Forge?',
+  closeMsg:  'Forge closes. Your session stays exactly where it is — nothing is lost.'
 };
 function TXT(k){
   if(GENERIC)return GEN_TXT[k];
@@ -3684,7 +3684,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.144';
+var APPV='v4.145';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -7410,7 +7410,7 @@ function doRestore(input){
   rd.onload=function(){
     var d=null;
     try{d=JSON.parse(String(rd.result));}catch(e){}
-    if(!d||!d.db||!d.db.logs){ask('That file is not an Arcanum backup.',null,'Could not read it');return;}
+    if(!d||!d.db||!d.db.logs){ask('That file is not a Forge backup.',null,'Could not read it');return;}
     var inN=d.db.logs.length,haveN=(DB.logs||[]).length;
     ask('The backup holds '+inN+' logged session'+(inN===1?'':'s')+', from '+(d.at||'an unknown date').slice(0,10)+
         '. Restoring replaces everything currently in this app'+
@@ -7475,7 +7475,7 @@ function restoreBackup(){
   if(!raw){ask('Paste a backup into the box first.',null,'Nothing to restore');return;}
   var d;
   try{d=JSON.parse(raw);}catch(e){ask('That text is not a valid backup. Paste the whole thing, starting with { and ending with }.',null,'Could not read backup');return;}
-  if(!d||!d.logs){ask('That JSON does not look like an ARCANUM backup.',null,'Could not read backup');return;}
+  if(!d||!d.logs){ask('That JSON does not look like a FORGE backup.',null,'Could not read backup');return;}
   ask('This replaces everything currently stored with the backup you pasted ('+d.logs.length+' sessions).',function(){
     DB=d;if(!DB.active)DB.active={};
     saveDB();closeOvl('backupOvl');renderHome();

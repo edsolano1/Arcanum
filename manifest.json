@@ -1,6 +1,6 @@
 {
-  "name": "Arcanum",
-  "short_name": "Arcanum",
+  "name": "Forge",
+  "short_name": "Forge",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
