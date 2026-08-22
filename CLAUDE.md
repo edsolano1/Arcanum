@@ -132,17 +132,18 @@ writes through — `mkTouch()`, debounced 500ms. There is no "unsaved" state in 
 
 ## Open decisions
 
-1. **Two editors.** The builder (`#make`) and the in-session hold-menu (`exEditOvl`) edit the same
-   nouns with different controls, and the session one is stale — it has no per-set targets, no
-   unit control, and reorders only inside a superset. Recommendation: unify the *component* (the
-   same workout-item card in both) and ask "this week or just today?" once on the way out of a
-   session, rather than merging the modes. **Do not update `exEditOvl` piecemeal** — that work is
-   thrown away if this happens.
-2. **Analysis features.** v1 shipped in v4.136: the Progress sheet's exercise rows now open
-   into est 1RM (Epley on the session's top set), volume last/best, and an SVG line chart per
-   exercise — assisted work charts assistance falling, timed work charts the hold. Still open:
-   day/week-level volume trends, and richer charts if v1 earns them. Full gap analysis against
-   Hevy/Strong/Jefit exists as a published artifact.
+1. **One editor** (resolved, v4.146). Holding an exercise mid-session — or tapping ADD AN
+   EXERCISE — opens the real builder on the real workout (`sessionEdit`); backing out returns
+   to the session with the new shape live. The one question this creates is asked ONCE at
+   Finish (`finishGate`): "keep for coming weeks, or just today?" — just-today restores the
+   pre-edit snapshot after sealing, so the log keeps what actually happened. `mkFlush` exists
+   because leaving the builder must not race the 500ms autosave. `exEditOvl` survives ONLY
+   for built-in days (Pump Day), which have no custom copy to edit.
+2. **Analysis features.** v1 shipped in v4.136 (per-exercise est 1RM, volume, line charts).
+   v2 shipped in v4.146: "THE LAST 8 WEEKS" atop the Progress sheet — weekly weight-moved
+   bars (gold = biggest week) plus plain this-week-vs-last rows for sessions, sets, and
+   weight moved (`weekBuckets`/`weekStrip`). Marked-done days carry no sets and do not count
+   as sessions. Full gap analysis against Hevy/Strong/Jefit exists as a published artifact.
 3. **Kilograms.** The toggle shipped in v4.141 as a display skin: storage stays pounds
    forever, the Units toggle (Settings) converts at render and converts input back exactly
    once. Session inputs carry the exact pound value in `data-lb` while showing kg — that is

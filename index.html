@@ -3684,7 +3684,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.145';
+var APPV='v4.146';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -5836,14 +5836,26 @@ function mkCreate(){
 // This is the whole of the autosave item: the fold made it possible, because before the day was
 // saved there was nothing to write to and the work lived only in the page.
 var mkT=null;
+var mkPend=false;
 function mkTouch(){
   if(!MK.id)return;
+  mkPend=true;
   clearTimeout(mkT);
   mkT=setTimeout(function(){
     if(!MK.id)return;
+    mkPend=false;
     DB.custom[MK.id]=mkBuild();
     mergeCustom();saveDB();renderHome();
   },500);
+}
+// The debounce is for typing, not for leaving. Backing out of the builder within half a
+// second of an edit used to race the timer - the session behind it re-rendered off the OLD
+// definition and the write landed after. Leaving flushes whatever is pending, immediately.
+function mkFlush(){
+  if(!mkPend||!MK||!MK.id||!DB.custom[MK.id])return;
+  clearTimeout(mkT);mkPend=false;
+  DB.custom[MK.id]=mkBuild();
+  mergeCustom();saveDB();renderHome();
 }
 function mkDuplicate(id){
   var src=DB.custom[id]||W[id];
@@ -6021,7 +6033,19 @@ function openMake(base,editId,blank,want){
   document.getElementById('make').classList.add('on');
   syncPumpBtn();
 }
-function closeMake(){document.getElementById('make').classList.remove('on');syncPumpBtn();}
+function closeMake(){
+  mkFlush();
+  document.getElementById('make').classList.remove('on');syncPumpBtn();
+  // A builder opened FROM a session hands back to that session, not to the week - the day
+  // re-renders so its targets are whatever was just edited. (Unless the workout itself was
+  // deleted in there, in which case the week is the only honest place to land.)
+  if(SESSEDIT&&SESSEDIT.on&&CUR===SESSEDIT.wk&&DB.active[CUR]&&W[CUR]&&DB.custom[CUR]){
+    SESSEDIT.on=false;
+    renderSession();
+    var sv=document.getElementById('session');
+    sv.classList.add('on');sv.scrollTop=0;
+  }else if(SESSEDIT)SESSEDIT.on=false;
+}
 function mkSlotTog(k){
   var i=MK.slots.indexOf(k);
   if(i>=0)MK.slots.splice(i,1);else MK.slots.push(k);
@@ -6971,9 +6995,28 @@ function finishSession(){
   var left=totalSets(wk)-loggedCount(wk);
   if(left>0&&!TUTON){
     ask(left+' set'+(left===1?' is':'s are')+' still unlogged. Finishing seals this day as it stands, and it stays done until the week turns over.',
-      finishNow,'Finish with '+left+' left?','FINISH');
+      finishGate,'Finish with '+left+' left?','FINISH');
     return;
   }
+  finishGate();
+}
+// The one question the unified editor creates, asked once on the way out: mid-session
+// edits went straight into the workout (autosave is the truth), so "just today" means
+// putting the plan back afterwards - today already ran the new shape either way.
+function finishGate(){
+  var wk=CUR;
+  if(SESSEDIT&&SESSEDIT.wk===wk&&!TUTON&&JSON.stringify(DB.custom[wk]||null)!==SESSEDIT.snap){
+    var snap=SESSEDIT.snap;
+    ask('You reshaped this workout mid-session. Today ran the new shape either way — should the coming weeks keep it too?',
+      function(){SESSEDIT=null;finishNow();},
+      'Keep the changes?','FROM NOW ON',null,
+      {label:'JUST TODAY',fn:function(){
+        DB.custom[wk]=JSON.parse(snap);mergeCustom();saveDB();
+        SESSEDIT=null;finishNow();
+      }});
+    return;
+  }
+  SESSEDIT=null;
   finishNow();
 }
 function finishNow(){
@@ -7588,6 +7631,55 @@ function progDetail(id){
   h+='<div class="pg-range"><span>Volume: last '+Math.round(dspW(S[S.length-1].vol)).toLocaleString()+' '+wUnitName()+'</span><span>best '+Math.round(dspW(bestVol)).toLocaleString()+'</span></div>';
   return '<div class="pg-detail">'+h+'</div>';
 }
+// ---------- the week, over time ----------
+// Analysis v2. Per-exercise charts answer "is this lift moving"; these answer the question
+// people actually open the sheet with - "am I training enough, and more than last week?" -
+// in plain rows and one bar chart, nothing to interpret.
+function weekBuckets(n){
+  var wk=7*86400000,ws=weekStartTs(),out=[],i;
+  for(i=n-1;i>=0;i--)out.push({t0:ws-i*wk,vol:0,sets:0,sess:0});
+  DB.logs.forEach(function(l){
+    if(!l.entries)return;
+    var t=new Date(l.date).getTime();if(isNaN(t))return;
+    for(i=0;i<out.length;i++){
+      var b=out[i];
+      if(t<b.t0||t>=b.t0+wk)continue;
+      var any=false;
+      for(var k in l.entries)l.entries[k].forEach(function(e){
+        if(!e)return;any=true;b.sets++;
+        if(e.unit!=='sec'&&e.w>0)b.vol+=e.w*e.r;   // "weight moved" means weight, honestly
+      });
+      if(any)b.sess++;   // a day marked done carries no sets and is not a session trained
+      break;
+    }
+  });
+  return out;
+}
+function weekBars(B){
+  var max=0;B.forEach(function(b){if(b.vol>max)max=b.vol;});
+  if(!max)return '';
+  var n=B.length,W=280,T=10,BOT=64,cw=W/n,bw=cw*0.56;
+  var bars=B.map(function(b,i){
+    var h=b.vol?Math.max(3,(BOT-T)*(b.vol/max)):2;
+    var col=b.vol===max?'var(--gold)':(i===n-1?'var(--go)':'color-mix(in srgb,var(--go) 40%,transparent)');
+    return '<rect x="'+(cw*i+(cw-bw)/2).toFixed(1)+'" y="'+(BOT-h).toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
+  }).join('');
+  return '<svg class="pg-chart" viewBox="0 0 280 70" preserveAspectRatio="none" aria-hidden="true">'+bars+'</svg>';
+}
+function weekStrip(){
+  var B=weekBuckets(8);
+  if(!B.some(function(b){return b.sets>0;}))return '';
+  var t=B[B.length-1],p=B[B.length-2];
+  var max=0;B.forEach(function(b){if(b.vol>max)max=b.vol;});
+  var h='<div class="pg-sec">THE LAST 8 WEEKS</div>';
+  h+=weekBars(B);
+  h+='<div class="pg-range"><span>8 weeks ago</span><span>gold = your biggest week ('+Math.round(dspW(max)).toLocaleString()+' '+wUnitName()+')</span><span>this week</span></div>';
+  h+='<div class="pg-row"><div class="pg-n">Sessions this week</div><div class="pg-v">'+t.sess+'</div><div class="pg-d">'+arrow(t.sess-p.sess)+'</div></div>';
+  h+='<div class="pg-row"><div class="pg-n">Sets this week</div><div class="pg-v">'+t.sets+'</div><div class="pg-d">'+arrow(t.sets-p.sets)+'</div></div>';
+  h+='<div class="pg-row"><div class="pg-n">Weight moved</div><div class="pg-v">'+Math.round(dspW(t.vol)).toLocaleString()+' '+wUnitName()+'</div><div class="pg-d">'+arrow(Math.round(dspW(t.vol-p.vol)))+'</div></div>';
+  h+='<div class="pg-cap">Arrows compare against the week before. A quieter week is information, not a verdict.</div>';
+  return h;
+}
 var PGSEL=null;
 function progSel(id,blk){
   PGSEL=(PGSEL&&PGSEL.id===id&&PGSEL.blk===blk)?null:{id:id,blk:blk};
@@ -7629,7 +7721,7 @@ function showProgress(){
       });
       return h;
     }
-    body.innerHTML=walkStrip()+block('VS LAST SESSION','dLast')+block('VS YOUR BEST EVER','dBest');
+    body.innerHTML=weekStrip()+walkStrip()+block('VS LAST SESSION','dLast')+block('VS YOUR BEST EVER','dBest');
   }
   document.getElementById('progSub').textContent=DB.logs.length+' session'+(DB.logs.length===1?'':'s')+' logged · tap a lift for its chart';
   document.getElementById('progOvl').classList.add('on');
@@ -9906,8 +9998,33 @@ function exBlockOf(wk,id){
   bl.forEach(function(b,n){if(b.ids.indexOf(id)>=0){out=b;at=n;}});
   return {blocks:bl,blk:out,at:at};
 }
+// ---------- one editor ----------
+// Decided Aug 22: the app has ONE editor, the builder. Holding an exercise mid-session
+// opens the real builder on the real workout - same controls, same picker, nothing to
+// learn twice and nothing to drift - and the session takes the new shape the moment you
+// come back. Whether the coming weeks keep that shape is asked ONCE, at Finish. The old
+// in-session sheet below survives only for built-in days (Pump Day), which have no
+// custom copy for the builder to edit.
+var SESSEDIT=null;
+function sessionEdit(id){
+  if(!SESSEDIT||SESSEDIT.wk!==CUR)SESSEDIT={wk:CUR,snap:JSON.stringify(DB.custom[CUR])};
+  SESSEDIT.on=true;
+  stopHold();
+  document.getElementById('session').classList.remove('on');
+  openMake(CUR,CUR);
+  // land the eye where the hold happened - or on the ADD button when that was the intent
+  setTimeout(function(){
+    var el=null;
+    if(id){
+      var ri=-1;MK.rows.forEach(function(r,i){if(ri<0&&r.id===id)ri=i;});
+      if(ri>=0)el=document.querySelectorAll('#mkBody .mk-row')[ri];
+    }else el=document.querySelector('#make .mk-new');
+    if(el)el.scrollIntoView({block:'center'});
+  },80);
+}
 function openExEdit(id){
   if(!CUR)return;
+  if(DB.custom[CUR]){sessionEdit(id);return;}
   var wk=CUR,ref=exRef(wk,id);
   if(!ref)return;
   var cur=R(ref,wk),b=exBlockOf(wk,id);
@@ -10118,6 +10235,9 @@ function exEdJoinWith(n){
   try{sfxLog();}catch(err){}
 }
 function exEdAdd(){
+  // One editor: adding to a workout you own goes through the builder's own picker, which
+  // knows supersets, cardio, and per-set targets. The sheet below stays for built-in days.
+  if(CUR&&DB.custom[CUR]){sessionEdit(null);return;}
   document.getElementById('exAddSearch').value='';
   exAddList();
   document.getElementById('exAddOvl').classList.add('on');
