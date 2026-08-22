@@ -153,13 +153,18 @@ writes through — `mkTouch()`, debounced 500ms. There is no "unsaved" state in 
    the standard approach across weight-measuring software (lifting apps, scales, health
    apps): one canonical unit internally, conversion only at the edges, and — the part that
    separates good from lazy — every number the app GENERATES is produced natively in the
-   user's unit, so suggestions always read as round, natural values in their world. The
-   remaining build-out, in order:
-   - **First run asks the unit** before any number is shown — a step in the welcome/forging
-     ritual, not a setting to discover later.
-   - **The generator speaks the unit**: in kg mode the wizard computes starting weights as
-     natural kg (the bar is 20 kg, not 20.4; rounding is to 2.5 kg, not 5 lb) and stores
-     the exact lb equivalent. A kg user's first week must look like a kg coach wrote it.
-   - **Plate-math fallback goes unit-aware**: level-up steps of 2.5/5 kg in kg mode
-     (learned machine lattices are already unit-agnostic and need nothing).
+   user's unit, so suggestions always read as round, natural values in their world.
+   Build-out status:
+   - **Unit choice stays in Settings** — decided (Aug 22): no first-run question. Switching
+     is always safe because storage is canonical-lb; the toggle is a lens, never a migration.
+   - **The generator speaks the unit** — shipped v4.144 (`natW`): kg-mode wizard weights land
+     on 2.5 kg plates (45 lb bar → 20 kg bar), stored as exact pounds.
+   - **Plate-math fallback is unit-aware** — shipped v4.144 (`plateNext`): level-up steps of
+     2.5/5 kg in kg mode, landing on the kg lattice; learned machine lattices unchanged.
    - Storage stays canonical-lb throughout — no data migration, ever.
+4. **Lift/cardio merged at the row level** (v4.144). A workout's `kind` is its flavor, not a
+   law: each row carries its own measure (`mkRowCardio` → `mkMeasures(r)`), the picker leads
+   with the kind's half of the library and lists the other under its own heading, and the
+   custom-exercise sheet asks lift/cardio (default = workout flavor, frozen after creation).
+   Level-ups were already safe: cardio lines pass through `levelPlan` unchanged and are
+   filtered as no-ops.

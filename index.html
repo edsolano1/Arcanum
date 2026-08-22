@@ -2974,6 +2974,7 @@ body.wcon{overflow:hidden;}
 <div class="ovl" id="mkCexOvl">
   <div class="sheet" style="max-width:420px">
     <h3 id="mkCexTtl">Add your own exercise</h3>
+    <div class="presets" style="grid-template-columns:1fr 1fr;margin-bottom:4px" id="mkCexKindRow"></div>
     <p id="mkCexKind"></p>
     <p>It joins the library and can be used on any day. Progress and personal bests track it like any other lift.</p>
     <input class="mk-in" id="mkCexName" placeholder="Exercise name" autocomplete="off">
@@ -3683,7 +3684,7 @@ function drawThemePick(){
 // the one that matters: it is what makes a device drop the build it is holding, so it only
 // ever moves forward and is never renumbered to match this. They are not the same count and
 // are not meant to be - v3.0 ships on arcanum-v131.
-var APPV='v4.143';
+var APPV='v4.144';
 var DB={logs:[],active:{},custom:{},slots:{},plan:[],cex:{},up:{},upSkip:{},extra:[],dayEdit:{},vOvr:{},walks:[],walkRun:null};
 async function loadDB(){
   var d=await Store.get(KEY),bak=null;
@@ -4081,13 +4082,18 @@ function levelPlan(wk){
       var nw;
       if(ln!=null)nw=ln;
       else{
-        nw=down?Math.max(0,t.w-stepFor(id,t.w)):t.w+stepFor(id,t.w);
+        // A learned machine lattice is unit-agnostic and steps by itself; plain plate
+        // math steps in the display unit's own plates (2.5/5 lb, or 2.5/5 kg in kg mode).
+        var st=stepFor(id,t.w),plate=(t.w>=40?5:2.5);
+        if(st!==plate)nw=down?Math.max(0,t.w-st):t.w+st;
+        else nw=plateNext(t.w,down);
         // Only a lift with NO usable history is an estimate. A barbell whose logged
         // weights already sit on plate steps has confirmed plate math - marking it ~
         // would hedge about the one thing the history corroborates.
         if(!stackStep(id))est=true;
       }
-      return (nw%1?nw.toFixed(1):nw)+'x'+t.r;
+      nw=Math.round(nw*100)/100;
+      return nw+'x'+t.r;
     });
     if(next.join('\n')===lines.join('\n'))return;
     // A declined raise stays declined until the lift is beaten again. The signature pins the
@@ -5437,8 +5443,9 @@ function updateProg(){
 }
 function clearSession(){
   ask('Unchecks every set you logged in this session so you can start it over. Your saved history from past sessions is not touched.',function(){
+    var wkDay=(DB.active[CUR]||{}).wk;   // the reset day is still the same weekday's day
     delete DB.active[CUR];
-    DB.active[CUR]={date:today(),entries:{},note:'',swaps:{}};
+    DB.active[CUR]={date:today(),entries:{},note:'',swaps:{},wk:wkDay||dayGuess(CUR)};
     saveDB();stopHold();renderSession();stopTimer();
   },'Reset this session?','RESET');
 }
@@ -6239,7 +6246,20 @@ var MK_MEASURE_SETS={
   lift:  [['wr','Weight and reps'],['reps','Reps only'],['sec','Seconds']],
   cardio:[['min','Minutes'],['cal','Calories'],['sec','Seconds']]
 };
-function mkMeasures(){return MK_MEASURE_SETS[MK.kind]||MK_MEASURE_SETS.lift;}
+// Which world a ROW counts in. The workout's kind used to decide this for every row at once,
+// which walled cardio out of lifting days - a wall the wizard itself already ignores (the
+// weight-loss week ends lifting days on a 10-minute burn). The row's own unit answers first,
+// then the exercise it holds, then the workout's flavor for a row with neither.
+function mkRowCardio(r){
+  if(r){
+    var u=mkUnitOf(r);
+    if(u==='min'||u==='cal')return true;
+    if(u==='wr'||u==='reps')return false;
+    var e=EX[r.id];if(e)return !!e.cardio;   // 'sec' is legal in both worlds - ask the exercise
+  }
+  return MK.kind==='cardio';
+}
+function mkMeasures(r){return MK_MEASURE_SETS[mkRowCardio(r)?'cardio':'lift'];}
 // Which kind a day already is, for one opened before this existed. Read off the work rather than
 // defaulted, so the Power Walk and the Stairmaster come back as cardio instead of as lifting with
 // an impossible unit.
@@ -6254,11 +6274,10 @@ function mkKindOf(rows){
 function mkSetKind(k){
   if(MK.kind===k)return;
   MK.kind=k;
-  // Every row is moved onto a unit its new kind can express. A lift counted in calories, or a
-  // cardio piece counted in weight, is not a thing - so rather than leave rows carrying a unit
-  // the picker cannot show, they are converted to that kind's first measure.
-  var allowed={};mkMeasures().forEach(function(m){allowed[m[0]]=1;});
-  MK.rows.forEach(function(r,i){if(!allowed[mkUnitOf(r)])mkSetUnit(i,mkMeasures()[0][0],true);});
+  // Kind is the workout's FLAVOR now, not a law over its rows. It used to convert every row
+  // onto the new kind's units, which with mixed days allowed would rewrite a finisher's
+  // minutes into sets of ten. Each row keeps its own measure; kind decides which half of the
+  // library the picker leads with and what a brand-new custom exercise defaults to.
   mkRender();
 }
 function mkUnitOf(r){
@@ -6266,12 +6285,12 @@ function mkUnitOf(r){
   return r.hold?'sec':'wr';        // rows built before this existed carried a hold flag
 }
 function mkUnitLabel(u){
-  var M=mkMeasures();
+  var M=MK_MEASURE_SETS.lift.concat(MK_MEASURE_SETS.cardio);
   for(var k=0;k<M.length;k++)if(M[k][0]===u)return M[k][1];
   return M[0][1];
 }
 function mkMeasureUI(r,i){
-  var u=mkUnitOf(r),opts=mkMeasures().slice();
+  var u=mkUnitOf(r),opts=mkMeasures(r).slice();
   // If a row somehow carries a unit outside its kind - a day edited by hand, an import - it is
   // shown rather than silently swapped, and only for that row. Being wrong loudly beats being
   // rewritten quietly.
@@ -6687,19 +6706,20 @@ function mkPick(){
   document.getElementById('mkPickOvl').classList.add('on');
 }
 function mkPickList(){
-  var q=(document.getElementById('mkSearch').value||'').toLowerCase(),mine=[],lib=[];
-  // The list follows the workout's kind. Offering a bench press while building a cardio piece is
-  // offering something that cannot be counted in the units that workout uses, and offering a
-  // treadmill on a lifting day is the same fault the other way round.
+  var q=(document.getElementById('mkSearch').value||'').toLowerCase(),mine=[],lib=[],alt=[];
+  // The workout's kind LEADS the list rather than gating it. Since every row carries its own
+  // measure, a lifting day can end on a rower and a cardio piece can hold a plank - the same
+  // mix the wizard's weight-loss week already builds. The other world sits below under its
+  // own heading, so a bench day still opens onto lifts.
   var wantCardio=(MK.kind==='cardio');
   for(var k in EX){
     if(k.indexOf('p_')===0)continue;
-    if(!!EX[k].cardio!==wantCardio)continue;
     if(q&&EX[k].name.toLowerCase().indexOf(q)<0)continue;
-    (DB.cex[k]?mine:lib).push(k);
+    if(!!EX[k].cardio!==wantCardio)alt.push(k);
+    else (DB.cex[k]?mine:lib).push(k);
   }
   var by=function(a,b){return EX[a].name<EX[b].name?-1:1;};
-  mine.sort(by);lib.sort(by);
+  mine.sort(by);lib.sort(by);alt.sort(by);
   var item=function(k){
     var own=!!DB.cex[k];
     return '<div class="swapitem" onclick="mkAddEx(\''+k+'\')" style="display:flex;align-items:center;gap:10px">'+
@@ -6711,7 +6731,8 @@ function mkPickList(){
   var h='';
   if(mine.length)h+='<div class="swaphead">Yours</div>'+mine.map(item).join('');
   h+=(mine.length?'<div class="swaphead">Library</div>':'')+lib.map(item).join('');
-  if(!mine.length&&!lib.length)h+='<div class="mk-empty">Nothing matches. Add it as your own exercise instead.</div>';
+  if(alt.length)h+='<div class="swaphead">'+(wantCardio?'Lifting':'Cardio')+'</div>'+alt.map(item).join('');
+  if(!mine.length&&!lib.length&&!alt.length)h+='<div class="mk-empty">Nothing matches. Add it as your own exercise instead.</div>';
   document.getElementById('mkList').innerHTML=h;
 }
 function mkAddEx(id){
@@ -6726,12 +6747,9 @@ function mkAddEx(id){
 var mkCexId=null;
 function mkNewEx(){
   mkCexId=null;
-  // It inherits the workout's kind rather than asking - that was answered at the top of the same
-  // screen. Saying so here is the difference between inheriting and guessing.
-  var kk=document.getElementById('mkCexKind');
-  if(kk)kk.textContent=(MK.kind==='cardio')
-    ? 'It joins your cardio list and is counted in minutes or calories, like the rest of this workout.'
-    : 'It joins your lifting list and is counted in weight, reps or a hold, like the rest of this workout.';
+  // Now that a workout can hold both worlds, the kind is a visible choice rather than an
+  // inheritance - defaulted to the workout's flavor, one tap to say otherwise.
+  mkCexKindSet(MK.kind==='cardio'?'cardio':'lift');
   document.getElementById('mkCexName').value='';
   document.getElementById('mkCexNote').value='';
   document.getElementById('mkCexLink').value='';
@@ -6741,11 +6759,29 @@ function mkNewEx(){
 function mkEditCex(id){
   var x=DB.cex[id];if(!x)return;
   mkCexId=id;
+  // The kind is settled at birth - changing it later would leave logged history counted in
+  // units the exercise no longer uses - so editing shows it as a fact, not a choice.
+  var kr=document.getElementById('mkCexKindRow');if(kr)kr.innerHTML='';
+  var kk=document.getElementById('mkCexKind');
+  if(kk)kk.textContent=x.cardio?'A cardio exercise — counted in minutes or calories.':'A lifting exercise — counted in weight, reps or a hold.';
   document.getElementById('mkCexName').value=x.name||'';
   document.getElementById('mkCexNote').value=x.note||'';
   document.getElementById('mkCexLink').value=x.link||'';
   mkCexInvSet(!!x.inv);
   document.getElementById('mkCexOvl').classList.add('on');
+}
+// Which world the new exercise belongs to. Drawn as the same preset buttons the settings use.
+var MKCEXKIND='lift';
+function mkCexKindSet(k){
+  MKCEXKIND=k;
+  var e=document.getElementById('mkCexKindRow');
+  if(e)e.innerHTML=[['lift','Lifting'],['cardio','Cardio']].map(function(o){
+    return '<button class="preset'+(MKCEXKIND===o[0]?' sel':'')+'" onclick="mkCexKindSet(\''+o[0]+'\')">'+o[1]+'</button>';
+  }).join('');
+  var kk=document.getElementById('mkCexKind');
+  if(kk)kk.textContent=(k==='cardio')
+    ? 'Counted in minutes or calories, like a machine counts.'
+    : 'Counted in weight, reps or a timed hold.';
 }
 // The tick on the new-exercise sheet, held on the element itself so nothing else has to remember
 // it between opening the sheet and saving from it.
@@ -6776,11 +6812,9 @@ function mkSaveCex(){
     mkPickList();mkRender();return;
   }
   var id='cx'+Date.now().toString(36);
-  // An exercise invented while building a cardio workout is a cardio exercise, and it is given
-  // a cardio default rather than three sets of ten - which is not a thing a treadmill does. The
-  // kind is taken from the workout being built rather than asked, because it has already been
-  // answered at the top of the same screen and asking twice is how the two disagree.
-  var isCardio=(MK.kind==='cardio');
+  // The kind comes from the sheet's own toggle - defaulted to the workout's flavor, but a
+  // finisher invented on a lifting day can say it is cardio without leaving the sheet.
+  var isCardio=(MKCEXKIND==='cardio');
   DB.cex[id]=isCardio
     ? {cardio:1,name:n,note:note,link:link,sets:'20 min',rest:'',custom:1}
     : {name:n,note:note,link:link,sets:'0x10\n0x10\n0x10',rest:'60 sec',custom:1};
@@ -8016,6 +8050,31 @@ function dspW(lb){return UNIT_KG?Math.round(lb/LB_PER_KG*2)/2:lb;}   // kg shown
 function fmtW(lb){var v=dspW(lb);return String(v%1?v.toFixed(1):v);}
 function inW(v){v=parseFloat(v)||0;return UNIT_KG?v*LB_PER_KG:v;}
 function wUnitName(){return UNIT_KG?'kg':'lb';}
+// Snap a pound value to the nearest weight that is NATURAL in the display unit - 5 lb
+// rounding in pound mode, the 2.5 kg plate lattice in kg mode - returned as exact pounds
+// either way. This is what separates a kg citizen from a conversion afterthought: every
+// number the app GENERATES lands on a weight that exists in their world, so a generated
+// bench reads 30 kg, never 29.5.
+function natW(lb,stepLb){
+  var st=stepLb||5;
+  if(!UNIT_KG)return Math.max(st,Math.round(lb/st)*st);
+  var kg=Math.max(2.5,Math.round((lb/LB_PER_KG)/2.5)*2.5);
+  return Math.round(kg*LB_PER_KG*100)/100;
+}
+// One plate step up or down from w, in the display unit's own plates. Pound mode keeps the
+// classic 2.5-under-40 / 5-over rule. Kg mode steps by what kg gyms actually offer: 2.5 kg
+// is THE standard raise (the 1.25 plates), with 5 kg reserved for genuinely heavy work at
+// 60 kg and up - stepping in kg space and landing ON the 2.5 kg lattice, so a level up
+// reads "+2.5 kg" instead of 2.5 lb translated into 1.1 kg of nowhere.
+function plateNext(w,down){
+  if(!UNIT_KG){var p=w>=40?5:2.5;return down?Math.max(0,w-p):w+p;}
+  var kc=w/LB_PER_KG,ks=kc>=60?5:2.5;
+  var kn=Math.round((kc+(down?-ks:ks))/2.5)*2.5;
+  if(!down&&kn<=kc+0.01)kn+=2.5;
+  if(down&&kn>=kc-0.01)kn-=2.5;
+  if(kn<0)kn=0;
+  return Math.round(kn*LB_PER_KG*100)/100;
+}
 // a target line like "145x8" with its weight spoken in the current unit
 function fmtLine(s){
   return String(s).replace(/^([\d.]+)x/,function(_,w){return fmtW(parseFloat(w))+'x';});
@@ -11410,8 +11469,10 @@ function ezRow(role,cls,level,mult,goal){
   if(cls==='core'&&/sec/.test(EX[id].sets))line=rx.t+' sec';
   else if(cls==='core')line='0x'+(rx.r||15);
   else if(EZ_W[id]!=null){
-    var w=Math.max(5,Math.round(EZ_W[id]*mult/5)*5);
-    line=w+'x'+rx.r;
+    // natW: a kg user's first week is written by a kg coach - starting weights land on
+    // 2.5 kg plates (the 45 lb bar becomes the 20 kg bar), stored as exact pounds.
+    var w=natW(EZ_W[id]*mult,5);
+    line=(Math.round(w*100)/100)+'x'+rx.r;
   }
   else line='0x'+rx.r;
   var out=[];for(var i=0;i<sets;i++)out.push(line);
